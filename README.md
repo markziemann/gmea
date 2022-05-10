@@ -43,7 +43,7 @@ The epigenetics community will probably find this useful, especially with identi
 
 3. Irizarry RA, Wang C, Zhou Y, Speed TP. Gene set enrichment analysis made simple. Stat Methods Med Res. 2009 Dec;18(6):565-75. doi: 10.1177/0962280209351908. Erratum in: Stat Methods Med Res. 2011 Oct;20(5):571. PMID: 20048385; PMCID: PMC3134237.
 
-4. 1.	Wallace C. Gene set enrichment analysis using Wilcoxon tests [Internet]. Microsoft.com. 2012 [cited 2022 May 10]. Available from: https://mran.microsoft.com/snapshot/2015-04-25/web/packages/wgsea/vignettes/wgsea.pdf
+4. Wallace C. Gene set enrichment analysis using Wilcoxon tests [Internet]. Microsoft.com. 2012 [cited 2022 May 10]. Available from: https://mran.microsoft.com/snapshot/2015-04-25/web/packages/wgsea/vignettes/wgsea.pdf
 
 5. Jung AY, Smulders Y, Verhoef P, Kok FJ, Blom H, Kok RM, Kampman E, Durga J. No effect of folic acid supplementation on global DNA methylation in men and women with moderately elevated homocysteine. PLoS One. 2011;6(9):e24976. doi: 10.1371/journal.pone.0024976. Epub 2011 Sep 23. PMID: 21966393; PMCID: PMC3179474.
 
