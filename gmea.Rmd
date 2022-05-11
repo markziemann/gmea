@@ -42,7 +42,7 @@ library("mitch")
 
 ```{r,dma3a}
 
-dm <- read.table("dma3a.tsv")
+dm <- read.table("dma3a.tsv.gz")
 
 # testing
 dm <- head(dm,40000)
@@ -176,9 +176,14 @@ rownames(dmscore) <- rownames(gme_res_df)
 
 colnames(dmscore) <- "metric"
 
-#download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", destfile="ReactomePathw>
-#unzip("ReactomePathways.gmt.zip")
+if ( ! file.exists("ReactomePathways.gmt") ) {
+  download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip",
+    destfile="ReactomePathways.gmt.zip")
+  unzip("ReactomePathways.gmt.zip")
+}
+file.info("ReactomePathways.gmt")
 genesets <- gmt_import("ReactomePathways.gmt")
+length(genesets)
 
 res <- mitch_calc(x=dmscore, genesets=genesets, priority="effect")
 
