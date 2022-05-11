@@ -36,13 +36,17 @@ library("mitch")
 
 ```
 
-# DM1 - post trial supplement versus placebo
+# DM3 - post trial supplement versus placebo
 
 ## Whole gene analysis
 
-```{r,dma1a}
+```{r,dma3a}
 
-dm <- read.table("dma1a.tsv")
+dm <- read.table("dma3a.tsv")
+
+# testing
+dm <- head(dm,40000)
+
 head(dm,50) %>%
   kbl(caption = "Top significant genes with limma") %>%
   kable_paper("hover", full_width = F)
@@ -182,7 +186,7 @@ head(res$enrichment_result,20) %>%
   kbl(caption = "Top enriched gene sets with GMEA-Mitch") %>%
   kable_paper("hover", full_width = F)
 
-mitch_report(res,outfile="dma1a_mitch.html",overwrite=TRUE)
+mitch_report(res,outfile="dma3a_mitch.html",overwrite=TRUE)
 
 ```
 
@@ -190,8 +194,12 @@ mitch_report(res,outfile="dma1a_mitch.html",overwrite=TRUE)
 
 ```{r,promo}
 
-dm <- read.table("dma1a.tsv")
+dm <- read.table("dma3a.tsv.gz")
 dm <- subset(dm,Regulatory_Feature_Group == "Promoter_Associated")
+
+# testing
+dm <- head(dm,20000)
+
 dm$adj.P.Val <- p.adjust(dm$P.Value)
 
 head(dm,50) %>%
@@ -333,7 +341,7 @@ head(res$enrichment_result,20) %>%
   kbl(caption = "Top enriched gene sets with GMEA-Mitch (promoter only)") %>%
   kable_paper("hover", full_width = F)
 
-mitch_report(res,outfile="dma1a_mitch_promo.html",overwrite=TRUE)
+mitch_report(res,outfile="dma3a_mitch_promo.html",overwrite=TRUE)
 
 ```
 
