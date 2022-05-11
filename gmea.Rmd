@@ -151,18 +151,24 @@ n=50
 # effect size median
 sig <- subset(gme_res_df,`fdr(selfcontained)` < 0.05)
 gs <- head(rownames(sig[order(-abs(sig$median)),]),n)
-tstats <- mclapply(gs, function(g) {
-  myrows <- which(lapply(gnl,function(x) {
-    length(which(x==g))
-  } ) > 0 )
-  dm[myrows,"t"]
-},mc.cores=CORES)
-names(tstats) <- gs
-tstats <- tstats[order(unlist(lapply(tstats,median)))]
-boxplot(tstats,horizontal=TRUE,las=1,
-  main="biggest effect size(median)",cex.axis=0.6,
-  xlab="t-statistic")
-grid()
+
+if ( length(gs) >2 ) {
+  tstats <- mclapply(gs, function(g) {
+    myrows <- which(lapply(gnl,function(x) {
+      length(which(x==g))
+    } ) > 0 )
+    dm[myrows,"t"]
+  },mc.cores=CORES)
+  names(tstats) <- gs
+  tstats <- tstats[order(unlist(lapply(tstats,median)))]
+  boxplot(tstats,horizontal=TRUE,las=1,
+    main="biggest effect size(median)",cex.axis=0.6,
+    xlab="t-statistic")
+  grid()
+} else {
+  plot(1)
+  mtext("too few significant genes found")
+}
 
 ```
 
@@ -311,18 +317,24 @@ n=50
 # effect size median
 sig <- subset(gme_res_df,`fdr(selfcontained)` < 0.05)
 gs <- head(rownames(sig[order(-abs(sig$median)),]),n)
-tstats <- mclapply(gs, function(g) {
-  myrows <- which(lapply(gnl,function(x) {
-    length(which(x==g))
-  } ) > 0 )
-  dm[myrows,"t"]
-},mc.cores=CORES)
-names(tstats) <- gs
-tstats <- tstats[order(unlist(lapply(tstats,median)))]
-boxplot(tstats,horizontal=TRUE,las=1,
-  main="biggest effect size(median)",cex.axis=0.6,
-  xlab="t-statistic")
-grid()
+
+if ( length(gs) >2 ) {
+  tstats <- mclapply(gs, function(g) {
+    myrows <- which(lapply(gnl,function(x) {
+      length(which(x==g))
+    } ) > 0 )
+    dm[myrows,"t"]
+  },mc.cores=CORES)
+  names(tstats) <- gs
+  tstats <- tstats[order(unlist(lapply(tstats,median)))]
+  boxplot(tstats,horizontal=TRUE,las=1,
+    main="biggest effect size(median)",cex.axis=0.6,
+    xlab="t-statistic")
+  grid()
+} else {
+  plot(1)
+  mtext("too few significant genes found")
+}
 
 ```
 
