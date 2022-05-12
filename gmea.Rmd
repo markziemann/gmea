@@ -36,7 +36,11 @@ library("mitch")
 
 ```
 
-# DM3 - post trial supplement versus placebo
+# DM3 - association of Hcy with gene methylation
+
+It is thought that high plasma homocysteine can inhibit DNA methylation.
+Let's see whether that is the case, and which genes are most affected.
+This analysis is conducted at the whole gene level as well as on the level of promoters.
 
 ## Whole gene analysis
 
@@ -45,7 +49,7 @@ library("mitch")
 dm <- read.table("dma3a.tsv.gz")
 
 # testing
-dm <- head(dm,40000)
+#dm <- head(dm,40000)
 
 head(dm,50) %>%
   kbl(caption = "Top significant genes with limma") %>%
@@ -206,10 +210,10 @@ mitch_report(res,outfile="dma3a_mitch.html",overwrite=TRUE)
 ```{r,promo}
 
 dm <- read.table("dma3a.tsv.gz")
-dm <- subset(dm,Regulatory_Feature_Group == "Promoter_Associated")
+dm <- dm[grep("Promoter_Associated",dm$Regulatory_Feature_Group),]
 
 # testing
-dm <- head(dm,20000)
+#dm <- head(dm,20000)
 
 dm$adj.P.Val <- p.adjust(dm$P.Value)
 
@@ -348,8 +352,6 @@ rownames(dmscore) <- rownames(gme_res_df)
 
 colnames(dmscore) <- "metric"
 
-#download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", destfile="ReactomePathways.gmt.zip")
-#unzip("ReactomePathways.gmt.zip")
 genesets <- gmt_import("ReactomePathways.gmt")
 
 res <- mitch_calc(x=dmscore, genesets=genesets,priority="effect")
@@ -378,8 +380,6 @@ mm <- merge(dmscore_wholegene,dmscore_promoter,by=0)
 rownames(mm) <- mm[,1]
 mm[,1] = NULL
 
-#download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", destfile="ReactomePathw>
-#unzip("ReactomePathways.gmt.zip")
 genesets <- gmt_import("ReactomePathways.gmt")
 
 mmres <- mitch_calc(x=mm, genesets=genesets,priority="effect")
@@ -388,7 +388,7 @@ head(mmres$enrichment_result,20) %>%
   kbl(caption = "Top enriched gene sets with GMEA-Mitch (wholegene and promoter)") %>%
   kable_paper("hover", full_width = F)
 
-mitch_report(mmres,outfile="mitch_multi.html",overwrite=TRUE)
+#mitch_report(mmres,outfile="mitch_multi.html",overwrite=TRUE)
 
 ```
 
