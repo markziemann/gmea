@@ -33,6 +33,19 @@ library("dplyr")
 library("kableExtra")
 library("eulerr")
 library("mitch")
+library("IlluminaHumanMethylation450kmanifest")
+library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+library("tictoc")
+
+```
+
+## Get array annotation data
+
+```{r,anno}
+
+ann450k <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","Regulatory_Feature_Group")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
 
 ```
 
@@ -42,11 +55,15 @@ It is thought that high plasma homocysteine can inhibit DNA methylation.
 Let's see whether that is the case, and which genes are most affected.
 This analysis is conducted at the whole gene level as well as on the level of promoters.
 
-## Whole gene analysis
+## Read in and inspect the data
 
 ```{r,dma3a}
 
 dm <- read.table("dma3a.tsv.gz")
+dm <- dm[,4:9]
+dm <- merge(myann,dm,by=0)
+rownames(dm) <- dm[,1]
+dm[,1] = NULL
 
 # testing
 #dm <- head(dm,40000)
@@ -55,51 +72,63 @@ head(dm,50) %>%
   kbl(caption = "Top significant genes with limma") %>%
   kable_paper("hover", full_width = F)
 
+# trim down the input dataset
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+
 # histogram of t values
 hist(dm$t,breaks=seq(from=-6,to=6,by=1))
 
+```
+
+## Whole gene analysis
+
+```{r,wg}
 # set cores to used for parallel execution
 CORES= detectCores()
 
-# make a vector of unique gene names
-gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
-gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+calc_sc <- function(dm) {
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a[2],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=CORES)
+  df <- do.call(rbind,l)
+  gme_res <- mclapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"] 
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    wtselfcont <- wilcox.test(tstats)
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
+      "p-value(sc)"=wtselfcont$p.value)
+  } , mc.cores=CORES )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,4])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$`fdr(sc)` <- p.adjust(gme_res_df$`p-value(sc)`)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
 
-# run the test (self contained)
-gme_res <- mclapply( 1:length(gn), function(i) {
-  g <- gn[i]
-  myrows <- which(lapply(gnl,function(x) {
-    length(which(x==g))
-  } ) > 0 )
-  tstats <- dm[myrows,"t"]
-  tstats <- tstats[order(tstats)]
-  myn <- length(tstats)
-  mymean <- mean(tstats)
-  mymedian <- median(tstats)
-  wtselfcont <- wilcox.test(tstats)
-
-  res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
-           "p-value(selfcontained)"=wtselfcont$p.value)
-} , mc.cores=CORES)
-
-# format the results
-gme_res_df <- do.call(rbind, gme_res)
-rownames(gme_res_df) <- gme_res_df[,1]
-gme_res_df <- gme_res_df[,-1]
-tmp <- apply(gme_res_df,2,as.numeric)
-rownames(tmp) <- rownames(gme_res_df)
-gme_res_df <- as.data.frame(tmp)
-
-# results are sorted by the sum of -log10 of the p-values
-gme_res_df$sig <- -log10(gme_res_df[,4])
-
-gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
-
-gme_res_df$`fdr(selfcontained)` <- p.adjust(gme_res_df$`p-value(selfcontained)`)
-
-gme_res_df_wholegene <- gme_res_df
-
-write.table(gme_res_df_wholegene,file="gmea_wholegene.tsv")
+tic()
+gme_res_wholegene <- calc_sc(dm)
+time2 <- toc() #38 44 41 40 44 41 40
+time2
+df <- gme_res_wholegene[[1]]
+res <- gme_res_wholegene[[2]]
+write.table(res,file="gmea_wholegene.tsv")
 
 ```
 
@@ -107,7 +136,7 @@ write.table(gme_res_df_wholegene,file="gmea_wholegene.tsv")
 
 ```{r, toptable}
 
-head(gme_res_df,50) %>%
+head(res,50) %>%
   kbl(caption = "Top significant genes with GMEA") %>%
   kable_paper("hover", full_width = F)
 
@@ -118,12 +147,12 @@ head(gme_res_df,50) %>%
 ```{r,volcano1}
 
 # volcano selfcont
-sig <- subset(gme_res_df,`fdr(selfcontained)` < 0.05)
-plot(gme_res_df$median , -log10(gme_res_df$`p-value(selfcontained)`) ,
+sig <- subset(res,`fdr(sc)` < 0.05)
+plot(res$median , -log10(res$`p-value(sc)`) ,
   xlab="effect size (mean t-stat)", ylab="-log10(p-value)",
   pch=19, cex=0.5, col="gray",main="self contained test")
 grid()
-points(sig$median , -log10(sig$`p-value(selfcontained)`) ,
+points(sig$median , -log10(sig$`p-value(sc)`) ,
   pch=19, cex=0.5, col="red")
 
 ```
@@ -137,14 +166,13 @@ Boxplots smallest pvalue.
 par(mfrow=c(1,2))
 n=50
 # self contained
-gs <- head(rownames(gme_res_df[order(gme_res_df$`p-value(selfcontained)`),]),n)
-tstats <- mclapply(gs, function(g) {
-  myrows <- which(lapply(gnl,function(x) {
-    length(which(x==g))
-  } ) > 0 )
-  dm[myrows,"t"]
-},mc.cores=CORES)
+
+gs <- head(rownames(res),50)
+tstats <- lapply(gs, function(g) {
+  df[which(df$genes==g),"tvals"]
+})
 names(tstats) <- gs
+
 tstats <- tstats[order(unlist(lapply(tstats,median)))]
 boxplot(tstats,horizontal=TRUE,las=1,
   main="smallest p-val(selfcont)",cex.axis=0.6,
@@ -153,16 +181,13 @@ grid()
 
 n=50
 # effect size median
-sig <- subset(gme_res_df,`fdr(selfcontained)` < 0.05)
+sig <- subset(res,`fdr(sc)` < 0.05)
 gs <- head(rownames(sig[order(-abs(sig$median)),]),n)
 
 if ( length(gs) >2 ) {
-  tstats <- mclapply(gs, function(g) {
-    myrows <- which(lapply(gnl,function(x) {
-      length(which(x==g))
-    } ) > 0 )
-    dm[myrows,"t"]
-  },mc.cores=CORES)
+  tstats <- lapply(gs, function(g) {
+    df[which(df$genes==g),"tvals"]
+  })
   names(tstats) <- gs
   tstats <- tstats[order(unlist(lapply(tstats,median)))]
   boxplot(tstats,horizontal=TRUE,las=1,
@@ -180,9 +205,9 @@ if ( length(gs) >2 ) {
 
 ```{r,dm1_mitch}
 
-dmscore <- data.frame( gme_res_df$median * gme_res_df$sig)
+dmscore <- data.frame( res$median * res$sig)
 
-rownames(dmscore) <- rownames(gme_res_df)
+rownames(dmscore) <- rownames(res)
 
 colnames(dmscore) <- "metric"
 
@@ -195,13 +220,13 @@ file.info("ReactomePathways.gmt")
 genesets <- gmt_import("ReactomePathways.gmt")
 length(genesets)
 
-res <- mitch_calc(x=dmscore, genesets=genesets, priority="effect")
+mres <- mitch_calc(x=dmscore, genesets=genesets, priority="effect")
 
-head(res$enrichment_result,20) %>%
+head(mres$enrichment_result,20) %>%
   kbl(caption = "Top enriched gene sets with GMEA-Mitch") %>%
   kable_paper("hover", full_width = F)
 
-mitch_report(res,outfile="dma3a_mitch.html",overwrite=TRUE)
+mitch_report(mres,outfile="dma3a_mitch.html",overwrite=TRUE)
 
 ```
 
@@ -210,62 +235,36 @@ mitch_report(res,outfile="dma3a_mitch.html",overwrite=TRUE)
 ```{r,promo}
 
 dm <- read.table("dma3a.tsv.gz")
+dm <- dm[,4:9]
+dm <- merge(myann,dm,by=0)
+rownames(dm) <- dm[,1]
+dm[,1] = NULL
 dm <- dm[grep("Promoter_Associated",dm$Regulatory_Feature_Group),]
-
-# testing
-#dm <- head(dm,20000)
-
-dm$adj.P.Val <- p.adjust(dm$P.Value)
 
 head(dm,50) %>%
   kbl(caption = "Top significant genes with limma") %>%
   kable_paper("hover", full_width = F)
 
+# trim down the input dataset
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+
 # histogram of t values
 hist(dm$t,breaks=seq(from=-6,to=6,by=1))
 
+```
+
+```{r,promo2}
+
 # set cores to used for parallel execution
-CORES= detectCores()
 
-# make a vector of unique gene names
-gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
-gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+tic()
+gme_res_promoter <- calc_sc(dm)
+time2 <- toc() #15.7 20.2 20.3 17.5 17.9 17.7 20.6 
+time2
 
-# run the test
-gme_res <- mclapply( 1:length(gn), function(i) {
-  g <- gn[i]
-  myrows <- which(lapply(gnl,function(x) {
-    length(which(x==g))
-  } ) > 0 )
-  tstats <- dm[myrows,"t"]
-  tstats <- tstats[order(tstats)]
-  myn <- length(tstats)
-  mymean <- mean(tstats)
-  mymedian <- median(tstats)
-  wtselfcont <- wilcox.test(tstats)
-
-  res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
-           "p-value(selfcontained)"=wtselfcont$p.value)
-} , mc.cores=CORES)
-
-# format the results
-gme_res_df <- do.call(rbind, gme_res)
-rownames(gme_res_df) <- gme_res_df[,1]
-gme_res_df <- gme_res_df[,-1]
-tmp <- apply(gme_res_df,2,as.numeric)
-rownames(tmp) <- rownames(gme_res_df)
-gme_res_df <- as.data.frame(tmp)
-
-# results are sorted by the sum of -log10 of the p-values
-gme_res_df$sig <- -log10(gme_res_df[,4])
-
-gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
-
-gme_res_df$`fdr(selfcontained)` <- p.adjust(gme_res_df$`p-value(selfcontained)`)
-
-gme_res_df_promoter <- gme_res_df
-
-write.table(gme_res_df_promoter ,file="gmea_promo.tsv")
+df <- gme_res_promoter[[1]]
+res <- gme_res_promoter[[2]] 
+write.table(res ,file="gmea_promo.tsv")
 
 ```
 
@@ -273,7 +272,7 @@ write.table(gme_res_df_promoter ,file="gmea_promo.tsv")
 
 ```{r, toptable_promoter}
 
-head(gme_res_df,50) %>%
+head(res,50) %>%
   kbl(caption = "Top significant genes with GMEA") %>%
   kable_paper("hover", full_width = F)
 
@@ -284,12 +283,12 @@ head(gme_res_df,50) %>%
 ```{r,volcano1_promoter}
 
 # volcano selfcont
-sig <- subset(gme_res_df,`fdr(selfcontained)` < 0.05)
-plot(gme_res_df$median , -log10(gme_res_df$`p-value(selfcontained)`) ,
+sig <- subset(res,`fdr(sc)` < 0.05)
+plot(res$median , -log10(res$`p-value(sc)`) ,
   xlab="effect size (mean t-stat)", ylab="-log10(p-value)",
   pch=19, cex=0.5, col="gray",main="self contained test")
 grid()
-points(sig$median , -log10(sig$`p-value(selfcontained)`) ,
+points(sig$median , -log10(sig$`p-value(sc)`) ,
   pch=19, cex=0.5, col="red")
 
 ```
@@ -303,14 +302,13 @@ Boxplots smallest pvalue.
 par(mfrow=c(1,2))
 n=50
 # self contained
-gs <- head(rownames(gme_res_df[order(gme_res_df$`p-value(selfcontained)`),]),n)
-tstats <- mclapply(gs, function(g) {
-  myrows <- which(lapply(gnl,function(x) {
-    length(which(x==g))
-  } ) > 0 )
-  dm[myrows,"t"]
-},mc.cores=CORES)
+
+gs <- head(rownames(res),50)
+tstats <- lapply(gs, function(g) {
+  df[which(df$genes==g),"tvals"]
+})
 names(tstats) <- gs
+
 tstats <- tstats[order(unlist(lapply(tstats,median)))]
 boxplot(tstats,horizontal=TRUE,las=1,
   main="smallest p-val(selfcont)",cex.axis=0.6,
@@ -319,16 +317,13 @@ grid()
 
 n=50
 # effect size median
-sig <- subset(gme_res_df,`fdr(selfcontained)` < 0.05)
+sig <- subset(res,`fdr(sc)` < 0.05)
 gs <- head(rownames(sig[order(-abs(sig$median)),]),n)
 
 if ( length(gs) >2 ) {
-  tstats <- mclapply(gs, function(g) {
-    myrows <- which(lapply(gnl,function(x) {
-      length(which(x==g))
-    } ) > 0 )
-    dm[myrows,"t"]
-  },mc.cores=CORES)
+  tstats <- lapply(gs, function(g) {
+    df[which(df$genes==g),"tvals"]
+  })
   names(tstats) <- gs
   tstats <- tstats[order(unlist(lapply(tstats,median)))]
   boxplot(tstats,horizontal=TRUE,las=1,
@@ -340,55 +335,28 @@ if ( length(gs) >2 ) {
   mtext("too few significant genes found")
 }
 
+
 ```
 
 ## Mitch
 
 ```{r,dm1_mitch_promo}
 
-dmscore <- data.frame( gme_res_df$median * gme_res_df$sig)
+dmscore <- data.frame( res$median * res$sig)
 
-rownames(dmscore) <- rownames(gme_res_df)
+rownames(dmscore) <- rownames(res)
 
 colnames(dmscore) <- "metric"
 
 genesets <- gmt_import("ReactomePathways.gmt")
 
-res <- mitch_calc(x=dmscore, genesets=genesets,priority="effect")
+mres <- mitch_calc(x=dmscore, genesets=genesets,priority="effect")
 
-head(res$enrichment_result,20) %>%
+head(mres$enrichment_result,20) %>%
   kbl(caption = "Top enriched gene sets with GMEA-Mitch (promoter only)") %>%
   kable_paper("hover", full_width = F)
 
-mitch_report(res,outfile="dma3a_mitch_promo.html",overwrite=TRUE)
-
-```
-
-## Multi-mitch
-
-```{r,dm1_mitch_promoter}
-
-dmscore_wholegene <- data.frame( gme_res_df_wholegene$median * gme_res_df_wholegene$sig )
-rownames(dmscore_wholegene) <- rownames(gme_res_df_wholegene)
-colnames(dmscore_wholegene) <- "wholegene"
-
-dmscore_promoter <- data.frame( gme_res_df_promoter$median * gme_res_df_promoter$sig )
-rownames(dmscore_promoter) <- rownames(gme_res_df_promoter)
-colnames(dmscore_promoter) <- "promoter"
-
-mm <- merge(dmscore_wholegene,dmscore_promoter,by=0)
-rownames(mm) <- mm[,1]
-mm[,1] = NULL
-
-genesets <- gmt_import("ReactomePathways.gmt")
-
-mmres <- mitch_calc(x=mm, genesets=genesets,priority="effect")
-
-head(mmres$enrichment_result,20) %>%
-  kbl(caption = "Top enriched gene sets with GMEA-Mitch (wholegene and promoter)") %>%
-  kable_paper("hover", full_width = F)
-
-#mitch_report(mmres,outfile="mitch_multi.html",overwrite=TRUE)
+mitch_report(mres,outfile="dma3a_mitch_promo.html",overwrite=TRUE)
 
 ```
 
