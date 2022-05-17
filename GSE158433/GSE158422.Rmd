@@ -1,0 +1,187 @@
+---
+title: "GSE158422: DNA methylation in Lung squamous cell carcinoma"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+theme: cosmo
+---
+
+## Introduction
+
+The purpose of this analysis is to apply different enrichment analysis approaches,
+and see which approach is most parsimonious with gene expressoin differences.
+
+We will specifically be testing the GMEA approach versus existing approaches,
+namely GOseq and mitch.
+
+This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and 
+Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
+
+In this script, we will be processing the EPIC DNA methylation data and performing the
+statistical analysis in limma and saving the results for downstream enrichment analysis.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("plyr")
+  library("R.utils")
+  library("missMethyl")
+  library("limma")
+  library("DMRcate")
+  library("DMRcatedata")
+  library("topconfects")
+  library("minfi")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("RColorBrewer")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("GEOquery")
+  library("eulerr")
+  library("plyr")
+  library("gplots")
+  library("reshape2")
+  library("forestplot")
+  library("beeswarm")
+  library("RCircos")
+  library("qqman")
+  library("ENmix")
+})
+
+```
+
+## Obtaining array annotations
+
+```{r,annotation}
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+## Obtain array data
+
+GSE158422 is the accession number for the array data.
+
+```{r,arraydata}
+
+ARRAY_DATA="GSE158422_RAW.tar"
+if(!file.exists(ARRAY_DATA)){
+  download.file("ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/suppl/GSE158422_RAW.tar",
+    destfile=DEST) 
+  untar(tarfile = ARRAY_DATA)
+}
+  SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
+download.file("ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matrix/GSE158422_series_matrix.txt.gz", 
+  destfile=SERIES_MATRIX)
+gse <- getGEO(filename=SERIES_MATRIX)
+baseDir <- "."
+sample_metadata <- pData(phenoData(gse))
+targets <- sample_metadata
+mybase <- unique(gsub("_Red.idat.gz" ,"",  gsub("_Grn.idat.gz", "" ,list.files(".",pattern = "GSM",recursive = TRUE))))
+targets$Basename <- mybase
+head(targets)
+rgSet <- read.metharray.exp(targets = targets)
+rgSet
+
+
+```
+
+## Filtering and normalisation
+
+
+```{r,norm,fig.cap="Figure 1. Normalisation of bead-array data with SWAN."}
+
+mSet <- preprocessRaw(rgSet)
+mSetSw <- SWAN(mSet,verbose=FALSE)
+par(mfrow=c(1,2), cex=0.8)
+densityByProbeType(mSet[,1], main = "Raw")
+densityByProbeType(mSetSw[,1], main = "SWAN")
+
+```
+
+```{r,filterprobes}
+
+# include sex chromosomes
+detP <- detectionP(rgSet)
+keep <- rowSums(detP < 0.01) == ncol(rgSet)
+mSetSw <- mSetSw[keep,]
+
+# exclude SNP probes
+mSetSw <- mapToGenome(mSetSw)
+mSetSw_nosnp <- dropLociWithSnps(mSetSw)
+
+# exclude sex chromosomes
+xyprobes <- anno$Name[anno$chr %in% c("chrX","chrY")]
+mSetFlt <- mSetSw[which(!rownames(mSetSw) %in% xyprobes),]
+
+```
+
+```{r,beta_m_vals}
+
+# include sex chromosomes
+meth <- getMeth(mSetSw)
+unmeth <- getUnmeth(mSetSw)
+Mval <- log2((meth + 100)/(unmeth + 100))
+beta <- getBeta(mSetSw)
+dim(Mval)
+
+# exclude sex chromosomes
+meth <- getMeth(mSetFlt)
+unmeth <- getUnmeth(mSetFlt)
+Mval_flt <- log2((meth + 100)/(unmeth + 100))
+beta_flt <- getBeta(mSetFlt)
+dim(Mval_flt)
+
+```
+
+
+# MDS analysis
+
+```{r,scree,fig.cap="Figure 2. Screeplot shows contribution of top principal components to the overall variation in the experiment."}
+
+# scree plot shows the amount of variation in a dataset that is accounted
+# for by the first N principal components
+myscree <- function(mx,n=10,main="") {
+  pc <- princomp(mx)$sdev
+  pcp <- pc/sum(pc)*100
+  pcp <- pcp[1:10]
+  barplot(pcp,cex.names = 1,las=2,ylim=c(0,60),
+      ylab="percent (%) variance explained", main=main)
+  text((0.5:length(pcp)*1.2),pcp,label=signif(pcp,3),pos=3,cex=0.8)
+}
+
+par(mfrow=c(2,1))  
+myscree(Mval,main="incl sex chr")
+myscree(Mval_flt,main="excl sex chr")
+
+```
+
+
+
+#MDS plot 1
+
+```{r,mds1,fig.width = 8 ,fig.height = 8,fig.cap="Figure 3. MDS plot coloured by ART classification."}
+
+colnames(targets) <- gsub(" ","_",colnames(targets)) 
+colnames(targets) <- gsub(":","_",colnames(targets))
+targets$sex<-factor(targets$`gender_ch1`)
+targets$art<-factor(targets$`art_subtype`)
+sample_groups <- factor(targets$art)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$art))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by ART type")
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+mydist <- plotMDS(Mval, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
+mydist_flt <- plotMDS(Mval_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+
+```
+
+## save data object
+
+```{r,save}
+
+save.image("GSE158422.Rdata")
+
+```
