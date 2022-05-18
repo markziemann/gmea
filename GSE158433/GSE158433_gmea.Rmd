@@ -4,7 +4,11 @@ author: "The GMEA team"
 date: "`r Sys.Date()`"
 output:
   html_document:
-  toc: true
+    toc: yes
+    toc_float: true
+    code_folding: hide
+    fig_width: 7
+    fig_height: 7
 theme: cosmo
 ---
 
