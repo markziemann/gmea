@@ -48,6 +48,7 @@ suppressPackageStartupMessages({
   library("ENmix")
   library("tictoc")
   library("mitch")
+  library("kableExtra")
 })
 
 source("../meth_functions.R")
@@ -85,7 +86,7 @@ dm <- dm[,c("UCSC_RefGene_Name","t")]
 
 ## GMEA whole gene
 
-```{r,gmea}
+```{r,gmea_wg}
 
 hist(dm$t)
 tic() ; res <- calc_sc(dm) ; toc() #32 cores 95.5
@@ -129,7 +130,7 @@ head(mres$enrichment_result,20) %>%
 
 ## GMEA promoter
 
-```{r,gmea}
+```{r,gmea_promoter}
 
 dm <- read.table("GSE158422_limma.tsv",header=TRUE,sep="\t")
 dm <- dm[grep("Promot",dm$Regulatory_Feature_Group),]
