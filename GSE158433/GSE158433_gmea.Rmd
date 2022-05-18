@@ -1,0 +1,184 @@
+---
+title: "GSE158433: GMEA of DNA methylation and RNA-seq differences in lung squamous cell carcinoma"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+theme: cosmo
+---
+
+## Introduction
+
+The purpose of this analysis is to apply different enrichment analysis approaches,
+and see which approach is most parsimonious with gene expressoin differences.
+
+We will specifically be testing the GMEA approach versus existing approaches,
+namely GOseq and mitch.
+
+This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and 
+Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
+
+In this script, we will be processing the EPIC DNA methylation data and performing the
+statistical analysis in limma and saving the results for downstream enrichment analysis.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("plyr")
+  library("R.utils")
+  library("missMethyl")
+  library("limma")
+  library("DMRcate")
+  library("DMRcatedata")
+  library("topconfects")
+  library("minfi")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("RColorBrewer")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("GEOquery")
+  library("eulerr")
+  library("plyr")
+  library("gplots")
+  library("reshape2")
+  library("forestplot")
+  library("beeswarm")
+  library("RCircos")
+  library("qqman")
+  library("ENmix")
+  library("tictoc")
+  library("mitch")
+})
+
+source("../meth_functions.R")
+CORES=detectCores()/2
+
+```
+
+## Obtaining array annotations
+
+```{r,annotation}
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+## Load array result
+
+GSE158422 is the accession number for the array data.
+
+```{r,arraydataload}
+
+#GSE158422 <- readRDS("GSE158422.rds")
+dm <- read.table("GSE158422_limma.tsv",header=TRUE,sep="\t")
+
+head(dm,50) %>%
+  kbl(caption = "Top significant probes with limma") %>%
+  kable_paper("hover", full_width = F)
+
+rownames(dm) <- dm[,1]
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+
+```
+
+## GMEA whole gene
+
+```{r,gmea}
+
+hist(dm$t)
+tic() ; res <- calc_sc(dm) ; toc() #32 cores 95.5
+res2 <- res[[2]]
+
+head(res2,20) %>%
+  kbl(caption = "Top significant genes with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(res2,`fdr(sc)`<0.05)
+
+es <- sig[order(-abs(sig$median)),]
+
+head(es,20) %>%
+  kbl(caption = "Top effect size probes with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+gmea_volc(res2)
+gmea_barplot(res2)
+res2_wg <- res2
+
+```
+
+## Mitch whole gene
+
+```{r,mitch_wg}
+
+genesets <- gmt_import("../ReactomePathways.gmt")
+
+metric <- res2$sig * res2$median
+metric <- as.data.frame(metric)
+rownames(metric) <- rownames(res2)
+
+mres <- mitch_calc(x=metric, genesets=genesets)
+
+head(mres$enrichment_result,20) %>%
+  kbl(caption = "Top differential pathways with GMEA+mitch") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+## GMEA promoter
+
+```{r,gmea}
+
+dm <- read.table("GSE158422_limma.tsv",header=TRUE,sep="\t")
+dm <- dm[grep("Promot",dm$Regulatory_Feature_Group),]
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+
+hist(dm$t)
+tic() ; res <- calc_sc(dm) ; toc() #32 cores 17.7
+res2 <- res[[2]]
+
+head(res2,20) %>%
+  kbl(caption = "Top significant promoters with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(res2,`fdr(sc)`<0.05)
+
+es <- sig[order(-abs(sig$median)),]
+
+head(es,20) %>%
+  kbl(caption = "Top effect size probes with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+gmea_volc(res2)
+gmea_barplot(res2)
+res2_p <- res2
+
+```
+
+## Mitch promoter
+
+```{r,mitchpromoter}
+
+genesets <- gmt_import("../ReactomePathways.gmt")
+
+metric <- res2$sig * res2$median
+metric <- as.data.frame(metric)
+rownames(metric) <- rownames(res2)
+
+mres <- mitch_calc(x=metric, genesets=genesets)
+
+head(mres$enrichment_result,20) %>%
+  kbl(caption = "Top differential pathways with GMEA+mitch") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+## save data object
+
+```{r,save}
+
+save.image("GSE158422.Rdata")
+
+```
