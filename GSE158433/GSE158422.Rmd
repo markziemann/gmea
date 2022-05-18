@@ -66,13 +66,14 @@ GSE158422 is the accession number for the array data.
 
 ```{r,arraydata}
 
-ARRAY_DATA="GSE158422_RAW.tar"
+ARRAY_DATA="GSE158433_RAW.tar"
 if(!file.exists(ARRAY_DATA)){
   download.file("ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/suppl/GSE158422_RAW.tar",
-    destfile=DEST) 
+    destfile=ARRAY_DATA) 
   untar(tarfile = ARRAY_DATA)
 }
-  SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
+
+SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
 download.file("ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matrix/GSE158422_series_matrix.txt.gz", 
   destfile=SERIES_MATRIX)
 gse <- getGEO(filename=SERIES_MATRIX)
@@ -136,6 +137,26 @@ dim(Mval_flt)
 
 ```
 
+# Infer sex
+
+```{r,infersex}
+
+xprobes <- anno$Name[anno$chr %in% "chrX"]
+yprobes <- anno$Name[anno$chr %in% "chrY"]
+
+xdat <- Mval[which( rownames(Mval) %in% xprobes ),]
+ydat <- Mval[which( rownames(Mval) %in% yprobes ),]
+gsm <- sapply( strsplit(colnames(Mval),"_" ) , "[[" , 1)
+plot(colMeans(xdat) , colMeans(ydat), cex=1)
+text(colMeans(xdat) , colMeans(ydat),labels=gsm )
+grid()
+abline(v=-0.1,col="red",lty=2)
+
+which( colMeans(xdat)  > -0.1 )
+
+sex_female <- as.numeric(colMeans(xdat)  > -0.1)
+
+```
 
 # MDS analysis
 
@@ -166,12 +187,12 @@ myscree(Mval_flt,main="excl sex chr")
 
 colnames(targets) <- gsub(" ","_",colnames(targets)) 
 colnames(targets) <- gsub(":","_",colnames(targets))
-targets$sex<-factor(targets$`gender_ch1`)
-targets$art<-factor(targets$`art_subtype`)
-sample_groups <- factor(targets$art)
+targets$sex<-factor(sex_female)
+targets$case<-factor(targets$`characteristics_ch1`)
+sample_groups <- factor(targets$case)
 colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
-colours <- colour_palette[as.integer(factor(targets$art))]
-plot(1,axes = FALSE,xlab="",ylab="",main="MDS by ART type")
+colours <- colour_palette[as.integer(factor(targets$case))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by case/ctrl",cex=0)
 legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
 mydist <- plotMDS(Mval, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
 mydist_flt <- plotMDS(Mval_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
