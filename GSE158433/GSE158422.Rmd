@@ -48,6 +48,8 @@ suppressPackageStartupMessages({
   library("ENmix")
 })
 
+source("../meth_functions.R")
+
 ```
 
 ## Obtaining array annotations
@@ -194,8 +196,34 @@ colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
 colours <- colour_palette[as.integer(factor(targets$case))]
 plot(1,axes = FALSE,xlab="",ylab="",main="MDS by case/ctrl",cex=0)
 legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
-mydist <- plotMDS(Mval, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
-mydist_flt <- plotMDS(Mval_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+mydist <- plotMDS(Mval, labels=gsm,col=colours,main="sex chromosomes included")
+mydist_flt <- plotMDS(Mval_flt, labels=gsm,col=colours,main="sex chromosomes excluded")
+
+```
+
+## Differential analysis
+
+Paired normal versus cancer tissue.
+
+
+```{r,dm}
+
+samplesheet<-targets
+groups <- factor(samplesheet$case,levels=c("tumor: normal","tumor: tumor"))
+sex <- factor(samplesheet$sex,levels=c("0","1"))
+Mvals<-Mval
+betas<-beta
+dim(Mvals)
+dim(betas)
+
+GSE158422 <- dm_analysis(samplesheet=samplesheet,
+  sex=sex,groups=groups,mx=Mvals,name="GSE158422",
+  myann=myann ,beta= betas)
+
+head(GSE158422$dma,10)
+head(GSE158422$dmr,10)
+
+
 
 ```
 
