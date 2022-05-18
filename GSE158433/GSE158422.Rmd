@@ -76,8 +76,10 @@ if(!file.exists(ARRAY_DATA)){
 }
 
 SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
+if(!file.exists(SERIES_MATRIX)){
 download.file("ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matrix/GSE158422_series_matrix.txt.gz", 
   destfile=SERIES_MATRIX)
+}
 gse <- getGEO(filename=SERIES_MATRIX)
 baseDir <- "."
 sample_metadata <- pData(phenoData(gse))
@@ -223,7 +225,8 @@ GSE158422 <- dm_analysis(samplesheet=samplesheet,
 head(GSE158422$dma,10)
 head(GSE158422$dmr,10)
 
-
+saveRDS(GSE158422,file="GSE158422.rds")
+write.table(GSE158422,file="GSE158422_limma.tsv",sep="\t",quote=FALSE)
 
 ```
 
