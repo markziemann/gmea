@@ -226,7 +226,7 @@ head(GSE158422$dma,10)
 head(GSE158422$dmr,10)
 
 saveRDS(GSE158422,file="GSE158422.rds")
-write.table(GSE158422,file="GSE158422_limma.tsv",sep="\t",quote=FALSE)
+write.table(GSE158422$dma,file="GSE158422_limma.tsv",sep="\t",quote=FALSE)
 
 ```
 
