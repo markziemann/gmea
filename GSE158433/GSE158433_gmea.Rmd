@@ -109,26 +109,70 @@ head(es,20) %>%
   kable_paper("hover", full_width = F)
 
 gmea_volc(res2)
-gmea_barplot(res2)
+gmea_boxplot(res)
 res2_wg <- res2
 
 ```
 
 ## Mitch whole gene
 
+Methylation only.
+
 ```{r,mitch_wg}
 
 genesets <- gmt_import("../ReactomePathways.gmt")
 
-metric <- res2$sig * res2$median
-metric <- as.data.frame(metric)
-rownames(metric) <- rownames(res2)
+meth <- res2$sig * res2$median
+meth <- as.data.frame(meth)
+rownames(meth) <- rownames(res2)
 
-mres <- mitch_calc(x=metric, genesets=genesets)
+mres <- mitch_calc(x=meth, genesets=genesets)
 
 head(mres$enrichment_result,20) %>%
   kbl(caption = "Top differential pathways with GMEA+mitch") %>%
   kable_paper("hover", full_width = F)
+
+```
+
+Methylation and gene expression.
+
+```{r,integrate_wg}
+
+dge <- read.table("GSE158420_dge.tsv")
+dgem <- mitch_import(dge,DEtype="deseq2")
+
+int <- merge(meth,dgem,by=0)
+rownames(int) <- int$Row.names
+int[,1]=NULL
+names(int) <- c("meth","rna")
+
+int_res <- mitch_calc(int,genesets=genesets)
+
+int_res_tbl <- int_res$enrichment_result
+
+head(int_res_tbl, 20) %>%
+  kbl(caption = "Integrative results with mitch") %>%
+  kable_paper("hover", full_width = F)
+
+plot(int_res_tbl$s.meth,int_res_tbl$s.rna,ylab="RNA",xlab="meth")
+
+abline(h=0,lty=2,lwd=2,col="red")
+abline(v=0,lty=2,lwd=2,col="red")
+
+uu <- length(which(int_res_tbl$s.meth>0 & int_res_tbl$s.rna>0))
+ud <- length(which(int_res_tbl$s.meth>0 & int_res_tbl$s.rna<0))
+dd <- length(which(int_res_tbl$s.meth<0 & int_res_tbl$s.rna<0))
+du <- length(which(int_res_tbl$s.meth<0 & int_res_tbl$s.rna>0))
+
+uu
+ud
+dd
+du
+
+uu + dd
+ud + du
+
+mitch_report(int_res,outfile="int_wholegene.html",overwrite=TRUE)
 
 ```
 
@@ -157,22 +201,24 @@ head(es,20) %>%
   kable_paper("hover", full_width = F)
 
 gmea_volc(res2)
-gmea_barplot(res2)
+gmea_boxplot(res)
 res2_p <- res2
 
 ```
 
 ## Mitch promoter
 
-```{r,mitchpromoter}
+Methylation only
+
+```{r,mitchpromoter1}
 
 genesets <- gmt_import("../ReactomePathways.gmt")
 
-metric <- res2$sig * res2$median
-metric <- as.data.frame(metric)
-rownames(metric) <- rownames(res2)
+pmeth <- res2$sig * res2$median
+pmeth <- as.data.frame(pmeth)
+rownames(pmeth) <- rownames(res2)
 
-mres <- mitch_calc(x=metric, genesets=genesets)
+mres <- mitch_calc(x=pmeth, genesets=genesets)
 
 head(mres$enrichment_result,20) %>%
   kbl(caption = "Top differential pathways with GMEA+mitch") %>%
@@ -180,10 +226,57 @@ head(mres$enrichment_result,20) %>%
 
 ```
 
-## save data object
+Methylation and gene expression.
 
-```{r,save}
+```{r,integrate_promoter}
 
-save.image("GSE158422.Rdata")
+#dge <- read.table("GSE158420_dge.tsv")
+#dgem <- mitch_import(dge,DEtype="deseq2")
+
+int <- merge(pmeth,dgem,by=0)
+rownames(int) <- int$Row.names
+int[,1]=NULL
+names(int) <- c("meth","rna")
+
+int_res <- mitch_calc(int,genesets=genesets)
+int_res_tbl <- int_res$enrichment_result
+
+head(int_res_tbl,20) %>%
+  kbl(caption = "Integrative results with mitch") %>%
+  kable_paper("hover", full_width = F)
+
+int_res_tbl <- int_res_tbl[order(-abs(int_res_tbl$s.dist)),]
+
+head(int_res_tbl,20) %>%
+  kbl(caption = "Integrative results with mitch") %>%
+  kable_paper("hover", full_width = F)
+
+plot(int_res_tbl$s.meth,int_res_tbl$s.rna,ylab="RNA",xlab="meth")
+
+abline(h=0,lty=2,lwd=2,col="red")
+abline(v=0,lty=2,lwd=2,col="red")
+
+uu <- length(which(int_res_tbl$s.meth>0 & int_res_tbl$s.rna>0))
+ud <- length(which(int_res_tbl$s.meth>0 & int_res_tbl$s.rna<0))
+dd <- length(which(int_res_tbl$s.meth<0 & int_res_tbl$s.rna<0))
+du <- length(which(int_res_tbl$s.meth<0 & int_res_tbl$s.rna>0))
+
+uu
+ud
+dd
+du
+
+uu + dd
+ud + du
+
+mitch_report(int_res,outfile="int_promoter.html",overwrite=TRUE)
+
+```
+
+## Session Information
+
+```{r,session}
+
+sessionInfo()
 
 ```

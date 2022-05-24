@@ -443,3 +443,84 @@ run_mitch_1d <- function(dma,name) {
     type = c("output", "message"), split = FALSE)
   return(res$enrichment_result)
 }
+
+
+calc_sc <- function(dm) {
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a[2],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=CORES)
+  df <- do.call(rbind,l)
+  gme_res <- mclapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    wtselfcont <- wilcox.test(tstats)
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
+      "p-value(sc)"=wtselfcont$p.value)
+  } , mc.cores=CORES )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,4])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$`fdr(sc)` <- p.adjust(gme_res_df$`p-value(sc)`)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
+
+gmea_volc <- function(res) {
+  sig <- subset(res,`fdr(sc)` < 0.05)
+  plot(res$median , -log10(res$`p-value(sc)`) ,
+    xlab="effect size (mean t-stat)", ylab="-log10(p-value)",
+    pch=19, cex=0.5, col="gray",main="self contained test")
+  grid()
+  points(sig$median , -log10(sig$`p-value(sc)`) ,
+    pch=19, cex=0.5, col="red")
+}
+
+gmea_boxplot <- function(res) {
+  df <- res[[1]]
+  res <- res[[2]]
+  par(mfrow=c(1,2))
+  n=50
+  gs <- head(rownames(res),50)
+  tstats <- lapply(gs, function(g) {
+    df[which(df$genes==g),"tvals"]
+  })
+  names(tstats) <- gs
+  tstats <- tstats[order(unlist(lapply(tstats,median)))]
+  boxplot(tstats,horizontal=TRUE,las=1,
+    main="smallest p-val(selfcont)",cex.axis=0.6,
+    xlab="t-statistic")
+  grid()
+  sig <- subset(res,`fdr(sc)` < 0.05)
+  gs <- head(rownames(sig[order(-abs(sig$median)),]),n)
+  if ( length(gs) >2 ) {
+    tstats <- lapply(gs, function(g) {
+      df[which(df$genes==g),"tvals"]
+    })
+    names(tstats) <- gs
+    tstats <- tstats[order(unlist(lapply(tstats,median)))]
+    boxplot(tstats,horizontal=TRUE,las=1,
+      main="biggest effect size(median)",cex.axis=0.6,
+      xlab="t-statistic")
+    grid()
+  } else {
+    plot(1)
+    mtext("too few significant genes found")
+  }
+  par(mfrow=c(1,1))
+}

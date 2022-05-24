@@ -1,0 +1,142 @@
+---
+title: "GSE158420: RNA expression in Lung squamous cell carcinoma"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+theme: cosmo
+---
+
+## Introduction
+
+The purpose of this analysis is to apply different enrichment analysis approaches,
+and see which approach is most parsimonious with gene expression differences.
+
+This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and 
+Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
+
+In this script, we will be analysing the gene expression profiles, followed by mitch
+enrichment analysis.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("DESeq2")
+  library("mitch")
+  library("gplots")
+  library("kableExtra")
+})
+
+```
+
+## Download expression data
+
+The data is available from the following address.
+There are matched cancer and normal tissues.
+
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420
+
+The count matrix contains excel errors which need to be fixed manually or with sed.
+
+```{r,datadl1}
+
+URL="https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE158420&format=file&file=GSE158420%5Fcounts%2Etxt%2Egz"
+FILE="GSE158420_counts.txt.gz"
+FILE2="GSE158420_counts.txt"
+download.file(URL,destfile=FILE)
+
+x <- read.table(FILE2)
+
+head(x)
+
+```
+
+## Samplesheet
+
+The sample names will be converted to samplesheet.
+
+```{r,samplesheet1}
+
+ss <- data.frame(colnames(x))
+names(ss) <- "label"
+ss$tumor <- factor(grepl("T",ss$label))
+ss$patient <- factor(gsub("T","",gsub("N","",ss$label)))
+rownames(ss) <- ss$label
+
+```
+
+## Filtering and normalisation
+
+```{r,filt}
+
+dim(x)
+xx <- x[which(rowMeans(x)>=10),]
+dim(xx)
+
+rpm <- xx/colSums(xx) * 1000000 
+
+```
+
+## MDS plot
+
+```{r,mds}
+
+colours <- gsub("FALSE","lightblue",gsub("TRUE","pink",as.character(ss$tumor)))
+
+labels <- gsub("N","",gsub("T","",gsub("X","",colnames(xx))))
+
+
+plot(cmdscale(dist(t(xx))), xlab="Coordinate 1", ylab="Coordinate 2", type = "p",pch=19,col=colours,cex=2)
+text(cmdscale(dist(t(xx))), labels=labels ) 
+
+```
+
+## DESEQ2
+
+```{r,deseq2}
+
+
+dds <- DESeqDataSetFromMatrix(countData = xx , colData = ss, design = ~ patient + tumor )
+res <- DESeq(dds)
+z<- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz<-cbind(as.data.frame(z),assay(vsd))
+dge<-as.data.frame(zz[order(zz$pvalue),])
+dge[1:10,1:6]
+
+sig <- subset(dge,padj<0.05)
+dge_up <- rownames(subset(sig,log2FoldChange>0))
+dge_dn <- rownames(subset(sig,log2FoldChange<0))
+length(dge_up)
+length(dge_dn)
+
+write.table(dge,file="GSE158420_dge.tsv",sep="\t",quote=FALSE)
+
+```
+
+## Mitch
+
+```{r,mitch}
+
+download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", destfile="ReactomePathways.gmt.zip")
+unzip("ReactomePathways.gmt.zip")
+genesets <- gmt_import("ReactomePathways.gmt")
+
+m <- mitch_import(dge,DEtype="deseq2")
+
+res <- mitch_calc(m, genesets, priority="effect")
+
+head(res$enrichment_result,20) %>% 
+  kbl(caption = "top differentially regulated pathways") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+## Session information
+
+```{r,sessioninfo}
+
+sessionInfo()
+
+```
