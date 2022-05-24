@@ -146,6 +146,23 @@ rownames(int) <- int$Row.names
 int[,1]=NULL
 names(int) <- c("meth","rna")
 
+plot(int,xlim=c(-100,100))
+abline(h=0,lty=2,lwd=2,col="red")
+abline(v=0,lty=2,lwd=2,col="red")
+
+uu <- length(which(int$meth>0 & int$rna>0))
+ud <- length(which(int$meth>0 & int$rna<0))
+dd <- length(which(int$meth<0 & int$rna<0))
+du <- length(which(int$meth<0 & int$rna>0))
+
+uu
+ud
+dd
+du
+
+uu + dd
+ud + du
+
 int_res <- mitch_calc(int,genesets=genesets)
 
 int_res_tbl <- int_res$enrichment_result
@@ -237,6 +254,23 @@ int <- merge(pmeth,dgem,by=0)
 rownames(int) <- int$Row.names
 int[,1]=NULL
 names(int) <- c("meth","rna")
+
+plot(int,xlim=c(-100,100))
+abline(h=0,lty=2,lwd=2,col="red")
+abline(v=0,lty=2,lwd=2,col="red")
+
+uu <- length(which(int$meth>0 & int$rna>0))
+ud <- length(which(int$meth>0 & int$rna<0))
+dd <- length(which(int$meth<0 & int$rna<0))
+du <- length(which(int$meth<0 & int$rna>0))
+
+uu
+ud
+dd
+du
+
+uu + dd
+ud + du
 
 int_res <- mitch_calc(int,genesets=genesets)
 int_res_tbl <- int_res$enrichment_result
