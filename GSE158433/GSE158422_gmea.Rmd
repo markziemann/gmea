@@ -1,0 +1,263 @@
+---
+title: "GSE158433: GMEA of DNA methylation differences in lung squamous cell carcinoma"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_float: true
+    code_folding: hide
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+The purpose of this analysis is to explore different enrichment approaches to the
+cancer methylation data: Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
+
+We will specifically be testing the GMEA approach versus existing approaches:
+
+* 1-way Wilcox text
+
+* 1-way t-test
+
+* FGSEA test
+
+* roast test
+
+After each of these tests, downstream GSEA can be conducted.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("plyr")
+  library("R.utils")
+  library("missMethyl")
+  library("limma")
+  library("DMRcate")
+  library("DMRcatedata")
+  library("topconfects")
+  library("minfi")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("RColorBrewer")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("GEOquery")
+  library("eulerr")
+  library("plyr")
+  library("gplots")
+  library("reshape2")
+  library("forestplot")
+  library("beeswarm")
+  library("RCircos")
+  library("qqman")
+  library("ENmix")
+  library("tictoc")
+  library("mitch")
+  library("kableExtra")
+  library("fgsea")
+})
+
+source("../meth_functions.R")
+CORES=8
+
+```
+
+## Obtaining array annotations
+
+```{r,annotation}
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name",
+  "Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+Gene probe sets
+
+```{r,sets}
+
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+
+hist(unlist(lapply(sets,length)),xlim=c(0,200),breaks=500,xlab="set size",main="probes per gene")
+
+```
+
+## Load array result
+
+GSE158422 is the accession number for the array data.
+
+```{r,arraydataload}
+
+#GSE158422 <- readRDS("GSE158422.rds")
+dm <- read.table("GSE158422_limma.tsv",header=TRUE,sep="\t")
+
+head(dm,50) %>%
+  kbl(caption = "Top significant probes with limma") %>%
+  kable_paper("hover", full_width = F)
+
+rownames(dm) <- dm[,1]
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+
+```
+
+## GMEA whole gene - wilcox test
+
+```{r,gmea_wg}
+
+hist(dm$t)
+tic() ; res <- calc_sc(dm) ; toc() #32 cores 95.5
+res2 <- res[[2]]
+
+head(res2,20) %>%
+  kbl(caption = "Top significant genes with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(res2,`fdr(sc)`<0.05)
+
+es <- sig[order(-abs(sig$median)),]
+
+head(es,20) %>%
+  kbl(caption = "Top effect size probes with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+gmea_volc(res2)
+gmea_boxplot(res)
+res2_wg <- res2
+
+```
+
+Investigate how probe number influences significance.
+
+```{r,probebias}
+
+plot(res2$nprobes,res2$sig,log="x",ylim=c(0,50),pch=19,cex=0.6)
+points(sig$nprobes,sig$sig,col="red",pch=19,cex=0.62)
+MIN = min(sig$nprobes)
+LEFT = nrow(subset(res2,nprobes<MIN))
+RIGHT = nrow(subset(res2,nprobes>MIN))
+SIG = nrow(sig)
+TOT = nrow(res2)
+HEADER <- paste(TOT, "genes in total.", SIG, "with FDR<0.05.",
+  RIGHT, "well covered and", LEFT, "poorly covered")
+mtext(HEADER)
+abline(v=MIN,lty=2)
+
+```
+
+## GMEA whole gene - t.test
+
+```{r,gmea_t}
+
+dm <- read.table("GSE158422_limma.tsv",header=TRUE,sep="\t")
+rownames(dm) <- dm[,1]
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+
+hist(dm$t)
+tic() ; res <- calc_sc2(dm) ; toc() #
+res2 <- res[[2]]
+
+head(res2,20) %>%
+  kbl(caption = "Top significant genes with GMEA-t") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(res2,`fdr(sc)`<0.05)
+
+es <- sig[order(-abs(sig$median)),]
+
+head(es,20) %>%
+  kbl(caption = "Top effect size probes with GMEA") %>%
+  kable_paper("hover", full_width = F)
+
+gmea_volc(res2)
+gmea_boxplot(res)
+res2_t <- res2
+
+plot(res2$nprobes,res2$sig,log="x",ylim=c(0,50),pch=19,cex=0.6)
+points(sig$nprobes,sig$sig,col="red",pch=19,cex=0.62)
+MIN = min(sig$nprobes)
+LEFT = nrow(subset(res2,nprobes<MIN))
+RIGHT = nrow(subset(res2,nprobes>MIN))
+SIG = nrow(sig)
+TOT = nrow(res2)
+HEADER <- paste(TOT, "genes in total.", SIG, "with FDR<0.05.",
+  RIGHT, "well covered and", LEFT, "poorly covered")
+mtext(HEADER)
+abline(v=MIN,lty=2)
+
+```
+
+## GMEA using FGSEA test
+
+```{r,gmea_fgsea}
+
+hist(dm$t)
+head(dm)
+tstats <- dm$t
+names(tstats) <- rownames(dm)
+
+tic()
+fgseaRes <- fgsea(pathways = sets,
+                  stats    = tstats,
+                  minSize  = 5,
+                  nproc = 16)
+toc()
+
+fgseaRes <- as.data.frame(fgseaRes)[,1:7]
+fgseaRes <- fgseaRes[order(fgseaRes$pval),]
+
+head(fgseaRes,20) %>%
+  kbl(caption = "Top significant genes with GMEA-FGSEA") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(fgseaRes,padj<0.05)
+SIG = nrow(sig)
+
+plot(fgseaRes$ES,-log10(fgseaRes$pval))
+points(sig$ES,-log10(sig$pval),col="red")
+
+plot(fgseaRes$size,-log10(fgseaRes$pval),log="x")
+points(sig$size,-log10(sig$pval),col="red")
+
+gmea_volc(res2)
+gmea_boxplot(res)
+res2_wg <- res2
+
+```
+
+## GMEA using ROAST test
+
+TODO
+
+## Mitch whole gene
+
+Methylation only.
+
+```{r,mitch_wg}
+
+genesets <- gmt_import("../ReactomePathways.gmt")
+
+meth <- res2$sig * res2$median
+meth <- as.data.frame(meth)
+rownames(meth) <- rownames(res2)
+
+mres <- mitch_calc(x=meth, genesets=genesets,priority="effect")
+
+head(mres$enrichment_result,20) %>%
+  kbl(caption = "Top differential pathways with GMEA+mitch") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+## Session Information
+
+```{r,session}
+
+sessionInfo()
+
+```

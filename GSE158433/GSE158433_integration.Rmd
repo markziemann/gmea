@@ -20,7 +20,7 @@ and see which approach is most parsimonious with gene expressoin differences.
 We will specifically be testing the GMEA approach versus existing approaches,
 namely GOseq and mitch.
 
-This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and 
+This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and
 Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
 
 In this script, we will be processing the EPIC DNA methylation data and performing the
@@ -53,10 +53,11 @@ suppressPackageStartupMessages({
   library("tictoc")
   library("mitch")
   library("kableExtra")
+  library("fgsea")
 })
 
 source("../meth_functions.R")
-CORES=detectCores()/2
+CORES=8
 
 ```
 
@@ -65,8 +66,22 @@ CORES=detectCores()/2
 ```{r,annotation}
 
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+myann <- data.frame(anno[,c("UCSC_RefGene_Name",
+  "Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
 promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+Gene probe sets
+
+```{r,sets}
+
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+
+hist(unlist(lapply(sets,length)),xlim=c(0,200),breaks=500,xlab="set size",main="probes per gene")
 
 ```
 
@@ -88,7 +103,7 @@ dm <- dm[,c("UCSC_RefGene_Name","t")]
 
 ```
 
-## GMEA whole gene
+## GMEA whole gene - wilcox test
 
 ```{r,gmea_wg}
 
@@ -111,6 +126,24 @@ head(es,20) %>%
 gmea_volc(res2)
 gmea_boxplot(res)
 res2_wg <- res2
+
+```
+
+Investigate how probe number influences significance.
+
+```{r,probebias}
+
+plot(res2$nprobes,res2$sig,log="x",ylim=c(0,50),pch=19,cex=0.6)
+points(sig$nprobes,sig$sig,col="red",pch=19,cex=0.62)
+MIN = min(sig$nprobes)
+LEFT = nrow(subset(res2,nprobes<MIN))
+RIGHT = nrow(subset(res2,nprobes>MIN))
+SIG = nrow(sig)
+TOT = nrow(res2)
+HEADER <- paste(TOT, "genes in total.", SIG, "with FDR<0.05.",
+  RIGHT, "well covered and", LEFT, "poorly covered")
+mtext(HEADER)
+abline(v=MIN,lty=2)
 
 ```
 
