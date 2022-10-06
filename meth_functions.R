@@ -453,7 +453,7 @@ calc_sc <- function(dm) {
   l <- mclapply(1:nrow(dm), function(i) {
     a <- dm[i,]
     len <- length(a[[1]][[1]])
-    tvals <- as.numeric(rep(a[2],len))
+    tvals <- as.numeric(rep(a["t"],len))
     genes <- a[[1]][[1]]
     data.frame(genes,tvals)
   },mc.cores=CORES)
@@ -480,6 +480,53 @@ calc_sc <- function(dm) {
   out <- list("df"=df,"gme_res_df"=gme_res_df)
   return(out)
 }
+
+
+# use a t-test for calculating significance
+calc_sc2 <- function(dm) {
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a["t"],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=CORES)
+  df <- do.call(rbind,l)
+  keep <- names(which(table(df$genes)>1))
+  df <- df[df$genes %in% keep,]
+  gn <- unique(df$genes)
+
+  gme_res <- lapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    tselfcont <- t.test(tstats)
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
+      "p-value(sc)"=tselfcont$p.value)
+  } )
+
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,4])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$`fdr(sc)` <- p.adjust(gme_res_df$`p-value(sc)`)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
+
+
+
+
 
 gmea_volc <- function(res) {
   sig <- subset(res,`fdr(sc)` < 0.05)
