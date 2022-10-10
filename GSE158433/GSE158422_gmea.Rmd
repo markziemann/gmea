@@ -104,15 +104,18 @@ head(dm,50) %>%
 rownames(dm) <- dm[,1]
 dm <- dm[,c("UCSC_RefGene_Name","t")]
 
+hist(dm$t)
+
 ```
 
 ## GMEA whole gene - wilcox test
 
 ```{r,gmea_wg}
 
-hist(dm$t)
-tic() ; res <- calc_sc(dm) ; toc() #32 cores 95.5
-res2 <- res[[2]]
+tic()
+resw <- calc_sc(dm)
+toc() #16 cores 129 sec
+res2 <- resw[[2]]
 
 head(res2,20) %>%
   kbl(caption = "Top significant genes with GMEA") %>%
@@ -158,9 +161,11 @@ dm <- read.table("GSE158422_limma.tsv",header=TRUE,sep="\t")
 rownames(dm) <- dm[,1]
 dm <- dm[,c("UCSC_RefGene_Name","t")]
 
-hist(dm$t)
-tic() ; res <- calc_sc2(dm) ; toc() #
-res2 <- res[[2]]
+tic()
+rest <- calc_sc2(dm)
+toc() #16 cores 252 sec
+
+res2 <- rest[[2]]
 
 head(res2,20) %>%
   kbl(caption = "Top significant genes with GMEA-t") %>%
@@ -196,7 +201,6 @@ abline(v=MIN,lty=2)
 
 ```{r,gmea_fgsea}
 
-hist(dm$t)
 head(dm)
 tstats <- dm$t
 names(tstats) <- rownames(dm)
@@ -217,22 +221,96 @@ head(fgseaRes,20) %>%
 
 sig <- subset(fgseaRes,padj<0.05)
 SIG = nrow(sig)
+UP = nrow(subset(sig,ES>0))
+DN = nrow(subset(sig,ES<0))
 
 plot(fgseaRes$ES,-log10(fgseaRes$pval))
 points(sig$ES,-log10(sig$pval),col="red")
+mtext(paste(SIG,"signifiant genes,",UP,"up,",DN,"down"))
 
 plot(fgseaRes$size,-log10(fgseaRes$pval),log="x")
 points(sig$size,-log10(sig$pval),col="red")
+mtext(paste(SIG,"signifiant genes,",UP,"up,",DN,"down"))
 
-gmea_volc(res2)
-gmea_boxplot(res)
-res2_wg <- res2
+```
+
+## Using CAMERA
+
+Need to add volcano and nprobe charts here.
+
+```{r,cam_func}
+
+stat <- dm$t
+names(stat) <- rownames(dm)
+
+# parallel approach
+CORES=detectCores()
+#sets <- head(sets,100000)
+sets_split <- split(sets,1:CORES)
+
+tic()
+
+cres <- mclapply(X=sets_split, function(mysets) {
+  cameraPR(statistic=stat, index=mysets, use.ranks = FALSE, inter.gene.cor=0.01, sort = TRUE)
+}, mc.cores=CORES)
+
+cres <- do.call(rbind,cres)
+rownames(cres) <- sub("\\.","@", rownames(cres))
+rownames(cres) <- sapply(strsplit(rownames(cres),"@"),"[[",2)
+cres <- cres[order(cres$PValue),]
+g <- rownames(cres)[1]
+
+m <- mclapply(rownames(cres) , function(g) {
+  probes <- sets[[g]]
+  scores <- stat[which(names(stat) %in% probes)]
+  mymedian <- median(scores)
+  mymean <- mean(scores)
+  c(mymean,mymedian)
+},mc.cores=CORES)
+
+mdf <- do.call(rbind,m)
+colnames(mdf) <- c("mean","median")
+cres <- cbind(mdf,cres)
+cres$FDR <- p.adjust(cres$PValue,method="fdr")
+toc()
+
+head(subset(cres,Direction=="Up"),25)
+head(subset(cres,Direction=="Down"),25)
+
+head(cres,50) %>%
+  kbl(caption = "Top significant genes with CAMERA") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(cres,FDR<0.05)
+SIG <- nrow(sig)
+
+plot(cres$median,-log10(cres$PValue))
+points(sig$median,-log10(sig$PValue),col="red")
+
+plot(cres$NGenes,-log10(cres$PValue),log="x")
+points(sig$NGenes,-log10(sig$PValue),col="red")
 
 ```
 
 ## GMEA using ROAST test
 
-TODO
+ROAST is self contained test using rotations.
+
+
+## TODO
+
+The goal is to use a self contained test that can handle extensive correlation.
+
+Globaltest, ANCOVA and SAM-GS
+
+GSVA
+
+Q2 (Tian et al. [14])
+14. Tian L, Greenberg SA, Kong SW, et al. Discovering statistically significant pathways in expression profiling studies. Proc Natl Acad Sci USA. 2005;102(38):13544–9. [PMC free article] [PubMed] [Google Scholar]
+
+FCS.SC—self-contained version of FCS (Pavlidis et al. [24])
+24. Pavlidis P, Qin J, Arango V, et al. Using the gene ontology for microarray data mining: a comparison of methods and application to age effect in human prefrontal cortex. Neurochem Res. 2004;29(6):1213–22. [PubMed] [Google Scholar]
+
 
 ## Mitch whole gene
 
