@@ -81,7 +81,7 @@ download.file("https://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matri
   destfile=SERIES_MATRIX)
 }
 gse <- getGEO(filename=SERIES_MATRIX)
-baseDir <- "."
+baseDir <- "IDAT"
 sample_metadata <- pData(phenoData(gse))
 targets <- sample_metadata
 mybase <- unique(gsub("_Red.idat.gz" ,"",  gsub("_Grn.idat.gz", "" ,list.files(".",pattern = "GSM",recursive = TRUE))))
@@ -89,6 +89,9 @@ targets$Basename <- mybase
 head(targets)
 rgSet <- read.metharray.exp(targets = targets)
 rgSet
+
+targets$Basename <- gsub("IDAT/","",mybase)
+head(targets)
 
 
 ```
@@ -177,9 +180,10 @@ myscree <- function(mx,n=10,main="") {
   text((0.5:length(pcp)*1.2),pcp,label=signif(pcp,3),pos=3,cex=0.8)
 }
 
-par(mfrow=c(2,1))  
+par(mfrow=c(2,1))
 myscree(Mval,main="incl sex chr")
 myscree(Mval_flt,main="excl sex chr")
+par(mfrow=c(1,1))
 
 ```
 
@@ -189,7 +193,7 @@ myscree(Mval_flt,main="excl sex chr")
 
 ```{r,mds1,fig.width = 8 ,fig.height = 8,fig.cap="Figure 3. MDS plot coloured by ART classification."}
 
-colnames(targets) <- gsub(" ","_",colnames(targets)) 
+colnames(targets) <- gsub(" ","_",colnames(targets))
 colnames(targets) <- gsub(":","_",colnames(targets))
 targets$sex<-factor(sex_female)
 targets$case<-factor(targets$`characteristics_ch1`)
@@ -213,14 +217,12 @@ Paired normal versus cancer tissue.
 samplesheet<-targets
 groups <- factor(samplesheet$case,levels=c("tumor: normal","tumor: tumor"))
 sex <- factor(samplesheet$sex,levels=c("0","1"))
-Mvals<-Mval
-betas<-beta
-dim(Mvals)
-dim(betas)
+dim(Mval)
+dim(beta)
 
 GSE158422 <- dm_analysis(samplesheet=samplesheet,
-  sex=sex,groups=groups,mx=Mvals,name="GSE158422",
-  myann=myann ,beta= betas)
+  sex=sex,groups=groups,mx=Mval,name="GSE158422",
+  myann=myann ,beta= beta)
 
 head(GSE158422$dma,10)
 head(GSE158422$dmr,10)

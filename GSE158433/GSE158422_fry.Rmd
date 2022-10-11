@@ -25,7 +25,7 @@ suppressPackageStartupMessages({
   library("minfi")
   library("IlluminaHumanMethylation450kmanifest")
   library("RColorBrewer")
-  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
   library("GEOquery")
   library("eulerr")
   library("plyr")
@@ -87,33 +87,15 @@ summary(unlist(lapply(psets,length)))
 
 ```
 
-## Differential analysis
+## Design matrix
 
-Paired normal versus cancer tissue.
-
-
-```{r,dm}
+```{r,design}
 
 samplesheet<-targets
 groups <- factor(samplesheet$case,levels=c("tumor: normal","tumor: tumor"))
 sex <- factor(samplesheet$sex,levels=c("0","1"))
-Mvals<-Mval
-betas<-beta
-dim(Mvals)
-dim(betas)
-
-GSE158422 <- dm_analysis(samplesheet=samplesheet,
-  sex=sex,groups=groups,mx=Mvals,name="GSE158422",
-  myann=myann ,beta= betas)
-
-mx=Mvals
-name="GSE158422"
-beta=betas
 design <- model.matrix(~ sex + groups)
-mxs <- mx[,which( colnames(mx) %in% samplesheet$Basename )]
-fit.reduced <- lmFit(mxs,design)
-fit.reduced <- eBayes(fit.reduced)
-summary(decideTests(fit.reduced))
+mxs <- Mval
 
 ```
 
