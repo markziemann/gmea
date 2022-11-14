@@ -13,7 +13,7 @@ theme: cosmo
 The purpose of this analysis is to apply different enrichment analysis approaches,
 and see which approach is most parsimonious with gene expression differences.
 
-This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and 
+This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and
 Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
 
 In this script, we will be analysing the gene expression profiles, followed by mitch
