@@ -1,0 +1,279 @@
+---
+title: "GSE158422: DNA methylation in Lung squamous cell carcinoma - GMEA using fry()"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+theme: cosmo
+---
+
+## Introduction
+
+There are many ways to perform enrichment analysis of Infinium methylation data.
+The purpose of this work is to determine which one of these methods perform "best".
+Best performance is a function of specificity, sensitivity and biological consistency.
+
+* Specificity can be defined as the ability to control false discovery rate appropriately.
+This will be evaluated by analyzing a randomised data set.
+
+* Sensitivity is defined as the ability to identify genesets undergoing differentially methylation.
+This can be evaluated if we begin with a large study with many samples, analyse it and then repeat
+the process with fewer samples.
+The more sensitive methods will be able to identify differentially methylated pathways with
+a smaller sample size.
+
+* As methylation is known to be a characteristic of silenced genes, we can use this feature to examine
+whether the methylation pathway enrichment analysis is congruent with gene expression data, as this
+dataset has matched methylation and gene expression profiles for all samples.
+
+In addition I will be measuring at the execution time for these approaches.
+
+The approaches that I will be examining:
+
+* GOmeth: an approach to filter differential methylated probes followed by over-representation testing.
+
+* ebGSEA: global test to rank genes followed by Wilcoxon Test or Known Population Median Test
+
+* methylGSA: mRRA robust rank aggregation, mGLM
+
+* Fry test on probes belonging to a gene, followed by Camera PR based on significance/effectsize?
+
+* Median of probe intensity for each gene in each sample followed by Fry test on pathways.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("plyr")
+  library("R.utils")
+  library("missMethyl")
+  library("limma")
+  library("DMRcate")
+  library("DMRcatedata")
+  library("topconfects")
+  library("minfi")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("RColorBrewer")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("GEOquery")
+  library("eulerr")
+  library("plyr")
+  library("gplots")
+  library("reshape2")
+  library("forestplot")
+  library("beeswarm")
+  library("RCircos")
+  library("qqman")
+  library("ENmix")
+
+  library("tictoc")
+  library("kableExtra")
+  library("mitch")
+  library("fgsea")
+
+})
+
+source("../meth_functions.R")
+
+```
+
+## Load data
+
+```{r,annotation}
+
+load("GSE158422.Rdata")
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+promoters <- myann[promoters,]
+
+```
+
+Curate probe-sets.
+
+Firstly for whole gene.
+
+```{r,probesets_wholegene}
+
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+
+summary(unlist(lapply(sets,length)))
+
+```
+
+Now for promoters only.
+
+```{r,probesets_promoters}
+
+gp <- promoters[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+psets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+
+summary(unlist(lapply(psets,length)))
+
+```
+
+## Design matrix
+
+```{r,design}
+
+samplesheet<-targets
+groups <- factor(samplesheet$case,levels=c("tumor: normal","tumor: tumor"))
+sex <- factor(samplesheet$sex,levels=c("0","1"))
+design <- model.matrix(~ sex + groups)
+mxs <- Mval
+
+```
+
+## set up mroast
+
+Roast is a self contained test involving sample permulations.
+
+This is beneficial for two reasons.
+
+1. Sample permutations will prevent against false positives caused by strong
+probe-probe correlation structures.
+
+2. Competitive tests are not suited to experiments where there are unequal up and down
+regulaiton, which is common for epigenetics studies.
+
+Parallel analysis of GMEA with whole gene and promoters only.
+
+mroast with 1000 whole gene probe sets, 2000 rotations: 42 s
+
+mroast with 1000 gene promoter probe sets, 2000 rotations: 41 s
+
+```{r,mroast1}
+
+tic()
+mro_res1 <- mroast(y=mxs, index = head(sets,1000), design = design, contrast = ncol(design), nrot = 2000 )
+toc()
+
+head(mro_res1,20) %>%
+  kbl(caption="mroast test with 1000 whole gene probe sets") %>%
+  kable_styling(full_width=FALSE)
+
+tic()
+mro_res2 <- mroast(y=mxs, index = head(psets,1000), design = design, contrast = ncol(design), nrot = 2000 )
+toc()
+
+head(mro_res2,20) %>%
+  kbl(caption="mroast test with 1000 promoter only probe sets") %>%
+  kable_styling(full_width=FALSE)
+
+```
+
+## Set up fry test
+
+Fry is good because the p-values are analytically determined, and will have high precision.
+
+Small test whole gene: 28 secs.
+Small test gene promoter: 27 secs.
+
+```{r,smallfry1}
+
+tic()
+fry_res1 <- fry(y=mxs, index = head(sets,1000), design = design, contrast = ncol(design) )
+toc()
+
+head(fry_res1,20) %>%
+  kbl(caption="fry test with 1000 whole gene probe sets") %>%
+  kable_styling(full_width=FALSE)
+
+tic()
+fry_res2 <- fry(y=mxs, index = head(psets,1000), design = design, contrast = ncol(design) )
+toc()
+
+head(fry_res2,20) %>%
+  kbl(caption="fry test with 1000 gene promoter probe sets") %>%
+  kable_styling(full_width=FALSE)
+
+```
+
+Now we can run the test with all probe sets.
+
+Whole gene: 639 sec (10.5 mins)
+
+Promoter: 261 sec (4.35 mins)
+
+```{r,bigfry1}
+
+tic()
+fry_res1 <- fry(y=mxs, index = sets, design = design, contrast = ncol(design) )
+toc()
+
+head(fry_res1,20) %>%
+  kbl(caption="fry test with all whole gene probe sets") %>%
+  kable_styling(full_width=FALSE)
+
+tic()
+fry_res2 <- fry(y=mxs, index = psets, design = design, contrast = ncol(design) )
+toc()
+
+head(fry_res2,20) %>%
+  kbl(caption="fry test with all gene promoter probe sets") %>%
+  kable_styling(full_width=FALSE)
+
+```
+
+## Pathway analysis
+
+Simple GSEA using FGSEA (gene permutation) and mitch (rank-ANOVA).
+
+```{r,fgsea}
+
+#download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", destfile="ReactomePathways.gmt.zip")
+#unzip("ReactomePathways.gmt.zip")
+genesets <- gmt_import("ReactomePathways.gmt")
+
+stat1 <- sign(as.numeric(factor(fry_res1$Direction))-1.5)  * -log10(fry_res1$PValue)
+stat1[is.na(stat1)] <- 0
+names(stat1) <- rownames(fry_res1)
+fres1 <- fgseaMultilevel(pathways=genesets,stats=stat1)
+fres1 <- fres1[order(fres1$pval),]
+
+head(fres1,20) %>%
+  kbl(caption="WG fry + fgsea Reactome results") %>%
+  kable_styling(full_width=FALSE)
+
+
+stat2 <- sign(as.numeric(factor(fry_res2$Direction))-1.5)  * -log10(fry_res2$PValue)
+stat2[is.na(stat2)] <- 0
+names(stat2) <- rownames(fry_res2)
+fres2 <- fgseaMultilevel(pathways=genesets,stats=stat2)
+fres2 <- fres2[order(fres2$pval),]
+head(fres2,20)  %>%
+  kbl(caption="Promoter fry + fgsea Reactome results") %>%
+  kable_styling(full_width=FALSE)
+
+
+```
+
+```{r,mitch}
+
+stat1 <- data.frame(stat1)
+mres1 <- mitch_calc(stat1, genesets, priority="effect")
+head(mres1$enrichment_result,20) %>%
+  kbl(caption="WG fry + mitch Reactome results") %>%
+  kable_styling(full_width=FALSE)
+
+stat2 <- data.frame(stat2)
+mres2 <- mitch_calc(stat2, genesets, priority="effect")
+head(mres2$enrichment_result,20) %>%
+  kbl(caption="Promoter fry + mitch Reactome results") %>%
+  kable_styling(full_width=FALSE)
+
+```
+
+## save data object
+
+```{r,save}
+
+save.image("GSE158422_fry.Rdata")
+
+```

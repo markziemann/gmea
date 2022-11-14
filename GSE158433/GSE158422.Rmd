@@ -10,17 +10,11 @@ theme: cosmo
 
 ## Introduction
 
-The purpose of this analysis is to apply different enrichment analysis approaches,
-and see which approach is most parsimonious with gene expressoin differences.
+This work is to conduct the methylation data processing and differential analysis of GSE158422, which is matched
+lung squamous cell carcinoma (LUSC) and control tissue.
 
-We will specifically be testing the GMEA approach versus existing approaches,
-namely GOseq and mitch.
+The data is going to be saved as an Rdata file and then used for enrichment analysis in a subsequent Rmd script.
 
-This study (GSE158433) is a super-series contains matched RNA-seq (GSE158420) and 
-Infinium EPIC array (GSE158422) data for matched control and cancer tissues.
-
-In this script, we will be processing the EPIC DNA methylation data and performing the
-statistical analysis in limma and saving the results for downstream enrichment analysis.
 
 ```{r,packages}
 
