@@ -20,8 +20,8 @@ If we are to write a journal article on this work we will need the following:
 Existing methods include looking at individual probes, DMR finding, etc. 
 To do this we will apply existing and GMEA method to an older dataset (eg BPROOF[5]) and identify novel trends.
 
-* Determine difference between promoter only or whole gene methylation.
-Run GMEA on promoter and whole gene for BPROOF[5] and use mitch downstream to estimate pathway level differential methylation.
+
+* To show that GMEA is robust, split the BPROOF data in half to show the results are consistent.
 
 * Examine the association between differential gene expression and methylation.
 Does GMEA give better prediction of gene expression changes as compared to existing approaches?
