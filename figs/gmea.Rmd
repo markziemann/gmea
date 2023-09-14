@@ -1,0 +1,351 @@
+---
+title: "GSE74548: Gene Methylation Enrichment Analysis"
+author: "hcy_meth meta-analysis group"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_float: true
+    code_folding: hide
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+##  Introduction
+
+Previously, Mandhri and I analysed the B-PROOF 450K data, trying to understand
+whether vitamin supplementation caused changes in gene methylation.
+We used Limma and some basic analyses, which showed no specific probes with FDR<0.05,
+nor any DMRs.
+
+Here we will attempt functional enrichment analysis on this data, firstly using GOMeth/gsameth, and secondly
+with a new method called GMEA (Gene Methylation Enrichment Analysis).
+GMEA involves first aggregating median signal for probes belonging to a gene, followed by limma and subsequentenrichment analysis.
+
+To validate this approach it is possible to cut the dataset in half and see what % of results are consistent.
+
+```{r,libs}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("parallel")
+  library("dplyr")
+  library("kableExtra")
+  library("eulerr")
+  library("mitch")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("missMethyl")
+  library("tictoc")
+})
+
+source("meth_functions.R")
+
+```
+
+
+## Get array annotation data
+
+```{r,anno}
+
+ann450k <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","Regulatory_Feature_Group")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+# DM3 - association of Hcy with gene methylation
+
+It is thought that high plasma homocysteine can inhibit DNA methylation.
+Let's see whether that is the case, and which genes are most affected.
+This analysis is conducted at the whole gene level as well as on the level of promoters.
+
+This approach involves performing limma, and then for each gene the median t-score is
+calculated.
+This value is then used by mitch.
+
+```{r,dma3_mitch}
+
+design <- readRDS(file="hcy_design.rds")
+mval <- readRDS(file="hcy_mval.rds")
+
+tic()
+res <- main(mval=mval,design=design,sets=sets,cores=4)
+res_df <- res[[1]] # enrichment results
+res_top <- res[[2]] # limma results
+toc() ## 502-522 sec elapsed on 8 cores (8.3-8.7 mins)
+
+hist(res_top$t)
+
+hist(res_df$median)
+
+head(res_df,30) %>%
+  kbl(caption="Top GMEA genes") %>%
+  kable_styling("hover", full_width = F)
+
+genesets <- gmt_import("ReactomePathways.gmt")
+
+y <- res_df[,"median",drop=FALSE]
+
+colnames(y) <- "meth"
+
+res <- mitch_calc(y, genesets, priority="effect")
+
+head(res$enrichment_result,30) %>%
+  kbl(caption="Top GMEA pathways", row.names = F) %>%
+  kable_styling("hover", full_width = F)
+
+```
+
+A slight variation is to use cameraPR instead of mitch to better control for correlation.
+
+```{r,dma3_cameraPR}
+
+stat <- res_df$median
+
+names(stat) <- rownames(res_df)
+stat[is.na(stat)] <- 0
+
+tic()
+cres <- cameraPR(statistic=stat, index=genesets, use.ranks = FALSE, inter.gene.cor=0.01, sort = TRUE)
+cres <- subset(cres,NGenes>4)
+cres$FDR <- p.adjust(cres$PValue,method="fdr")
+mymedians <- sapply(1:nrow(cres),function(i) {
+  myset <- genesets[[which(names(genesets) == rownames(cres)[i])]]
+  mystats <- stat[names(stat) %in% myset]
+  median(mystats)
+})
+cres$median <- mymedians
+toc() # 1.0 sec
+
+sig <- subset(cres,FDR<0.05)
+
+head(sig[order(-abs(sig$median)),],20) %>%
+  kbl(caption = "Top GMEA pathways found with CAMERA after 5% FDR filtering") %>%
+  kable_styling("hover", full_width = F)
+
+```
+
+Now try another approach by first aggregating and then performing limma, then pathway enrichment.
+
+Aggregate mval to genes and examine pathway enrichment in blood.
+
+```{r,gsmea_hcy}
+
+gsmea <- function(mval,design,probesets,genesets,cores=2) {
+  ag <- mclapply(probesets,function(ps) {
+    mval <- mval[rownames(mval) %in% ps,,drop=FALSE]
+    if (nrow(mval>1)) {
+      o <- apply(mval,2,median)
+    } else {
+      o <- mval
+    }
+   o
+  },mc.cores=cores)
+  ag <- do.call(rbind,ag)
+  res <- main(mval=ag,design=design,sets=genesets,cores=cores )
+}
+
+tic()
+hcy_gsmea <- gsmea(mval=mval,design=design,probesets=sets,genesets=genesets,cores=8)
+toc()
+
+hcy_gsmea$res <- subset(hcy_gsmea$res,nprobes>=5)
+hcy_gsmea$res$FDR <- p.adjust(hcy_gsmea$res$PValue,method="fdr")
+
+head(hcy_gsmea$res,20) %>%
+  kbl(caption = "Pathways found using the agg,lim,fry method") %>%
+  kable_styling("hover", full_width = F)
+
+```
+
+## Whole gene analysis
+
+```{r,wg}
+# set cores to used for parallel execution
+CORES= detectCores()
+
+dm <- read.table("dma3a.tsv.gz")
+dm <- dm[,4:9]
+dm <- merge(myann,dm,by=0)
+rownames(dm) <- dm[,1]
+dm[,1] = NULL
+
+calc_sc <- function(dm) {
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a["t"],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=CORES)
+  df <- do.call(rbind,l)
+  gme_res <- mclapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    wtselfcont <- wilcox.test(tstats)
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
+      "p-value(sc)"=wtselfcont$p.value)
+  } , mc.cores=CORES )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,4])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$`fdr(sc)` <- p.adjust(gme_res_df$`p-value(sc)`)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
+
+tic()
+gme_res_wholegene <- calc_sc(dm)
+time2 <- toc() #38 44 41 40 44 41 40
+time2
+df <- gme_res_wholegene[[1]]
+res <- gme_res_wholegene[[2]]
+write.table(res,file="gmea_wholegene.tsv")
+
+```
+
+## Table of top results.
+
+```{r, toptable}
+
+head(res,50) %>%
+  kbl(caption = "Top significant genes with GMEA") %>%
+  kable_styling("hover", full_width = F)
+
+```
+
+## Volcano plots
+
+```{r,volcano1}
+
+# volcano selfcont
+sig <- subset(res,`fdr(sc)` < 0.05)
+plot(res$median , -log10(res$`p-value(sc)`) ,
+  xlab="effect size (mean t-stat)", ylab="-log10(p-value)",
+  pch=19, cex=0.5, col="gray",main="self contained test")
+grid()
+points(sig$median , -log10(sig$`p-value(sc)`) ,
+  pch=19, cex=0.5, col="red")
+
+
+```
+
+## Probe bias
+
+```{r,probe_bias1}
+
+plot(res$nprobes,res$sig,log="x",ylim=c(0,50),pch=19,cex=0.6)
+points(sig$nprobes,sig$sig,col="red",pch=19,cex=0.62)
+MIN = min(sig$nprobes)
+LEFT = nrow(subset(res,nprobes<MIN))
+RIGHT = nrow(subset(res,nprobes>MIN))
+SIG = nrow(sig)
+TOT = nrow(res)
+HEADER <- paste(TOT, "genes in total.", SIG, "with FDR<0.05.",
+  RIGHT, "well covered and", LEFT, "poorly covered")
+mtext(HEADER)
+abline(v=MIN,lty=2)
+
+```
+
+
+## Boxplots
+
+Boxplots smallest pvalue.
+
+```{r,box1}
+
+par(mfrow=c(1,2))
+n=50
+# self contained
+
+gs <- head(rownames(res),50)
+tstats <- lapply(gs, function(g) {
+  df[which(df$genes==g),"tvals"]
+})
+names(tstats) <- gs
+
+tstats <- tstats[order(unlist(lapply(tstats,median)))]
+boxplot(tstats,horizontal=TRUE,las=1,
+  main="smallest p-val(selfcont)",cex.axis=0.6,
+  xlab="t-statistic")
+grid()
+
+n=50
+# effect size median
+sig <- subset(res,`fdr(sc)` < 0.05)
+gs <- head(rownames(sig[order(-abs(sig$median)),]),n)
+
+if ( length(gs) >2 ) {
+  tstats <- lapply(gs, function(g) {
+    df[which(df$genes==g),"tvals"]
+  })
+  names(tstats) <- gs
+  tstats <- tstats[order(unlist(lapply(tstats,median)))]
+  boxplot(tstats,horizontal=TRUE,las=1,
+    main="biggest effect size(median)",cex.axis=0.6,
+    xlab="t-statistic")
+  grid()
+} else {
+  plot(1)
+  mtext("too few significant genes found")
+}
+
+```
+
+## Mitch
+
+```{r,dm1_mitch}
+
+dmscore <- data.frame( res$median * res$sig)
+
+rownames(dmscore) <- rownames(res)
+
+colnames(dmscore) <- "metric"
+
+if ( ! file.exists("ReactomePathways.gmt") ) {
+  download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip",
+    destfile="ReactomePathways.gmt.zip")
+  unzip("ReactomePathways.gmt.zip")
+}
+file.info("ReactomePathways.gmt")
+genesets <- gmt_import("ReactomePathways.gmt")
+length(genesets)
+
+mres <- mitch_calc(x=dmscore, genesets=genesets, priority="effect")
+
+head(mres$enrichment_result,20) %>%
+  kbl(caption = "Top enriched gene sets with GMEA-Mitch", row.names = FALSE) %>%
+  kable_styling("hover", full_width = F)
+
+mitch_report(mres,outfile="dma3a_mitch.html",overwrite=TRUE)
+
+```
+
+## Session Information
+
+For reproducibility.
+
+```{r,sessioninfo}
+
+sessionInfo()
+
+```

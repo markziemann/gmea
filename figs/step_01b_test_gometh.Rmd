@@ -1,0 +1,317 @@
+---
+title: "GOmeth test"
+author: "hcy_meth meta-analysis group"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_float: true
+    code_folding: hide
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we will run test enrichment analysis approaches for undderstanding the effect of elevated
+homocysteine on blood methylomes.
+Homocysteine is thought to be an inhibitor of methyltransferases and hyperhomocysteine is
+associated with overall reduced genomic methylation.
+Previously we analysed the B-PROOF study data which enabled us to identify probes whose methylation correlatesor anti-correlated with homocysteine level.
+
+The two enrichment analysis approaches we will use are:
+
+* `gsameth`: an ORA approach that addressed the biases inherent with infinium array analysis.
+
+* `gmea`: an experimental application of functional class scoring for infinium analysis.
+
+```{r,libs}
+
+suppressPackageStartupMessages({
+  library("missMethyl")
+  library("kableExtra")
+  library("mitch")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("tictoc")
+})
+
+```
+
+
+Load the data.
+
+```{r,load}
+
+dm <- read.table("dma3a.tsv")
+rownames(dm) <- dm$Row.names
+dm$Row.names=NULL
+
+head(dm, 10) %>% kbl() %>% kable_paper("hover", full_width = F)
+
+```
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+```{r,gsdl}
+
+gs_entrez <- gmt_import("c2.cp.reactome.v2023.1.Hs.entrez.gmt")
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+```
+
+## ORA with GSAMETH - parth of the MissMethyl package
+
+Now perform ORA analysis using gsameth with the top 500 probes.
+
+
+```{r,gsameth1}
+
+sigup <- rownames(head(subset(dm,logFC>0),1000))
+gsaup <- gsameth(sig.cpg=head(sigup,500), all.cpg=rownames(dm), collection=gs_entrez)
+gsaup <- gsaup[order(gsaup$P.DE),]
+head(gsaup,10) %>% kbl(caption="Top hypermethylated pathways") %>% kable_paper("hover", full_width = F)
+
+sigdn <- rownames(head(subset(dm,logFC<0),1000))
+gsadn <- gsameth(sig.cpg=head(sigdn,500), all.cpg=rownames(dm), collection=gs_entrez)
+gsadn <- gsadn[order(gsadn$P.DE),]
+head(gsadn,10) %>% kbl(caption="Top hypomethylated pathways") %>% kable_paper("hover", full_width = F)
+
+```
+
+## GMEA
+
+Now with GMEA.
+
+Start with gathering the annotation set.
+
+```{r,anno}
+
+ann450k <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","Regulatory_Feature_Group")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+Histogram of limma t-statistics.
+
+```{r,hist}
+
+dm <- dm[,c("UCSC_RefGene_Name","t")]
+hist(dm$t,breaks=seq(from=-6,to=6,by=1)) ; grid()
+
+```
+
+Aggregate probe t-scores to gene level scores.
+
+The object generated has two parts:
+
+1. `df`: a simple table of the gene name and the median tvalue
+
+2. `gme_res_df`: results of 1-sample Wilcox test.
+
+```{r,agg_wt}
+
+CORES= detectCores()
+
+agg <- function(dm) {
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a[2],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=CORES)
+  df <- do.call(rbind,l)
+  gme_res <- mclapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    wtselfcont <- wilcox.test(tstats)
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
+      "p-value(sc)"=wtselfcont$p.value)
+  } , mc.cores=CORES )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,4])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$`fdr(sc)` <- p.adjust(gme_res_df$`p-value(sc)`)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
+
+tic()
+dmagg <- agg(dm)
+toc()
+head(dmagg$gme_res_df) %>% kbl(caption="top gmea genes (Wilcox)") %>% kable_paper("hover", full_width = F)
+
+```
+
+Does 1-sample t-test work better?
+
+
+```{r,agg_tt}
+
+agg2 <- function(dm) {
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a["t"],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=CORES)
+  df <- do.call(rbind,l)
+  keep <- names(which(table(df$genes)>1))
+  df <- df[df$genes %in% keep,]
+  gn <- unique(df$genes)
+  gme_res <- lapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    tselfcont <- t.test(tstats)
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
+      "p-value(sc)"=tselfcont$p.value)
+  } )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,4])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$`fdr(sc)` <- p.adjust(gme_res_df$`p-value(sc)`)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
+
+tic()
+dmagg2 <- agg2(dm)
+toc()
+head(dmagg2$gme_res_df) %>% kbl(caption="top gmea genes (t-test)") %>% kable_paper("hover", full_width = F)
+
+```
+
+This results shows that wilcox test executes faster but 1-sample t-test gives more significant findings.
+
+Check that the distribution is even.
+
+```{r,tmeddist}
+
+hist(dmagg2$gme_res_df$median,breaks=30) ; grid()
+
+```
+
+If the distribution is even, then established enrichment analysis can be performed.
+Options include FGSEA and mitch.
+
+Here I will try downstream analysis with mitch.
+
+```{r,mitch1}
+
+m <- dmagg2$gme_res_df
+
+m <- m[,"median",drop=FALSE]
+
+mres <- mitch_calc(x=m, genesets=gs_symbols, priority="effect")
+
+head(mres$enrichment_result,20) %>% kbl(caption="top mitch pathways") %>% kable_paper("hover", full_width = F)
+hist(mres$enrichment_result$s.dist) ; grid()
+
+tbl <- mres$enrichment_result
+
+sig <- subset(tbl,p.adjustANOVA<0.05)
+nrow(sig)
+
+plot(tbl$s.dist,-log10(tbl$pANOVA),pch=19,col="gray")
+grid()
+points(sig$s.dist,-log10(sig$pANOVA),pch=19,col="red")
+
+msig <- sig
+
+```
+
+Some interesting pathways found.
+
+There was no overlap with `gsameth()`.
+
+Interestingly many gene sets exhibit increased methylation.
+
+There could be a directional bias, so I will also conduct a 1-sample t-test.
+
+```{r,t_enrichment_test1}
+
+ttenrich <- function(m,genesets) {
+  res <- mclapply( 1:length(genesets), function(i) {
+    gs <- genesets[i]
+    name <- names(gs)
+    n_members <- length(which(rownames(m) %in% gs[[1]]))
+    if ( n_members > 4 ) {
+      tstats <- m[which(rownames(m) %in% gs[[1]]),]
+      myn <- length(tstats)
+      mymean <- mean(tstats)
+      mymedian <- median(tstats)
+      wt <- t.test(tstats)
+      res <- c(name,myn,mymean,mymedian,wt$p.value)
+    }
+  } , mc.cores = CORES)
+  res_df <- do.call(rbind, res)
+  rownames(res_df) <- res_df[,1]
+  res_df <- res_df[,-1]
+  colnames(res_df) <- c("n_genes","t_mean","t_median","p.value")
+  tmp <- apply(res_df,2,as.numeric)
+  rownames(tmp) <- rownames(res_df)
+  res_df <- tmp
+  res_df <- as.data.frame(res_df)
+  res_df <- res_df[order(res_df$p.value),]
+  res_df$logp <- -log10(res_df$p.value )
+  res_df$fdr <- p.adjust(res_df$p.value,method="fdr")
+  res_df[order(abs(res_df$p.value)),]
+  return(res_df)
+}
+
+gse_res_df <- ttenrich(m=m,genesets=gs_symbols)
+
+head(gse_res_df,30) %>%
+  kbl(caption = "Top significant genesets") %>%
+  kable_paper("hover", full_width = F)
+
+head(gse_res_df[order(-abs(gse_res_df$t_median)),],30) %>%
+  kbl(caption = "Top effect size genesets") %>%
+  kable_paper("hover", full_width = F)
+
+sig <- subset(gse_res_df,fdr<0.05)
+nrow(sig)
+
+tsig <- sig
+
+```
+
+## Session information
+
+For reproducibility.
+
+```{r,session}
+
+sessionInfo()
+
+```

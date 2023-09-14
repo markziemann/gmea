@@ -101,7 +101,7 @@ calc_sc <- function(dm) {
   df <- do.call(rbind,l)
   gme_res <- mclapply( 1:length(gn), function(i) {
     g <- gn[i]
-    tstats <- df[which(df$genes==g),"tvals"] 
+    tstats <- df[which(df$genes==g),"tvals"]
     myn <- length(tstats)
     mymean <- mean(tstats)
     mymedian <- median(tstats)
