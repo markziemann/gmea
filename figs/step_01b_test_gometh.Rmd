@@ -310,6 +310,10 @@ head(tres[order(-abs(tres$t_median)),],30) %>%
 sig <- subset(tres,fdr<0.05)
 nrow(sig)
 
+head(sig[order(-abs(sig$t_median)),],30) %>%
+  kbl(caption = "Top effect size genesets after FDR filtering") %>%
+  kable_paper("hover", full_width = F)
+
 plot(tres$t_median,-log10(tres$p.value),pch=19,col="gray")
 grid()
 points(sig$t_median,-log10(sig$p.value),pch=19,col="red")
@@ -318,9 +322,29 @@ tsig <- sig
 
 ```
 
-## TODO
+## Overlap
 
-Find the overlap between mitch (competitive test) and ttest (self contained).
+Use Euler diagrams to find the similarity.
+As medians are normally distributed about the zero, one would expect equal numbers of up and down-
+methylated gene sets.
+Therefore the t-test based approach could be considered better.
+
+```{r,ol1}
+
+msig_up <- subset(msig,s.dist>0)$set
+msig_dn <- subset(msig,s.dist<0)$set
+
+tsig_up <- rownames(subset(tsig,t_median>0))
+tsig_dn <- rownames(subset(tsig,t_median<0))
+
+v1 <- list("mitch up"=msig_up, "mitch dn"=msig_dn,
+  "ttest up"=tsig_up,"ttest dn"=tsig_dn)
+
+plot(euler(v1),quantities = TRUE)
+
+```
+
+## TODO
 
 Split data set into 2 halves to show consistency.
 
