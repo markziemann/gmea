@@ -71,12 +71,16 @@ Now perform ORA analysis using gsameth with the top 500 probes.
 ```{r,gsameth1}
 
 sigup <- rownames(head(subset(dm,logFC>0),1000))
+sigdn <- rownames(head(subset(dm,logFC<0),1000))
+
+tic()
 gsaup <- gsameth(sig.cpg=head(sigup,500), all.cpg=rownames(dm), collection=gs_entrez)
+gsadn <- gsameth(sig.cpg=head(sigdn,500), all.cpg=rownames(dm), collection=gs_entrez)
+toc()
+
 gsaup <- gsaup[order(gsaup$P.DE),]
 head(gsaup,10) %>% kbl(caption="Top hypermethylated pathways") %>% kable_paper("hover", full_width = F)
 
-sigdn <- rownames(head(subset(dm,logFC<0),1000))
-gsadn <- gsameth(sig.cpg=head(sigdn,500), all.cpg=rownames(dm), collection=gs_entrez)
 gsadn <- gsadn[order(gsadn$P.DE),]
 head(gsadn,10) %>% kbl(caption="Top hypomethylated pathways") %>% kable_paper("hover", full_width = F)
 
@@ -232,7 +236,9 @@ m <- dmagg2$gme_res_df
 
 m <- m[,"median",drop=FALSE]
 
+tic()
 mres <- mitch_calc(x=m, genesets=gs_symbols, priority="effect")
+toc()
 
 head(mres$enrichment_result,20) %>% kbl(caption="top mitch pathways") %>% kable_paper("hover", full_width = F)
 hist(mres$enrichment_result$s.dist) ; grid()
@@ -273,7 +279,7 @@ ttenrich <- function(m,genesets) {
       wt <- t.test(tstats)
       res <- c(name,myn,mymean,mymedian,wt$p.value)
     }
-  } , mc.cores = CORES)
+  } , mc.cores = CORES/2)
   res_df <- do.call(rbind, res)
   rownames(res_df) <- res_df[,1]
   res_df <- res_df[,-1]
@@ -289,22 +295,34 @@ ttenrich <- function(m,genesets) {
   return(res_df)
 }
 
-gse_res_df <- ttenrich(m=m,genesets=gs_symbols)
+tic()
+tres <- ttenrich(m=m,genesets=gs_symbols)
+toc()
 
-head(gse_res_df,30) %>%
+head(tres,30) %>%
   kbl(caption = "Top significant genesets") %>%
   kable_paper("hover", full_width = F)
 
-head(gse_res_df[order(-abs(gse_res_df$t_median)),],30) %>%
+head(tres[order(-abs(tres$t_median)),],30) %>%
   kbl(caption = "Top effect size genesets") %>%
   kable_paper("hover", full_width = F)
 
-sig <- subset(gse_res_df,fdr<0.05)
+sig <- subset(tres,fdr<0.05)
 nrow(sig)
+
+plot(tres$t_median,-log10(tres$p.value),pch=19,col="gray")
+grid()
+points(sig$t_median,-log10(sig$p.value),pch=19,col="red")
 
 tsig <- sig
 
 ```
+
+## TODO
+
+Find the overlap between mitch (competitive test) and ttest (self contained).
+
+Split data set into 2 halves to show consistency.
 
 ## Session information
 
