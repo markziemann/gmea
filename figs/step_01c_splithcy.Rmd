@@ -24,9 +24,9 @@ If the pathway results are similar, then we can be confident about the accuracy.
 ```{r,libs}
 
 suppressPackageStartupMessages({
-  library("missMethyl")
-  library("kableExtra")
   library("mitch")
+  library("limma")
+  library("kableExtra")
   library("eulerr")
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
@@ -35,52 +35,7 @@ suppressPackageStartupMessages({
 
 ```
 
-
-Load the data.
-
-```{r,load}
-
-design <- readRDS("dm3_design.Rds")
-dim(design)
-
-dm <- readRDS("dm3_mx.Rds")
-dim(dm)
-
-```
-
-Split the data.
-
-
-```{r,split1}
-
-g1 <- which(as.data.frame(design)$groups==1)
-g2 <- which(as.data.frame(design)$groups==2)
-g3 <- which(as.data.frame(design)$groups==3)
-
-seed=100
-
-set.seed(seed); g1s <- sample(g1,floor(length(g1)/2))
-g1b <- setdiff(g1,g1s)
-
-set.seed(seed); g2s <- sample(g2,floor(length(g2)/2))
-g2b <- setdiff(g2,g2s)
-
-set.seed(seed); g3s <- sample(g3,floor(length(g3)/2))
-g3b <- setdiff(g3,g3s)
-
-gxs <- c(g1s,g2s,g3s)
-gxs <- gxs[order(gxs)]
-
-gxb <- c(g1b,g2b,g3b)
-gxb <- gxb[order(gxb)]
-
-dess <- design[c(gxs),]
-dms <- dm[,c(gxs)]
-
-desb <- design[c(gxb),]
-dmb <- dm[,c(gxb)]
-
-```
+## Load gene sets
 
 Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
 
@@ -92,11 +47,7 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 ```
 
-## GMEA
-
-Now with GMEA.
-
-Start with gathering the annotation set.
+## Load annotation data
 
 ```{r,anno}
 
@@ -106,23 +57,14 @@ promoters <- grep("Prom",myann$Regulatory_Feature_Group)
 
 ```
 
-Histogram of limma t-statistics.
+## Load functions for GMEA
 
-```{r,hist}
+```{r,gmeafunc}
 
-dm <- dm[,c("UCSC_RefGene_Name","t")]
-hist(dm$t,breaks=seq(from=-6,to=6,by=1)) ; grid()
-
-```
-
-Does 1-sample t-test work better?
-
-```{r,agg_tt}
-
-agg2 <- function(dm) {
+agg <- function(dm,cores=1) {
   gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
   gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
-  gnl <- mclapply(gnl,unique,mc.cores=CORES)
+  gnl <- mclapply(gnl,unique,mc.cores=cores)
   dm$UCSC_RefGene_Name <- gnl
   l <- mclapply(1:nrow(dm), function(i) {
     a <- dm[i,]
@@ -130,7 +72,7 @@ agg2 <- function(dm) {
     tvals <- as.numeric(rep(a["t"],len))
     genes <- a[[1]][[1]]
     data.frame(genes,tvals)
-  },mc.cores=CORES)
+  },mc.cores=cores)
   df <- do.call(rbind,l)
   keep <- names(which(table(df$genes)>1))
   df <- df[df$genes %in% keep,]
@@ -158,20 +100,7 @@ agg2 <- function(dm) {
   return(out)
 }
 
-tic()
-dmagg2 <- agg2(dm)
-toc()
-head(dmagg2$gme_res_df) %>% kbl(caption="top gmea genes (t-test)") %>% kable_paper("hover", full_width = F)
-
-hist(dmagg2$gme_res_df$median,breaks=30) ; grid()
-
-```
-
-Conduct a 1-sample t-test.
-
-```{r,t_enrichment_test1}
-
-ttenrich <- function(m,genesets) {
+ttenrich <- function(m,genesets,cores=1) {
   res <- mclapply( 1:length(genesets), function(i) {
     gs <- genesets[i]
     name <- names(gs)
@@ -184,7 +113,7 @@ ttenrich <- function(m,genesets) {
       wt <- t.test(tstats)
       res <- c(name,myn,mymean,mymedian,wt$p.value)
     }
-  } , mc.cores = CORES/2)
+  } , mc.cores = cores)
   res_df <- do.call(rbind, res)
   rownames(res_df) <- res_df[,1]
   res_df <- res_df[,-1]
@@ -200,30 +129,106 @@ ttenrich <- function(m,genesets) {
   return(res_df)
 }
 
-tic()
-tres <- ttenrich(m=m,genesets=gs_symbols)
-toc()
+```
 
-head(tres,30) %>%
-  kbl(caption = "Top significant genesets") %>%
-  kable_paper("hover", full_width = F)
+## Load methylation data
 
-head(tres[order(-abs(tres$t_median)),],30) %>%
-  kbl(caption = "Top effect size genesets") %>%
-  kable_paper("hover", full_width = F)
+Load the data.
 
+```{r,load}
+
+design <- as.data.frame(readRDS("dm3_design.Rds"))
+dim(design)
+
+mx <- readRDS("dm3_mx.Rds")
+dim(mx)
+
+```
+
+## Split data
+
+Split the data into two smaller groups (s and b).
+
+```{r,split1}
+
+g1 <- which(as.data.frame(design)$groups==1)
+g2 <- which(as.data.frame(design)$groups==2)
+g3 <- which(as.data.frame(design)$groups==3)
+
+seed=100
+
+set.seed(seed); g1s <- sample(g1,floor(length(g1)/2))
+g1b <- setdiff(g1,g1s)
+
+set.seed(seed); g2s <- sample(g2,floor(length(g2)/2))
+g2b <- setdiff(g2,g2s)
+
+set.seed(seed); g3s <- sample(g3,floor(length(g3)/2))
+g3b <- setdiff(g3,g3s)
+
+gxs <- c(g1s,g2s,g3s)
+gxs <- gxs[order(gxs)]
+
+gxb <- c(g1b,g2b,g3b)
+gxb <- gxb[order(gxb)]
+
+dess <- design[c(gxs),]
+mxs <- mx[,c(gxs)]
+
+desb <- design[c(gxb),]
+mxb <- mx[,c(gxb)]
+
+```
+
+## Limma + GMEA
+
+Using the S dataset, apply limma to conduct differential methylation analysis,
+then GMEA.
+GMEA has two steps:
+
+1. Aggregate probe t-statistics to genes.
+
+2. Perform enrichment test using 1 sample t-test.
+
+```{r,limmagmea1}
+
+d <- model.matrix(~dess$age+ dess$sex + dess$groups)
+
+fit.reduced <- lmFit(mxs,d)
+fit.reduced <- eBayes(fit.reduced)
+dm <- topTable(fit.reduced,coef=4, number = Inf)
+dma <- merge(myann,dm,by=0)
+dma <- dma[order(dma$P.Value),]
+dma <- dma[,c("UCSC_RefGene_Name","t")]
+
+dmagg <- agg(dma,cores=8)
+m <- dmagg$gme_res_df
+m <- m[,"median",drop=FALSE]
+tres <- ttenrich(m=m,genesets=gs_symbols,cores=8)
 sig <- subset(tres,fdr<0.05)
-nrow(sig)
+ssig <- sig
 
-head(sig[order(-abs(sig$t_median)),],30) %>%
-  kbl(caption = "Top effect size genesets after FDR filtering") %>%
-  kable_paper("hover", full_width = F)
+```
 
-plot(tres$t_median,-log10(tres$p.value),pch=19,col="gray")
-grid()
-points(sig$t_median,-log10(sig$p.value),pch=19,col="red")
+Now repeat with the b set.
 
-tsig <- sig
+```{r,limmagmea2}
+
+d <- model.matrix(~desb$age+ desb$sex + desb$groups)
+
+fit.reduced <- lmFit(mxb,d)
+fit.reduced <- eBayes(fit.reduced)
+dm <- topTable(fit.reduced,coef=4, number = Inf)
+dma <- merge(myann,dm,by=0)
+dma <- dma[order(dma$P.Value),]
+dma <- dma[,c("UCSC_RefGene_Name","t")]
+
+dmagg <- agg(dma,cores=8)
+m <- dmagg$gme_res_df
+m <- m[,"median",drop=FALSE]
+tres <- ttenrich(m=m,genesets=gs_symbols,cores=8)
+sig <- subset(tres,fdr<0.05)
+bsig <- sig
 
 ```
 
@@ -236,14 +241,14 @@ Therefore the t-test based approach could be considered better.
 
 ```{r,ol1}
 
-msig_up <- subset(msig,s.dist>0)$set
-msig_dn <- subset(msig,s.dist<0)$set
+ssig_up <- rownames(subset(ssig,t_median>0))
+ssig_dn <- rownames(subset(ssig,t_median<0))
 
-tsig_up <- rownames(subset(tsig,t_median>0))
-tsig_dn <- rownames(subset(tsig,t_median<0))
+bsig_up <- rownames(subset(bsig,t_median>0))
+bsig_dn <- rownames(subset(bsig,t_median<0))
 
-v1 <- list("mitch up"=msig_up, "mitch dn"=msig_dn,
-  "ttest up"=tsig_up,"ttest dn"=tsig_dn)
+v1 <- list("s up"=ssig_up, "s dn"=ssig_dn,
+  "b up"=bsig_up,"b dn"=bsig_dn)
 
 plot(euler(v1),quantities = TRUE)
 
@@ -251,7 +256,9 @@ plot(euler(v1),quantities = TRUE)
 
 ## TODO
 
-Split data set into 2 halves to show consistency.
+* Make sure it is all working properly.
+
+* Repeat for other seed values and aggregate the results.
 
 ## Session information
 
