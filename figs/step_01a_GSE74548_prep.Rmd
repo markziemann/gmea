@@ -558,6 +558,8 @@ name="hcy_levels "
 design <- model.matrix(~ age+ sex + groups)
 mxs <- mx[,which( colnames(mx) %in% rownames(samplesheet) )]
 saveRDS(mxs,"dm3_mx.Rds")
+rownames(design) <- rownames(samplesheet)
+head(design)
 saveRDS(design,"dm3_design.Rds")
 
 fit.reduced <- lmFit(mxs,design)
