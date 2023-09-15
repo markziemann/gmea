@@ -83,7 +83,7 @@ agg <- function(dm,cores=1) {
     myn <- length(tstats)
     mymean <- mean(tstats)
     mymedian <- median(tstats)
-    tselfcont <- t.test(tstats)
+    tselfcont <- wilcox.test(tstats)
     res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
       "p-value(sc)"=tselfcont$p.value)
   } )
@@ -110,7 +110,7 @@ ttenrich <- function(m,genesets,cores=1) {
       myn <- length(tstats)
       mymean <- mean(tstats)
       mymedian <- median(tstats)
-      wt <- t.test(tstats)
+      wt <- wilcox.test(tstats)
       res <- c(name,myn,mymean,mymedian,wt$p.value)
     }
   } , mc.cores = cores)
@@ -145,44 +145,11 @@ dim(mx)
 
 ```
 
-## Split data
+## Split, limma, GMEA
 
 Split the data into two smaller groups (s and b).
 
-```{r,split1}
-
-g1 <- which(as.data.frame(design)$groups==1)
-g2 <- which(as.data.frame(design)$groups==2)
-g3 <- which(as.data.frame(design)$groups==3)
-
-seed=100
-
-set.seed(seed); g1s <- sample(g1,floor(length(g1)/2))
-g1b <- setdiff(g1,g1s)
-
-set.seed(seed); g2s <- sample(g2,floor(length(g2)/2))
-g2b <- setdiff(g2,g2s)
-
-set.seed(seed); g3s <- sample(g3,floor(length(g3)/2))
-g3b <- setdiff(g3,g3s)
-
-gxs <- c(g1s,g2s,g3s)
-gxs <- gxs[order(gxs)]
-
-gxb <- c(g1b,g2b,g3b)
-gxb <- gxb[order(gxb)]
-
-dess <- design[c(gxs),]
-mxs <- mx[,c(gxs)]
-
-desb <- design[c(gxb),]
-mxb <- mx[,c(gxb)]
-
-```
-
-## Limma + GMEA
-
-Using the S dataset, apply limma to conduct differential methylation analysis,
+Using the S and B datasets separately, apply limma to conduct differential methylation analysis,
 then GMEA.
 GMEA has two steps:
 
@@ -190,45 +157,61 @@ GMEA has two steps:
 
 2. Perform enrichment test using 1 sample t-test.
 
-```{r,limmagmea1}
 
-d <- model.matrix(~dess$age+ dess$sex + dess$groups)
+```{r,splitanalysis}
 
-fit.reduced <- lmFit(mxs,d)
-fit.reduced <- eBayes(fit.reduced)
-dm <- topTable(fit.reduced,coef=4, number = Inf)
-dma <- merge(myann,dm,by=0)
-dma <- dma[order(dma$P.Value),]
-dma <- dma[,c("UCSC_RefGene_Name","t")]
+g1 <- which(as.data.frame(design)$groups==1)
+g2 <- which(as.data.frame(design)$groups==2)
+g3 <- which(as.data.frame(design)$groups==3)
 
-dmagg <- agg(dma,cores=8)
-m <- dmagg$gme_res_df
-m <- m[,"median",drop=FALSE]
-tres <- ttenrich(m=m,genesets=gs_symbols,cores=8)
-sig <- subset(tres,fdr<0.05)
-ssig <- sig
+split_analyse <- function(seed){
+  set.seed(seed); g1s <- sample(g1,floor(length(g1)/2))
+  g1b <- setdiff(g1,g1s)
+  set.seed(seed); g2s <- sample(g2,floor(length(g2)/2))
+  g2b <- setdiff(g2,g2s)
+  set.seed(seed); g3s <- sample(g3,floor(length(g3)/2))
+  g3b <- setdiff(g3,g3s)
+  gxs <- c(g1s,g2s,g3s)
+  gxs <- gxs[order(gxs)]
+  gxb <- c(g1b,g2b,g3b)
+  gxb <- gxb[order(gxb)]
+  dess <- design[gxs,]
+  mxs <- mx[,gxs]
+  desb <- design[gxb,]
+  mxb <- mx[,gxb]
 
-```
+  #s dataset
+  d <- model.matrix(~dess$age+ dess$sex + dess$groups)
+  fit.reduced <- lmFit(mxs,d)
+  fit.reduced <- eBayes(fit.reduced)
+  dm <- topTable(fit.reduced,coef=4, number = Inf)
+  dma <- merge(myann,dm,by=0)
+  dma <- dma[order(dma$P.Value),]
+  dma <- dma[,c("UCSC_RefGene_Name","t")]
+  dmagg <- agg(dma,cores=8)
+  m <- dmagg$gme_res_df
+  m <- m[,"median",drop=FALSE]
+  tres <- ttenrich(m=m,genesets=gs_symbols,cores=8)
+  sig <- subset(tres,fdr<0.01)
+  ssig <- sig
 
-Now repeat with the b set.
+  #b dataset
+  d <- model.matrix(~desb$age+ desb$sex + desb$groups)
+  fit.reduced <- lmFit(mxb,d)
+  fit.reduced <- eBayes(fit.reduced)
+  dm <- topTable(fit.reduced,coef=4, number = Inf)
+  dma <- merge(myann,dm,by=0)
+  dma <- dma[order(dma$P.Value),]
+  dma <- dma[,c("UCSC_RefGene_Name","t")]
+  dmagg <- agg(dma,cores=8)
+  m <- dmagg$gme_res_df
+  m <- m[,"median",drop=FALSE]
+  tres <- ttenrich(m=m,genesets=gs_symbols,cores=8)
+  sig <- subset(tres,fdr<0.01)
+  bsig <- sig
 
-```{r,limmagmea2}
-
-d <- model.matrix(~desb$age+ desb$sex + desb$groups)
-
-fit.reduced <- lmFit(mxb,d)
-fit.reduced <- eBayes(fit.reduced)
-dm <- topTable(fit.reduced,coef=4, number = Inf)
-dma <- merge(myann,dm,by=0)
-dma <- dma[order(dma$P.Value),]
-dma <- dma[,c("UCSC_RefGene_Name","t")]
-
-dmagg <- agg(dma,cores=8)
-m <- dmagg$gme_res_df
-m <- m[,"median",drop=FALSE]
-tres <- ttenrich(m=m,genesets=gs_symbols,cores=8)
-sig <- subset(tres,fdr<0.05)
-bsig <- sig
+  return(list("ssig"=ssig,"bsig"=bsig))
+}
 
 ```
 
@@ -241,16 +224,20 @@ Therefore the t-test based approach could be considered better.
 
 ```{r,ol1}
 
-ssig_up <- rownames(subset(ssig,t_median>0))
-ssig_dn <- rownames(subset(ssig,t_median<0))
+ol <- function(res){
+  ssig <- res$ssig
+  bsig <- res$bsig
+  ssig_up <- rownames(subset(ssig,t_median>0))
+  ssig_dn <- rownames(subset(ssig,t_median<0))
+  bsig_up <- rownames(subset(bsig,t_median>0))
+  bsig_dn <- rownames(subset(bsig,t_median<0))
+  v1 <- list("s up"=ssig_up, "s dn"=ssig_dn,
+    "b up"=bsig_up,"b dn"=bsig_dn)
+  plot(euler(v1),quantities = TRUE)
+}
 
-bsig_up <- rownames(subset(bsig,t_median>0))
-bsig_dn <- rownames(subset(bsig,t_median<0))
-
-v1 <- list("s up"=ssig_up, "s dn"=ssig_dn,
-  "b up"=bsig_up,"b dn"=bsig_dn)
-
-plot(euler(v1),quantities = TRUE)
+res <- split_analyse(seed=200)
+ol(res=res)
 
 ```
 
