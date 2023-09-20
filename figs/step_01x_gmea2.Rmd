@@ -1,0 +1,233 @@
+---
+title: "Test different aggregation approaches"
+author: "hcy_meth meta-analysis group"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_float: true
+    code_folding: hide
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+In this analysis I will try out an approach that preserved per-sample information.
+It aggregates methylaiton values for all CpGs into a single median value.
+
+```{r,libs}
+
+suppressPackageStartupMessages({
+  library("missMethyl")
+  library("kableExtra")
+  library("mitch")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("tictoc")
+  library("limma")
+})
+
+CORES=12
+
+```
+
+## Annotation data
+
+Start with gathering the annotation set.
+
+```{r,anno}
+
+ann450k <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","Regulatory_Feature_Group")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+## Load methylation data
+
+```{r,load}
+
+mx <- readRDS("dm3_mx.Rds")
+design <- readRDS("dm3_design.Rds")
+
+```
+
+## Load pathways
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+```{r,gsdl}
+
+gs_entrez <- gmt_import("c2.cp.reactome.v2023.1.Hs.entrez.gmt")
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+```
+
+## Join
+
+Determine the median of probe values
+
+```{r,med1}
+
+gn <- unique(unlist(strsplit( myann$UCSC_RefGene_Name ,";")))
+gnl <- strsplit( myann$UCSC_RefGene_Name ,";")
+gnl <- mclapply(gnl,unique,mc.cores=CORES)
+myann$gnl <- gnl
+
+mymed <- function(g) {
+  probes <- rownames(myann[grep(g,myann$gnl),])
+  rows <- which(rownames(mx) %in% probes)
+  if ( length(rows) > 1 ) {
+    b <- mx[rows,]
+    med <- apply(b,2,median)
+    med <- matrix(med,nrow=1)
+    colnames(med) <- colnames(b)
+    rownames(med) <- g
+    return(med)
+  }
+}
+
+med <- mclapply(gn,mymed,mc.cores=CORES)
+med <- med[lapply(med,length)>0]
+medf <- do.call(rbind,med)
+
+```
+
+Now aggregate by median for gene sets.
+
+```{r,med2}
+
+i=1
+mymed2 <- function(mx,gsets,i) {
+  nm <- names(gsets)[i]
+  gs <- gsets[[i]]
+  med <- matrix(apply(mx[which(rownames(mx) %in% gs),],2,median),nrow=1)
+  colnames(med) <- colnames(mx)
+  rownames(med) <- nm
+  return(med)
+}
+
+med2 <- mclapply(1:length(gs_symbols), function(i) {
+  mymed2(mx=medf,gsets=gs_symbols,i=i)
+},mc.cores=CORES)
+
+medf2 <- do.call(rbind,med2)
+
+```
+
+## Limma differential methylation
+
+Then do a limma test.
+See if it is more robust than other approaches.
+
+```{r,limma1}
+
+fit.reduced <- lmFit(medf,design)
+fit.reduced <- eBayes(fit.reduced)
+summary(decideTests(fit.reduced))
+dm <- topTable(fit.reduced,coef=4, number = Inf)
+
+#write.table(dma3a,file="dma3a.tsv")
+
+head(dm, 30) %>% kbl() %>% kable_paper("hover", full_width = F)
+
+```
+
+## Mitch
+
+```{r,mitchtest}
+
+y <- mitch_import(dm, DEtype="limma")
+
+res <- mitch_calc(y, genesets=gs_symbols, priority="effect",cores=CORES)
+
+sig <- subset(res$enrichment_result,p.adjustANOVA<0.05)
+
+nrow(subset(sig,s.dist>0))
+
+nrow(subset(sig,s.dist<0))
+
+head(subset(sig,s.dist>0),20) %>%
+  kbl(caption="hypermethylated pathways") %>%
+  kable_paper("hover", full_width = F)
+
+head(subset(sig,s.dist<0),20) %>%
+  kbl(caption="hypomethylated pathways") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+## 1-sample t-test
+
+```{r,ttest}
+
+ttenrich <- function(m,genesets,cores=1) {
+  res <- mclapply( 1:length(genesets), function(i) {
+    gs <- genesets[i]
+    name <- names(gs)
+    n_members <- length(which(rownames(m) %in% gs[[1]]))
+    if ( n_members > 4 ) {
+      tstats <- m[which(rownames(m) %in% gs[[1]]),]
+      myn <- length(tstats)
+      mymean <- mean(tstats)
+      mymedian <- median(tstats)
+      wt <- t.test(tstats)
+      res <- c(name,myn,mymean,mymedian,wt$p.value)
+    }
+  } , mc.cores = cores)
+  res_df <- do.call(rbind, res)
+  rownames(res_df) <- res_df[,1]
+  res_df <- res_df[,-1]
+  colnames(res_df) <- c("n_genes","t_mean","t_median","p.value")
+  tmp <- apply(res_df,2,as.numeric)
+  rownames(tmp) <- rownames(res_df)
+  res_df <- tmp
+  res_df <- as.data.frame(res_df)
+  res_df <- res_df[order(res_df$p.value),]
+  res_df$logp <- -log10(res_df$p.value )
+  res_df$fdr <- p.adjust(res_df$p.value,method="fdr")
+  res_df[order(abs(res_df$p.value)),]
+  return(res_df)
+}
+
+m <- as.data.frame(dm$t)
+rownames(m) <- rownames(dm)
+colnames(m) <- "t"
+
+tres <- ttenrich(m=m,genesets=gs_symbols,cores=CORES)
+
+sig <- subset(tres,fdr<0.05)
+
+nrow(sig)
+
+nrow(subset(sig,t_median>0))
+
+head(sig[order(-sig$t_median),],20) %>%
+  kbl(caption="hypermethylated pathways") %>%
+  kable_paper("hover", full_width = F)
+
+nrow(subset(sig,t_median<0))
+
+head(sig[order(sig$t_median),],20) %>%
+  kbl(caption="hypomethylated pathways") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+## Todo
+
+Compare mitch and t-test approaches.
+
+## Session information
+
+For reproducibility.
+
+```{r,session}
+
+sessionInfo()
+
+```
