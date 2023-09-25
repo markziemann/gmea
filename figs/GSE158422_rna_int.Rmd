@@ -1,0 +1,198 @@
+---
+title: "GSE158422: DNA methylation in Lung squamous cell carcinoma - RNA expression and integration"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("DESeq2")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("tictoc")
+  library("mitch")
+  library("kableExtra")
+  library("beeswarm")
+  library("HGNChelper")
+  library("gplots")
+})
+
+CORES=12
+
+```
+
+## Load annotations
+
+```{r,annotation}
+
+load("GSE158422_gmea.Rdata")
+
+
+```
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+```{r,gsdl}
+
+gs_entrez <- gmt_import("c2.cp.reactome.v2023.1.Hs.entrez.gmt")
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+```
+
+## Load RNA expression
+
+From GEO https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420
+GSE158420_counts.txt.gz
+
+## DESEQ2
+
+```{r,deseq1}
+
+x <- read.table("GSE158420_counts.txt.gz",row.names=NULL)
+dim(x)
+x <- aggregate(. ~ row.names,x,sum)
+dim(x)
+
+#RUFKM
+head(x)
+
+```
+
+There are some gene name errors, so I will use HGNChelper to repair them.
+
+```{r,gene_name_fix}
+
+human=x$row.names
+checkGeneSymbols(human)
+fix <- checkGeneSymbols(human)
+rownames(x) <- fix$Suggested.Symbol
+x$gene <- fix$Suggested.Symbol
+x <- aggregate(. ~ gene,x,sum)
+dim(x)
+row.names(x)=x$gene
+x$gene=NULL
+head(x)
+
+```
+
+Now do DESeq2
+
+```{r,deseq2}
+
+patient <- head(as.character(unlist(lapply(1:ncol(x),function(i) {c(i,i)}))),ncol(x))
+tumor <- rep(c(0,1),ncol(x)/2)
+ss <- data.frame(patient,tumor)
+
+dds <- DESeqDataSetFromMatrix(countData = x , colData=ss, design = ~ patient + tumor)
+res <- DESeq(dds)
+z <- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz <-cbind(as.data.frame(z),assay(vsd))
+dge <- as.data.frame(zz[order(zz$pvalue),])
+
+sig <- subset(dge,padj<0.05)
+SIG = nrow(sig)
+DN = nrow(subset(sig,log2FoldChange<0))
+UP = nrow(subset(sig,log2FoldChange>0))
+HEADER = paste("mRNA", SIG , "DEGs,", UP ,"upregulated,", DN, "downregulated")
+# smear
+plot(log2(dge$baseMean),dge$log2FoldChange,cex=0.6,cex.axis=1.2,cex.lab=1.3,
+  xlab="log2 base mean",
+  ylab="log2 fold change" ,pch=19,col="#838383")
+points(log2(sig$baseMean),sig$log2FoldChange,cex=0.6,pch=19,col="red")
+mtext((HEADER),cex=1.2)
+top <- head(sig,20)
+# volcano
+plot(dge$log2FoldChange, -log2(dge$pvalue) ,cex=0.6, cex.lab=1.3,cex.axis=1.2,
+ ,xlab="log2 fold change", ylab="-log2 p-value" ,pch=19,col="#838383")
+points(sig$log2FoldChange, -log2(sig$pvalue),cex=0.6,pch=19,col="red"
+mtext((HEADER),cex=1.2)
+# top N gene heatmap
+colCols <- rep(c(0,1),ncol(x)/2)
+colCols <- gsub("0","gray",colCols)
+colCols <- gsub("1","black",colCols)
+
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+heatmap.2(  as.matrix(dge[1:50,c(7:ncol(dge))]), col=colfunc(25),scale="row",
+  ColSideColors=colCols ,
+  trace="none",margins = c(6,10), cexRow=.6, cexCol=.5, main="Top 50 genes")
+
+```
+
+Pathway enrichment with mitch.
+
+```{r,mitch}
+
+
+y <- mitch_import(dge, DEtype="deseq2")
+
+res <- mitch_calc(y, genesets=gs_symbols, priority="effect",cores=CORES)
+
+mres <- res$enrichment_result
+msig <- subset(mres,p.adjustANOVA<0.05)
+
+head(subset(mres,p.adjustANOVA<0.05 & s.dist>0),20) %>%
+  kbl(caption="mRNA upregulated pathways") %>%
+  kable_styling("hover",full_width=FALSE)
+
+head(subset(mres,p.adjustANOVA<0.05 & s.dist<0),20) %>%
+  kbl(caption="mRNA downregulated pathways") %>%
+  kable_styling("hover",full_width=FALSE)
+
+```
+
+## Load methylation enrichment data and calculate overlap
+
+Use Euler diagrams to find the similarity.
+As medians are normally distributed about the zero, one would expect equal numbers of up and down-
+methylated gene sets.
+
+
+```{r,overlap1}
+
+load("GSE158422_gmea.Rdata")
+
+head(mres)
+
+head(alres)
+
+head(lsres)
+
+msig_up <- subset(msig,s.dist>0)$set
+msig_dn <- subset(msig,s.dist<0)$set
+
+lasig_up <- rownames(subset(lasig,t_median>0))
+lasig_dn <- rownames(subset(lasig,t_median<0))
+
+alsig_up <- rownames(subset(alsig,t_median>0))
+alsig_dn <- rownames(subset(alsig,t_median<0))
+
+v1 <- list("LA up"=lasig_up, "LA dn"=lasig_dn,
+  "RNA up"=msig_up,"RNA dn"=msig_dn)
+plot(euler(v1),quantities = TRUE)
+
+v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
+  "RNA up"=msig_up,"RNA dn"=msig_dn)
+plot(euler(v1),quantities = TRUE)
+
+```
+
+## Session information
+
+```{r,save}
+
+sessionInfo()
+
+```

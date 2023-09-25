@@ -160,9 +160,14 @@ agg2 <- function(dm,cores=1) {
     myn <- length(tstats)
     mymean <- mean(tstats)
     mymedian <- median(tstats)
-    tselfcont <- t.test(tstats)
+    if ( length(tstats) ) > 2 {
+      ttest <- t.test(tstats)
+      pval <- ttest$p.value
+    } else {
+      pval = 1
+    }
     res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,"median"=mymedian,
-      "p-value(sc)"=tselfcont$p.value)
+      "pval"=ttest$p.value)
   } )
   gme_res_df <- do.call(rbind, gme_res)
   rownames(gme_res_df) <- gme_res_df[,1]
@@ -297,11 +302,9 @@ See if it is more robust than other approaches.
 fit.reduced <- lmFit(medf,design)
 fit.reduced <- eBayes(fit.reduced)
 summary(decideTests(fit.reduced))
-dm <- topTable(fit.reduced,coef=4, number = Inf)
+magg <- topTable(fit.reduced,coef=4, number = Inf)
 
-#write.table(dma3a,file="dma3a.tsv")
-
-head(dm, 30) %>%
+head(magg, 30) %>%
   kbl(caption="limma gene methylation results") %>%
   kable_paper("hover", full_width = F)
 
@@ -340,8 +343,8 @@ ttenrich <- function(m,genesets,cores=1) {
   return(res_df)
 }
 
-m <- as.data.frame(dm$t)
-rownames(m) <- rownames(dm)
+m <- as.data.frame(magg$t)
+rownames(m) <- rownames(magg)
 colnames(m) <- "t"
 
 alres <- ttenrich(m=m,genesets=gs_symbols,cores=CORES)
