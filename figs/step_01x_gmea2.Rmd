@@ -145,17 +145,17 @@ y <- mitch_import(dm, DEtype="limma")
 
 res <- mitch_calc(y, genesets=gs_symbols, priority="effect",cores=CORES)
 
-sig <- subset(res$enrichment_result,p.adjustANOVA<0.05)
+msig <- subset(res$enrichment_result,p.adjustANOVA<0.05)
 
-nrow(subset(sig,s.dist>0))
+nrow(subset(msig,s.dist>0))
 
-nrow(subset(sig,s.dist<0))
+nrow(subset(msig,s.dist<0))
 
-head(subset(sig,s.dist>0),20) %>%
+head(subset(msig,s.dist>0),20) %>%
   kbl(caption="hypermethylated pathways") %>%
   kable_paper("hover", full_width = F)
 
-head(subset(sig,s.dist<0),20) %>%
+head(subset(msig,s.dist<0),20) %>%
   kbl(caption="hypomethylated pathways") %>%
   kable_paper("hover", full_width = F)
 
@@ -200,33 +200,82 @@ colnames(m) <- "t"
 
 tres <- ttenrich(m=m,genesets=gs_symbols,cores=CORES)
 
-sig <- subset(tres,fdr<0.05)
+tsig <- subset(tres,fdr<0.05)
 
-nrow(sig)
+nrow(tsig)
 
-nrow(subset(sig,t_median>0))
+nrow(subset(tsig,t_median>0))
 
-head(sig[order(-sig$t_median),],20) %>%
+head(sig[order(-tsig$t_median),],20) %>%
   kbl(caption="hypermethylated pathways") %>%
   kable_paper("hover", full_width = F)
 
-nrow(subset(sig,t_median<0))
+nrow(subset(tsig,t_median<0))
 
-head(sig[order(sig$t_median),],20) %>%
+head(sig[order(tsig$t_median),],20) %>%
   kbl(caption="hypomethylated pathways") %>%
   kable_paper("hover", full_width = F)
 
 ```
 
-## Todo
+## Compare mitch and t-test approaches.
 
-Compare mitch and t-test approaches.
+```{r,compare1}
+
+save.image("step_01x_gmea2.Rdata")
+
+tt <- tres[,c("t_median","fdr"),drop=FALSE]
+
+mres <- res$enrichment_result
+mm <- mres[,c("s.dist","p.adjustANOVA"),drop=FALSE]
+rownames(mm) <- mres$set
+
+zz <- merge(tt,mm,by=0)
+rownames(zz) <- zz$Row.names
+zz$Row.names=NULL
+
+# extract rows with t sig
+ts <- subset(zz,fdr<0.05)
+
+# extract rows with m sig
+ms <- subset(zz,p.adjustANOVA<0.05)
+
+# extract rows where both are significant
+ss <- subset(zz,p.adjustANOVA<0.05 & fdr<0.05)
+
+
+plot(zz$t_median,zz$s.dist,pch=19,col="gray",
+  xlab="median",ylab="s.dist") ; grid()
+points(ms$t_median,ms$s.dist,pch=19,cex=1.1,col="red")
+points(ts$t_median,ts$s.dist,pch=19,cex=1.1,col="blue")
+points(ss$t_median,ss$s.dist,pch=19,cex=1.2,col="purple")
+mtext("red:sig t-test, blue:sig mitch, purple:sig both",cex=1.2)
+
+```
+
+Euler diagram.
+
+```{r,euler1}
+
+msig_up <- subset(msig,s.dist>0)$set
+msig_dn <- subset(msig,s.dist<0)$set
+
+tsig_up <- rownames(subset(tsig,t_median>0))
+tsig_dn <- rownames(subset(tsig,t_median<0))
+
+ll <- list("m up"=msig_up,"m dn"=msig_dn,"t up"=tsig_up,"t dn"=tsig_dn)
+
+plot(euler(ll),quantities = TRUE)
+
+```
 
 ## Session information
 
 For reproducibility.
 
 ```{r,session}
+
+save.image("step_01x_gmea2.Rdata")
 
 sessionInfo()
 
