@@ -75,10 +75,9 @@ There are some gene name errors, so I will use HGNChelper to repair them.
 ```{r,gene_name_fix}
 
 human=x$row.names
-checkGeneSymbols(human)
 fix <- checkGeneSymbols(human)
-rownames(x) <- fix$Suggested.Symbol
 x$gene <- fix$Suggested.Symbol
+x$row.names=NULL
 x <- aggregate(. ~ gene,x,sum)
 dim(x)
 row.names(x)=x$gene
@@ -117,7 +116,7 @@ top <- head(sig,20)
 # volcano
 plot(dge$log2FoldChange, -log2(dge$pvalue) ,cex=0.6, cex.lab=1.3,cex.axis=1.2,
  ,xlab="log2 fold change", ylab="-log2 p-value" ,pch=19,col="#838383")
-points(sig$log2FoldChange, -log2(sig$pvalue),cex=0.6,pch=19,col="red"
+points(sig$log2FoldChange, -log2(sig$pvalue),cex=0.6,pch=19,col="red")
 mtext((HEADER),cex=1.2)
 # top N gene heatmap
 colCols <- rep(c(0,1),ncol(x)/2)
@@ -168,7 +167,7 @@ head(mres)
 
 head(alres)
 
-head(lsres)
+head(lares)
 
 msig_up <- subset(msig,s.dist>0)$set
 msig_dn <- subset(msig,s.dist<0)$set
@@ -188,6 +187,36 @@ v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
 plot(euler(v1),quantities = TRUE)
 
 ```
+
+## Load promoter methylation enrichment data and calculate overlap
+
+
+```{r,overlap2}
+
+head(alpres)
+
+head(lapres)
+
+lapsig_up <- rownames(subset(lapsig,t_median>0))
+lapsig_dn <- rownames(subset(lapsig,t_median<0))
+
+alpsig_up <- rownames(subset(alpsig,t_median>0))
+alpsig_dn <- rownames(subset(alpsig,t_median<0))
+
+v1 <- list("LAP up"=lapsig_up, "LAP dn"=lapsig_dn,
+  "RNA up"=msig_up,"RNA dn"=msig_dn)
+plot(euler(v1),quantities = TRUE)
+
+v1 <- list("ALP up"=alpsig_up,"ALP dn"=alpsig_dn,
+  "RNA up"=msig_up,"RNA dn"=msig_dn)
+plot(euler(v1),quantities = TRUE)
+
+```
+
+## Conclusion
+
+Although there were some differentially methylated pathways analysed with different methods,
+they were not concordant with differential expression.
 
 ## Session information
 
