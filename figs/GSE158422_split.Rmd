@@ -214,15 +214,15 @@ magg <- function(mval,myann,cores=1){
 }
 
 chragg <- function(mval,myann,cores=1){
+  annodf <- as.data.frame(anno)
   keep <- rownames(subset(myann,UCSC_RefGene_Name!=""))
   mx <- mval[rownames(mval) %in% keep,]
   chrs <- unique(anno$chr)
-  myorder <- unlist(lapply(chrs,function(mychr) { nrow(subset(annodf,chr==mychr)) } ))
+  myorder <- unlist(lapply(chrs,function(mychr) { nrow( annodf[annodf$chr==mychr,] ) } ))
   chrs <- chrs[order(-myorder)]
   leadercores <- floor(sqrt(cores))
   workercores <- ceiling(sqrt(cores))
   chrmedf <- mclapply(chrs,function(chr) {
-    annodf <- as.data.frame(anno)
     chrfrag <- annodf[annodf$chr==chr,]
     chrprobes <-rownames(chrfrag)
     chrmx <- mx[rownames(mx) %in% chrprobes,]
@@ -269,7 +269,7 @@ split 74 samples 37 patients split into 18 + 18
 Conduct LA workflow analysis.
 Then make overlap.
 
-```{r,lafunc}
+```{r,laflow}
 
 splitanalyze_la <- function(seed){
   set.seed(seed)
@@ -277,7 +277,7 @@ splitanalyze_la <- function(seed){
   a <- a[order(a)]
   nona <- setdiff(1:37,a)
   set.seed(seed)
-  b <- sample(nonctl,18)
+  b <- sample(nona,18)
   b <- b[order(b)]
   a <- c( (a*2)-1 ,a*2 )
   a <- a[order(a)]
@@ -327,7 +327,7 @@ lares <- lapply( seq(100,1000,100) ,splitanalyze_la)
 
 ## AL workflow split and analyse
 
-```{alfunc}
+```{r,alflow}
 
 splitanalyze_al <- function(seed){
   set.seed(seed)
@@ -335,7 +335,7 @@ splitanalyze_al <- function(seed){
   a <- a[order(a)]
   nona <- setdiff(1:37,a)
   set.seed(seed)
-  b <- sample(nonctl,18)
+  b <- sample(nona,18)
   b <- b[order(b)]
   a <- c( (a*2)-1 ,a*2 )
   a <- a[order(a)]
@@ -382,6 +382,8 @@ splitanalyze_al <- function(seed){
 }
 
 alres <- lapply( seq(100,1000,100) ,splitanalyze_al)
+
+```
 
 ## Session information
 
