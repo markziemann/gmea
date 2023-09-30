@@ -296,14 +296,14 @@ splitanalyze_la <- function(seed){
   dmagg1 <- agg(dm1,cores=CORES)
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
   lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
-  lasig1 <- subset(lares1,fdr<0.01)
+  lasig1 <- subset(lares1,fdr<0.05)
 
   # la2
   dm2 <- runlimma(mval_b,design_b,myann)
   dmagg2 <- agg(dm2,cores=CORES)
   m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
   lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
-  lasig2 <- subset(lares2,fdr<0.01)
+  lasig2 <- subset(lares2,fdr<0.05)
 
   lasig1_up <- rownames(subset(lasig1,t_median>0))
   lasig1_dn <- rownames(subset(lasig1,t_median<0))
@@ -322,6 +322,8 @@ splitanalyze_la <- function(seed){
 }
 
 lares <- lapply( seq(100,1000,100) ,splitanalyze_la)
+
+lares
 
 ```
 
@@ -356,6 +358,7 @@ splitanalyze_al <- function(seed){
   rownames(m1) <- rownames(magg1)
   colnames(m1) <- "t"
   alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
+  alsig1 <- subset(alres1,fdr<0.05)
 
   #al
   medf2 <- chragg(mval_b,myann,cores=CORES)
@@ -364,6 +367,7 @@ splitanalyze_al <- function(seed){
   rownames(m2) <- rownames(magg2)
   colnames(m2) <- "t"
   alres2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
+  alsig2 <- subset(alres2,fdr<0.05)
 
   alsig1_up <- rownames(subset(alsig1,t_median>0))
   alsig1_dn <- rownames(subset(alsig1,t_median<0))
@@ -382,6 +386,27 @@ splitanalyze_al <- function(seed){
 }
 
 alres <- lapply( seq(100,1000,100) ,splitanalyze_al)
+
+alres
+
+```
+
+## Compare
+
+```{r,compare}
+
+lares <- as.data.frame(do.call(rbind,lares))
+lares$p_comm <-lares$common / lares$total
+lares$p_disc <-lares$discordant / lares$total
+lares$p_uncom <-lares$uncommon / lares$total
+lares
+
+
+alres <- as.data.frame(do.call(rbind,alres))
+alres$p_comm <-alres$common / alres$total
+alres$p_disc <-alres$discordant / alres$total
+alres$p_uncom <-alres$uncommon / alres$total
+alres
 
 ```
 
