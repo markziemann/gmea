@@ -296,29 +296,12 @@ splitanalyze_la <- function(seed){
   dmagg1 <- agg(dm1,cores=CORES)
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
   lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
-  lasig1 <- subset(lares1,fdr<0.05)
 
   # la2
   dm2 <- runlimma(mval_b,design_b,myann)
   dmagg2 <- agg(dm2,cores=CORES)
   m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
   lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
-  lasig2 <- subset(lares2,fdr<0.05)
-
-  lasig1_up <- rownames(subset(lasig1,t_median>0))
-  lasig1_dn <- rownames(subset(lasig1,t_median<0))
-  lasig2_up <- rownames(subset(lasig2,t_median>0))
-  lasig2_dn <- rownames(subset(lasig2,t_median<0))
-
-  ##v1 <- list("LA1 up"=lasig1_up, "LA1 dn"=lasig1_dn,
-  ##  "LA2 up"=lasig2_up,"LA2 dn"=lasig2_dn)
-  ## plot(euler(v1),quantities = TRUE)
-
-  total <- length(unique(c(lasig1_up,lasig2_up,lasig1_dn,lasig2_dn)))
-  common <- length(intersect(lasig1_up, lasig2_up)) + length(intersect(lasig1_dn, lasig2_dn))
-  discordant <- length(intersect(lasig1_up, lasig2_dn)) + length(intersect(lasig1_dn, lasig2_up))
-  uncommon = total - common - discordant
-  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
 }
 
 lares <- lapply( seq(100,1000,100) ,splitanalyze_la)
@@ -358,7 +341,6 @@ splitanalyze_al <- function(seed){
   rownames(m1) <- rownames(magg1)
   colnames(m1) <- "t"
   alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
-  alsig1 <- subset(alres1,fdr<0.05)
 
   #al
   medf2 <- chragg(mval_b,myann,cores=CORES)
@@ -367,22 +349,8 @@ splitanalyze_al <- function(seed){
   rownames(m2) <- rownames(magg2)
   colnames(m2) <- "t"
   alres2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
-  alsig2 <- subset(alres2,fdr<0.05)
 
-  alsig1_up <- rownames(subset(alsig1,t_median>0))
-  alsig1_dn <- rownames(subset(alsig1,t_median<0))
-  alsig2_up <- rownames(subset(alsig2,t_median>0))
-  alsig2_dn <- rownames(subset(alsig2,t_median<0))
-
-  ##v1 <- list("LA1 up"=lasig1_up, "LA1 dn"=lasig1_dn,
-  ##  "LA2 up"=lasig2_up,"LA2 dn"=lasig2_dn)
-  ## plot(euler(v1),quantities = TRUE)
-
-  total <- length(unique(c(alsig1_up,alsig2_up,alsig1_dn,alsig2_dn)))
-  common <- length(intersect(alsig1_up, alsig2_up)) + length(intersect(alsig1_dn, alsig2_dn))
-  discordant <- length(intersect(alsig1_up, alsig2_dn)) + length(intersect(alsig1_dn, alsig2_up))
-  uncommon = total - common - discordant
-  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
+  list("alres1"=alres1,"alres2"=alres2)
 }
 
 alres <- lapply( seq(100,1000,100) ,splitanalyze_al)
@@ -395,18 +363,52 @@ alres
 
 ```{r,compare}
 
-lares <- as.data.frame(do.call(rbind,lares))
-lares$p_comm <-lares$common / lares$total
-lares$p_disc <-lares$discordant / lares$total
-lares$p_uncom <-lares$uncommon / lares$total
-lares
+lacompare <- function(lares){
+  lares1 <- lares[[1]]
+  lares2 <- lares[[2]]
+  lasig1 <- subset(lares1,fdr<0.05)
+  lasig2 <- subset(lares2,fdr<0.05)
+  lasig1_up <- rownames(subset(lasig1,t_median>0))
+  lasig1_dn <- rownames(subset(lasig1,t_median<0))
+  lasig2_up <- rownames(subset(lasig2,t_median>0))
+  lasig2_dn <- rownames(subset(lasig2,t_median<0))
+
+  total <- length(unique(c(lasig1_up,lasig2_up,lasig1_dn,lasig2_dn)))
+  common <- length(intersect(lasig1_up, lasig2_up)) + length(intersect(lasig1_dn, lasig2_dn))
+  discordant <- length(intersect(lasig1_up, lasig2_dn)) + length(intersect(lasig1_dn, lasig2_up))
+  uncommon = total - common - discordant
+
+  lares <- as.data.frame(do.call(rbind,lares))
+  lares$p_comm <-lares$common / lares$total
+  lares$p_disc <-lares$discordant / lares$total
+  lares$p_uncom <-lares$uncommon / lares$total
+  lares
+}
 
 
-alres <- as.data.frame(do.call(rbind,alres))
-alres$p_comm <-alres$common / alres$total
-alres$p_disc <-alres$discordant / alres$total
-alres$p_uncom <-alres$uncommon / alres$total
-alres
+alcompare <-function(alres){
+  alres1 <- alres[[1]]
+  alres2 <- alres[[2]]
+  alsig1 <- subset(alres1,fdr<0.05)
+  alsig2 <- subset(alres2,fdr<0.05)
+
+  alsig1_up <- rownames(subset(alsig1,t_median>0))
+  alsig1_dn <- rownames(subset(alsig1,t_median<0))
+  alsig2_up <- rownames(subset(alsig2,t_median>0))
+  alsig2_dn <- rownames(subset(alsig2,t_median<0))
+
+  total <- length(unique(c(alsig1_up,alsig2_up,alsig1_dn,alsig2_dn)))
+  common <- length(intersect(alsig1_up, alsig2_up)) + length(intersect(alsig1_dn, alsig2_dn))
+  discordant <- length(intersect(alsig1_up, alsig2_dn)) + length(intersect(alsig1_dn, alsig2_up))
+  uncommon = total - common - discordant
+  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
+
+  alres <- as.data.frame(do.call(rbind,alres))
+  alres$p_comm <-alres$common / alres$total
+  alres$p_disc <-alres$discordant / alres$total
+  alres$p_uncom <-alres$uncommon / alres$total
+  alres
+}
 
 ```
 
