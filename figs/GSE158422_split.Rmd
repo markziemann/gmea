@@ -85,6 +85,14 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 # GMEA FUNCTIONS
 
+There are three approaches.
+First, limma can be done first, followed by aggregation by gene and then enrichment
+test (called LA).
+Secondly, probe values can be aggregated by gene, followed by limma, followed by
+enrichment test (AL).
+Third, probe values can be aggregated to gene level, and then aggregated to gene set
+level followed by limma test (AA).
+
 ## LA
 
 This process runs limma first and then aggregates the results before doing an enrichment test.
@@ -181,7 +189,7 @@ ttenrich <- function(m,genesets,cores=1) {
 
 ```
 
-## AL: Aggregate limma 
+## AL: Aggregate limma functions
 
 Functions for aggregate-limma-enrich approach.
 
@@ -245,7 +253,38 @@ agglimma <- function(medf,design) {
   return(dmagg)
 }
 
-#ttenrich is same
+```
+
+## AA Aggregate-aggregate-limma functions
+
+```{r,aafunc}
+
+gsagg <- function(x,genesets,cores=1) {
+  meds <- mclapply(1:length(genesets), function(i) {
+    gs = genesets[[i]]
+    xx <- x[rownames(x) %in% gs,]
+    med <- apply(xx,2,median)
+  },mc.cores=cores)
+  mymed <- do.call(rbind,meds)
+  rownames(mymed) <- names(genesets)
+  as.data.frame(mymed)
+}
+
+aalimma <- function(agag,design) {
+  fit.reduced <- lmFit(agag,design)
+  fit.reduced <- eBayes(fit.reduced)
+  dmagg <- topTable(fit.reduced,coef=ncol(design), number = Inf)
+  return(dmagg)
+}
+
+aal <- function(mval,myann,genesets,design,cores=1) {
+  medf <- chragg(mval,myann,cores=CORES)
+  agag <- gsagg(x=medf,genesets=gs_symbols,cores=CORES)
+  aal <- aalimma(agag=agag,design=design)
+  return(aal)
+}
+
+aalres <- aal(mval=mval,myann=myann,genesets=gs_symbols,design=design,cores=CORES)
 
 ```
 
@@ -413,6 +452,9 @@ alcompare <-function(alres){
 
 alout <- do.call(rbind,lapply(alres,alcompare))
 
+laout
+
+alout
 
 ```
 
