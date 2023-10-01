@@ -302,6 +302,9 @@ splitanalyze_la <- function(seed){
   dmagg2 <- agg(dm2,cores=CORES)
   m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
   lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
+
+  list("lares1"=lares1,"lares2"=lares2)
+
 }
 
 lares <- lapply( seq(100,300,100) ,splitanalyze_la)
@@ -381,6 +384,7 @@ lacompare <- function(lares){
   laout
 }
 
+laout <- lapply(lares,lacompare)
 laout <- do.call(rbind,lapply(lares,lacompare))
 
 alcompare <-function(alres){
