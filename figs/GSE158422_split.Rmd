@@ -397,9 +397,48 @@ alres <- lapply( seq(100,300,100) ,splitanalyze_al)
 
 ```
 
+## AA workflow split and analyse
+
+```{r,aaflow}
+
+splitanalyze_aa <- function(seed){
+  set.seed(seed)
+  a <- sample(1:37,18)
+  a <- a[order(a)]
+  nona <- setdiff(1:37,a)
+  set.seed(seed)
+  b <- sample(nona,18)
+  b <- b[order(b)]
+  a <- c( (a*2)-1 ,a*2 )
+  a <- a[order(a)]
+  b <- c( (b*2)-1 ,b*2 )
+  b <- b[order(b)]
+
+  design_a <- design[a,]
+  design_a <- design_a[,colSums(design_a)>0]
+  mval_a <- mval[,a]
+  design_b <- design[b,]
+  design_b <- design_b[,colSums(design_b)>0]
+  mval_b <- mval[,b]
+
+  #aa1
+  aares1 <- aal(mval=mval_a,myann=myann,genesets=gs_symbols,
+    design=design_a,cores=CORES)
+
+  #aa2
+  aares2 <- aal(mval=mval_b,myann=myann,genesets=gs_symbols,
+    design=design_b,cores=CORES)
+
+  list("aares1"=aares1,"aares2"=aares2)
+}
+
+aares <- lapply( seq(100,300,100) ,splitanalyze_aa)
+
+```
+
 ## Compare
 
-```{r,compare}
+```{r,summarise1}
 
 lacompare <- function(lares){
   lares1 <- lares[[1]]
@@ -422,9 +461,6 @@ lacompare <- function(lares){
   laout$p_uncom <-laout$uncommon / laout$total
   laout
 }
-
-laout <- lapply(lares,lacompare)
-laout <- do.call(rbind,lapply(lares,lacompare))
 
 alcompare <-function(alres){
   alres1 <- alres[[1]]
@@ -450,11 +486,45 @@ alcompare <-function(alres){
   alout
 }
 
+aacompare <-function(aares){
+  aares1 <- aares[[1]]
+  aares2 <- aares[[2]]
+  aasig1 <- subset(aares1,adj.P.Val<0.05)
+  aasig2 <- subset(aares2,adj.P.Val<0.05)
+
+  aasig1_up <- rownames(subset(aasig1,logFC>0))
+  aasig1_dn <- rownames(subset(aasig1,logFC<0))
+  aasig2_up <- rownames(subset(aasig2,logFC>0))
+  aasig2_dn <- rownames(subset(aasig2,logFC<0))
+
+  total <- length(unique(c(aasig1_up,aasig2_up,aasig1_dn,aasig2_dn)))
+  common <- length(intersect(aasig1_up, aasig2_up)) + length(intersect(aasig1_dn, aasig2_dn))
+  discordant <- length(intersect(aasig1_up, aasig2_dn)) + length(intersect(aasig1_dn, aasig2_up))
+  uncommon = total - common - discordant
+  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
+
+  aaout <- data.frame(total,common,discordant,uncommon)
+  aaout$p_comm <- aaout$common / aaout$total
+  aaout$p_disc <- aaout$discordant / aaout$total
+  aaout$p_uncom <-aaout$uncommon / aaout$total
+  aaout
+}
+
+```
+
+```{r,compare1}
+
+laout <- do.call(rbind,lapply(lares,lacompare))
+
 alout <- do.call(rbind,lapply(alres,alcompare))
+
+aaout <- do.call(rbind,lapply(aares,aacompare))
 
 laout
 
 alout
+
+aaout
 
 ```
 
