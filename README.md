@@ -2,35 +2,67 @@
 
 ## Background
 
-Gene Methylation Enrichment Analysis is a novel yet simple approach to detect epigenetic dysregulation.
-Infinium arrays are widely used for profiling DNA methylation differences due to ageing, lifestyle, development and disease [1].
-However the data provided at each position is rather noisy and therefore if we consider the contribution of all probes belonging to a gene, the signal to noise ratio will be higher [2].
 
-In this project we will use methods normally reserved for gene set enrichment analysis [3,4] to detect genes that have probes “enriched” in the hyper or hypomethylated direction.
-The idea is that we can aggregate information from all the probes for each gene we will get a clearer picture of whether a gene is differentially methylated or not.
-Specifically, a Wilcox test on the limma t-statistics for each gene.
-A self-contained test can run a one sample test to assess the probability that the mean is zero.
-A competitive test can compare the values for one gene compared to all other genes.
+
+Infinium arrays are widely used for profiling DNA methylation differences due to ageing, lifestyle,
+development and disease [1].
+Methods have been devised to conduct over-representation based functional enrichment analysis, yet
+there are no widely recognised approaches to applying functional class scoring (FCS) methods like GSEA
+which are thought to have better sensitivity.
+Conducting FCS analysis of infinium arrays is complicated due to the presence of multiple probes for each
+gene.
+Existing methods also do not explicitly consider hyper- and hypo-methylated gene pathways separately, which
+is odd given direction of methylation changes is likely to have a bearing upon the direction of gene
+regulation, which is key in understanding disease processes.
+
+We consider three different approaches towards aggregating probe differential methylation to gene set
+measurements.
+
+1. limma-aggregate-enrichment (LA): In this approach, probe-based differential results from limma are
+aggregated to gene level by taking the median t-statistic value for each gene.
+This value can then be subject to downstream enrichment tests.
+
+2. aggregate-limma-enrichment (AL): In this approach, the methylation values themselves for all probes are
+aggregated (median) prior to differential analysis with limma.
+The downstream differential methylation results are gene based rather than probe based.
+These results can be subject to downstream enrichment tests.
+
+3. aggregate-aggregate-limma (AA): In this approach, the methylation values are aggregated as in (2), but
+these values then undergo another aggregation step to summarise gene set methylation.
+These gene set methylation values then undergo differential methylation analysis using limma.
+
+The purpose of this work is to determine which of these approaches is "best" and to compare the results
+obtained with existing approaches/packages.
 
 ## Research plan
 
 If we are to write a journal article on this work we will need the following:
 
-* Ability to detect differential gene methylation where existing methods cannot.
-Existing methods include looking at individual probes, DMR finding, etc. 
-To do this we will apply existing and GMEA method to an older dataset (eg BPROOF[5]) and identify novel trends.
+1. Show that it is robust.
+The three approaches outlines above will be tested with a large dataset that describes normal and cancer
+samples from 37 patients.
+From this dataset 18 patients will be subset randomly into two arms and analysed separately.
+This will allow us to examine the proportion of common, uncommon and discordant pathways.
+A high proportion of common pathways is good as it indicates high reproducibility.
+Uncommon pathways are not good because they suggest lack of reproducibility.
+Discordant pathways are very bad as they indicate obtaining contradictory results.
+This experiment will indicate which of the approaches is best.
+Make a venn diagram showing overlap between the results with the full 37 patients.
 
+2. Show that it is sensitive.
+Using the same cancer dataset, show that sensitivity is better with GMEA as compared to other approaches.
+Simply downsample patient numbers and look at the recall.
+Use GMEA, ebgsea and gsameth for comparison.
 
-* To show that GMEA is robust, split the BPROOF data in half to show the results are consistent.
-
-* Examine the association between differential gene expression and methylation.
+3. Examine the association between differential gene expression and methylation.
 Does GMEA give better prediction of gene expression changes as compared to existing approaches?
-We'll need datasets with matching infinium array and expression data; a brief search found a couple candidates [6.7]
+[6.7]
+
+TODO:
 
 * Optimise the code for speed.
-Currently it is slow and could benefit from some optimisation.
+Currently it is still a bit slow and could benefit from more optimisation.
 We could write some C helper code to do the heavy lifting, life FGSEA[8].
-Alternatively, we could write a new wilcox test function which strips off a lot of the unnecessary stuff.
 
 * Provide it as an R/bioconductor package.
 The epigenetics community will probably find this useful, especially with identifying slight trends in otherwise null data.
