@@ -134,7 +134,7 @@ agg <- function(dm,cores=1) {
     tstats <- df[which(df$genes==g),"tvals"]
     myn <- length(tstats)
     mymean <- mean(tstats)
-    mymedian <- median(tstats)
+    mymedian <- mean(tstats)
     if ( length(tstats) > 2 ) {
       ttest <- t.test(tstats)
       pval <- ttest$p.value
@@ -167,7 +167,7 @@ ttenrich <- function(m,genesets,cores=1) {
       tstats <- m[which(rownames(m) %in% gs[[1]]),]
       myn <- length(tstats)
       mymean <- mean(tstats)
-      mymedian <- median(tstats)
+      mymedian <- mean(tstats)
       wt <- t.test(tstats)
       res <- c(name,myn,mymean,mymedian,wt$p.value)
     }
@@ -208,7 +208,7 @@ magg <- function(mval,myann,cores=1){
     rows <- which(rownames(mx) %in% probes)
     if ( length(rows) > 1 ) {
       b <- mx[rows,]
-      med <- apply(b,2,median)
+      med <- apply(b,2,mean)
       med <- matrix(med,nrow=1)
       colnames(med) <- colnames(b)
       rownames(med) <- g
@@ -263,7 +263,7 @@ gsagg <- function(x,genesets,cores=1) {
   meds <- mclapply(1:length(genesets), function(i) {
     gs = genesets[[i]]
     xx <- x[rownames(x) %in% gs,]
-    med <- apply(xx,2,median)
+    med <- apply(xx,2,mean)
   },mc.cores=cores)
   mymed <- do.call(rbind,meds)
   rownames(mymed) <- names(genesets)
@@ -531,20 +531,56 @@ res <- do.call(rbind,lapply(list(laout,alout,aaout),colMeans))
 rownames(res) <- c("la","al","aa")
 
 res <- as.data.frame(res)
+
 res %>%
   kbl(caption="overall summary") %>%
   kable_paper("hover", full_width = F)
+
+apply(laout,2,median)
+apply(alout,2,median)
+apply(aaout,2,median)
 
 ```
 
 Plot some data.
 
+Raw counts and proportions.
+
 ```{r,plots1,fig.height=5,fig.width=9}
 
 par(mfrow=c(1,3))
+
+barplot(res$common,main="no. common",names.arg=c("la","al","aa"))
+barplot(res$uncommon,main="no. uncommon",names.arg=c("la","al","aa"))
+barplot(res$discordant,main="no. discordant",names.arg=c("la","al","aa"))
+
+boxplot(list("la"=laout$common,"al"=alout$common,"aa"=aaout$common),
+  main="no. common",col="white",ylim=c(0,1550))
+beeswarm(list("la"=laout$common,"al"=alout$common,"aa"=aaout$common), add=TRUE,cex=1.2,pch=19)
+
+boxplot(list("la"=laout$uncommon,"al"=alout$uncommon,"aa"=aaout$uncommon),
+  main="no. uncommon",col="white",ylim=c(0,1550))
+beeswarm(list("la"=laout$uncommon,"al"=alout$uncommon,"aa"=aaout$uncommon), add=TRUE,cex=1.2,pch=19)
+
+boxplot(list("la"=laout$discordant,"al"=alout$discordant,"aa"=aaout$discordant),
+  main="no. discordant",col="white",ylim=c(0,1550))
+beeswarm(list("la"=laout$discordant,"al"=alout$discordant,"aa"=aaout$discordant), add=TRUE,cex=1.2,pch=19)
+
 barplot(res$p_comm,main="proportion common",names.arg=c("la","al","aa"))
 barplot(res$p_uncom,main="proportion uncommon",names.arg=c("la","al","aa"))
 barplot(res$p_disc,main="proportion discordant",names.arg=c("la","al","aa"))
+
+boxplot(list("la"=laout$p_comm,"al"=alout$p_comm,"aa"=aaout$p_comm),
+  main="proportion common",col="white",ylim=c(0,1))
+beeswarm(list("la"=laout$p_comm,"al"=alout$p_comm,"aa"=aaout$p_comm), add=TRUE,cex=1.2,pch=19)
+
+boxplot(list("la"=laout$p_uncom,"al"=alout$p_uncom,"aa"=aaout$p_uncom),
+  main="proportion uncommon",col="white",ylim=c(0,1))
+beeswarm(list("la"=laout$p_uncom,"al"=alout$p_uncom,"aa"=aaout$p_uncom), add=TRUE,cex=1.2,pch=19)
+
+boxplot(list("la"=laout$p_disc,"al"=alout$p_disc,"aa"=aaout$p_disc),
+  main="proportion discordant",col="white",ylim=c(0,1))
+beeswarm(list("la"=laout$p_disc,"al"=alout$p_disc,"aa"=aaout$p_disc), add=TRUE,cex=1.2,pch=19)
 
 ```
 
@@ -552,7 +588,7 @@ barplot(res$p_disc,main="proportion discordant",names.arg=c("la","al","aa"))
 
 ```{r,save}
 
-save.image("GSE158422_gmea.Rdata")
+save.image("GSE158422_split.Rdata")
 
 sessionInfo()
 
