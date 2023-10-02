@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
   library("beeswarm")
 })
 
-CORES=12
+CORES=28
 
 ```
 
@@ -346,7 +346,7 @@ splitanalyze_la <- function(seed){
 
 }
 
-lares <- lapply( seq(100,300,100) ,splitanalyze_la)
+lares <- lapply( seq(100,5000,100) ,splitanalyze_la)
 
 ```
 
@@ -393,7 +393,7 @@ splitanalyze_al <- function(seed){
   list("alres1"=alres1,"alres2"=alres2)
 }
 
-alres <- lapply( seq(100,300,100) ,splitanalyze_al)
+alres <- lapply( seq(100,5000,100) ,splitanalyze_al)
 
 ```
 
@@ -432,7 +432,7 @@ splitanalyze_aa <- function(seed){
   list("aares1"=aares1,"aares2"=aares2)
 }
 
-aares <- lapply( seq(100,300,100) ,splitanalyze_aa)
+aares <- lapply( seq(100,5000,100) ,splitanalyze_aa)
 
 ```
 
@@ -525,6 +525,26 @@ laout
 alout
 
 aaout
+
+res <- do.call(rbind,lapply(list(laout,alout,aaout),colMeans))
+
+rownames(res) <- c("la","al","aa")
+
+res <- as.data.frame(res)
+res %>%
+  kbl(caption="overall summary") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+Plot some data.
+
+```{r,plots1,fig.height=5,fig.width=9}
+
+par(mfrow=c(1,3))
+barplot(res$p_comm,main="proportion common",names.arg=c("la","al","aa"))
+barplot(res$p_uncom,main="proportion uncommon",names.arg=c("la","al","aa"))
+barplot(res$p_disc,main="proportion discordant",names.arg=c("la","al","aa"))
 
 ```
 
