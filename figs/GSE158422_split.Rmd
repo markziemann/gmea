@@ -134,7 +134,7 @@ agg <- function(dm,cores=1) {
     tstats <- df[which(df$genes==g),"tvals"]
     myn <- length(tstats)
     mymean <- mean(tstats)
-    mymedian <- mean(tstats)
+    mymedian <- median(tstats)
     if ( length(tstats) > 2 ) {
       ttest <- t.test(tstats)
       pval <- ttest$p.value
@@ -167,7 +167,7 @@ ttenrich <- function(m,genesets,cores=1) {
       tstats <- m[which(rownames(m) %in% gs[[1]]),]
       myn <- length(tstats)
       mymean <- mean(tstats)
-      mymedian <- mean(tstats)
+      mymedian <- median(tstats)
       wt <- t.test(tstats)
       res <- c(name,myn,mymean,mymedian,wt$p.value)
     }
@@ -257,13 +257,15 @@ agglimma <- function(medf,design) {
 
 ## AA Aggregate-aggregate-limma functions
 
+Median value works well here.
+
 ```{r,aafunc}
 
 gsagg <- function(x,genesets,cores=1) {
   meds <- mclapply(1:length(genesets), function(i) {
     gs = genesets[[i]]
     xx <- x[rownames(x) %in% gs,]
-    med <- apply(xx,2,mean)
+    med <- apply(xx,2,median)
   },mc.cores=cores)
   mymed <- do.call(rbind,meds)
   rownames(mymed) <- names(genesets)
@@ -536,9 +538,9 @@ res %>%
   kbl(caption="overall summary") %>%
   kable_paper("hover", full_width = F)
 
-apply(laout,2,median)
-apply(alout,2,median)
-apply(aaout,2,median)
+apply(laout,2,mean)
+apply(alout,2,mean)
+apply(aaout,2,mean)
 
 ```
 
