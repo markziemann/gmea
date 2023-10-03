@@ -28,6 +28,7 @@ suppressPackageStartupMessages({
   library("beeswarm")
 })
 
+# optimised for 128 GB sever with 32 threads
 CORES=8
 
 ```
@@ -280,8 +281,8 @@ aalimma <- function(agag,design) {
 }
 
 aal <- function(mval,myann,genesets,design,cores=1) {
-  medf <- chragg(mval,myann,cores=CORES)
-  agag <- gsagg(x=medf,genesets=gs_symbols,cores=CORES)
+  medf <- chragg(mval,myann,cores=cores)
+  agag <- gsagg(x=medf,genesets=gs_symbols,cores=cores)
   aalres <- aalimma(agag=agag,design=design)
   return(aalres)
 }
@@ -336,13 +337,13 @@ splitanalyze_la <- function(seed){
   dm1 <- runlimma(mval_a,design_a,myann)
   dmagg1 <- agg(dm1,cores=floor(CORES/3))
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
-  lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
+  lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES/3)
 
   # la2
   dm2 <- runlimma(mval_b,design_b,myann)
   dmagg2 <- agg(dm2,cores=floor(CORES/3))
   m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
-  lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
+  lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES/3)
 
   list("lares1"=lares1,"lares2"=lares2)
 
@@ -382,7 +383,7 @@ splitanalyze_al <- function(seed){
   m1 <- as.data.frame(magg1$t)
   rownames(m1) <- rownames(magg1)
   colnames(m1) <- "t"
-  alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
+  alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES/3)
 
   #al
   medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
@@ -390,7 +391,7 @@ splitanalyze_al <- function(seed){
   m2 <- as.data.frame(magg2$t)
   rownames(m2) <- rownames(magg2)
   colnames(m2) <- "t"
-  alres2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
+  alres2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES/3)
 
   list("alres1"=alres1,"alres2"=alres2)
 }
@@ -434,7 +435,7 @@ splitanalyze_aa <- function(seed){
   list("aares1"=aares1,"aares2"=aares2)
 }
 
-aares <- mclapply( seq(100,5000,100) ,splitanalyze_aa,mc.cores=CORES)
+aares <- mclapply( seq(100,300,100) ,splitanalyze_aa,mc.cores=CORES)
 
 ```
 
