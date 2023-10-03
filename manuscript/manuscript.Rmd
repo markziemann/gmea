@@ -1,0 +1,111 @@
+---
+title: "Functional class scoring-based enrichment tests of Infinium DNA methylation data"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    fig_width: 5
+    fig_height: 5
+bibliography: gmea.bib
+csl: plos-computational-biology.csl
+---
+
+<strong>
+Mark Ziemann<sup>1,2*</sup>,
+Mandhri Abeysooriya<sup>2,3*</sup>,
+Anusuiya Bora<sup>2</sup>,
+Severin Lamon<sup>3</sup>,
+Yen Wong<sup>4</sup>,
+Jeffrey Craig<sup>4</sup>
+</strong>
+
+1. Burnet Institute, Melbourne, Australia
+
+2. Deakin University, School of Life and Environmental Sciences, Geelong, Australia.
+
+3. Deakin University, School of Exercise and Nutrition, Burwood, Australia.
+
+4. Deakin University, School of Medicine, Geelong, Australia.
+
+(*) Correspondence: m.ziemann@deakin.edu.au
+
+| Author | ORCID |
+| --- | --- |
+| Mark Ziemann | 0000-0002-7688-6974 |
+| Anusuiya Bora | 0009-0006-2908-1352 |
+
+Source: https://github.com/markziemann/gmea
+
+<br>
+
+## Abstract
+
+* Infinium methylation beadarrays remain one of the most popular techniques for studying genomic
+methylation, but tools for downstream pathways analysis remain limited.
+
+* Functional class scoring (FCS) is a group of pathway enrichment techniques that involve the ranking of
+genes and evaluation of their collective regulation in biological systems.
+
+* Here we propose three different approaches to apply FCS to Infinium data, which vary upon when the
+differential methylation analysis is conducted, at the level of probes, genes or gene sets.
+
+* Using real EPIC array data, we demonstrate that aggregation of probe methylation to gene level before
+differential methylation analysis yields a high degree of true positives and low number of contradictory
+results.
+
+* Using matched RNA-seq data we evaluate the relationship of methylation differences at promoters and
+gene bodies with RNA expression at the level of pathways.
+
+* We apply this approach to two further contexts, where existing methods failed to identify any
+pathway-level effects in 450K and EPIC datasets: (i) the effect of assisted reproductive technology on
+DNA methylation, and (2) the association of elevated plasma homocysteine with methylation patterns.
+
+* The methods described here have been incorporated into a package called gmea, short for gene
+methylation enrichment analysis.
+
+**Keywords:** Pathway analysis, functional enrichment analysis, Infinium Array, DNA methylation,
+epigenetics.
+
+<br>
+
+## Introduction
+
+* DNA methylation is the most widely studied epigenetic mark, for its role in development and
+disease.
+
+* Many hundreds of epigenome-wide association studies (EWASs) are conducted each year to understand DNA
+methylation patterns in disease and other contexts.
+
+* Infinium arrays remain the preferred platform for genomic methylation profiling due to relatively
+low cost and analytical simplicity as compared to high throughput methylation sequencing.
+
+* Infinium arrays have multiple probes per gene in different locations including promoters, CpG islands,
+gene bodies and enhancers, which complicates downstream functional enrichment analysis, otherwise known
+as pathway analysis or gene set enrichment analysis.
+
+* Enrichment analysis comes in two popular types; over-representation analysis (ORA) and functional
+class scoring (FCS).
+In ORA, genes with measurements that meet an arbitrary significance threshold are selected and compared
+to a background list consisting of genes measured in the assay.
+The test seeks to identify sets of genes (eg: ontologies, pathways) that are over-represented in the
+gene list of interest relative to the background.
+Functional class scoring takes a different approach by ranking all detected genes by a differential
+regulation score (eg: fold change, confident effect size) followed by a test to assess whether each
+set of genes has distribution of scores that is different to the null.
+Currently there are no specialised approaches for the application of FCS to Infinium array data.
+
+* Here, we evaluate different approaches to apply FCS to Infinium array.
+These methods vary in the sequence of data aggregation and differential testing steps which are
+required to go from probe-level methylation measurements to evidence of pathway-level differential
+methylation.
+
+## Methods
+
+## Results
+
+## Discussion
+
+## Bibliography

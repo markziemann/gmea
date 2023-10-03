@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
   library("beeswarm")
 })
 
-CORES=28
+CORES=8
 
 ```
 
@@ -280,11 +280,11 @@ aalimma <- function(agag,design) {
 aal <- function(mval,myann,genesets,design,cores=1) {
   medf <- chragg(mval,myann,cores=CORES)
   agag <- gsagg(x=medf,genesets=gs_symbols,cores=CORES)
-  aal <- aalimma(agag=agag,design=design)
-  return(aal)
+  aalres <- aalimma(agag=agag,design=design)
+  return(aalres)
 }
 
-aalres <- aal(mval=mval,myann=myann,genesets=gs_symbols,design=design,cores=CORES)
+#aalres <- aal(mval=mval,myann=myann,genesets=gs_symbols,design=design,cores=CORES)
 
 ```
 
@@ -332,13 +332,13 @@ splitanalyze_la <- function(seed){
 
   # la1
   dm1 <- runlimma(mval_a,design_a,myann)
-  dmagg1 <- agg(dm1,cores=CORES)
+  dmagg1 <- agg(dm1,cores=floor(CORES/3))
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
   lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
 
   # la2
   dm2 <- runlimma(mval_b,design_b,myann)
-  dmagg2 <- agg(dm2,cores=CORES)
+  dmagg2 <- agg(dm2,cores=floor(CORES/3))
   m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
   lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
 
@@ -346,7 +346,7 @@ splitanalyze_la <- function(seed){
 
 }
 
-lares <- lapply( seq(100,5000,100) ,splitanalyze_la)
+lares <- mclapply( seq(100,5000,100) ,splitanalyze_la,mc.cores=CORES)
 
 ```
 
@@ -375,7 +375,7 @@ splitanalyze_al <- function(seed){
   mval_b <- mval[,b]
 
   #al
-  medf1 <- chragg(mval_a,myann,cores=CORES)
+  medf1 <- chragg(mval_a,myann,cores=floor(CORES/3))
   magg1 <- agglimma(medf1,design_a)
   m1 <- as.data.frame(magg1$t)
   rownames(m1) <- rownames(magg1)
@@ -383,7 +383,7 @@ splitanalyze_al <- function(seed){
   alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES)
 
   #al
-  medf2 <- chragg(mval_b,myann,cores=CORES)
+  medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
   magg2 <- agglimma(medf2,design_b)
   m2 <- as.data.frame(magg2$t)
   rownames(m2) <- rownames(magg2)
@@ -393,7 +393,7 @@ splitanalyze_al <- function(seed){
   list("alres1"=alres1,"alres2"=alres2)
 }
 
-alres <- lapply( seq(100,5000,100) ,splitanalyze_al)
+alres <- mclapply( seq(100,5000,100) ,splitanalyze_al,mc.cores=CORES)
 
 ```
 
@@ -423,16 +423,16 @@ splitanalyze_aa <- function(seed){
 
   #aa1
   aares1 <- aal(mval=mval_a,myann=myann,genesets=gs_symbols,
-    design=design_a,cores=CORES)
+    design=design_a,cores=floor(CORES/3))
 
   #aa2
   aares2 <- aal(mval=mval_b,myann=myann,genesets=gs_symbols,
-    design=design_b,cores=CORES)
+    design=design_b,cores=floor(CORES/3))
 
   list("aares1"=aares1,"aares2"=aares2)
 }
 
-aares <- lapply( seq(100,5000,100) ,splitanalyze_aa)
+aares <- mclapply( seq(100,5000,100) ,splitanalyze_aa,mc.cores=CORES)
 
 ```
 
@@ -486,11 +486,11 @@ alcompare <-function(alres){
   alout
 }
 
-aacompare <-function(aares){
-  aares1 <- aares[[1]]
-  aares2 <- aares[[2]]
-  aasig1 <- subset(aares1,adj.P.Val<0.05)
-  aasig2 <- subset(aares2,adj.P.Val<0.05)
+aacompare <-function(aa){
+  aa1 <- aa[[1]]
+  aa2 <- aa[[2]]
+  aasig1 <- subset(aa1,adj.P.Val<0.05)
+  aasig2 <- subset(aa2,adj.P.Val<0.05)
 
   aasig1_up <- rownames(subset(aasig1,logFC>0))
   aasig1_dn <- rownames(subset(aasig1,logFC<0))
@@ -550,37 +550,37 @@ Raw counts and proportions.
 
 par(mfrow=c(1,3))
 
-barplot(res$common,main="no. common",names.arg=c("la","al","aa"))
-barplot(res$uncommon,main="no. uncommon",names.arg=c("la","al","aa"))
-barplot(res$discordant,main="no. discordant",names.arg=c("la","al","aa"))
+barplot(res$common,main="no. common",names.arg=c("LA","AL","AA"))
+barplot(res$uncommon,main="no. uncommon",names.arg=c("LA","AL","AA"))
+barplot(res$discordant,main="no. discordant",names.arg=c("LA","AL","AA"))
 
-boxplot(list("la"=laout$common,"al"=alout$common,"aa"=aaout$common),
+boxplot(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common),
   main="no. common",col="white",ylim=c(0,1550))
-beeswarm(list("la"=laout$common,"al"=alout$common,"aa"=aaout$common), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("la"=laout$uncommon,"al"=alout$uncommon,"aa"=aaout$uncommon),
+boxplot(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon),
   main="no. uncommon",col="white",ylim=c(0,1550))
-beeswarm(list("la"=laout$uncommon,"al"=alout$uncommon,"aa"=aaout$uncommon), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("la"=laout$discordant,"al"=alout$discordant,"aa"=aaout$discordant),
+boxplot(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant),
   main="no. discordant",col="white",ylim=c(0,1550))
-beeswarm(list("la"=laout$discordant,"al"=alout$discordant,"aa"=aaout$discordant), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant), add=TRUE,cex=1.2,pch=19)
 
-barplot(res$p_comm,main="proportion common",names.arg=c("la","al","aa"))
-barplot(res$p_uncom,main="proportion uncommon",names.arg=c("la","al","aa"))
-barplot(res$p_disc,main="proportion discordant",names.arg=c("la","al","aa"))
+barplot(res$p_comm,main="proportion common",names.arg=c("LA","AL","AA"))
+barplot(res$p_uncom,main="proportion uncommon",names.arg=c("LA","AL","AA"))
+barplot(res$p_disc,main="proportion discordant",names.arg=c("LA","AL","AA"))
 
-boxplot(list("la"=laout$p_comm,"al"=alout$p_comm,"aa"=aaout$p_comm),
+boxplot(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm),
   main="proportion common",col="white",ylim=c(0,1))
-beeswarm(list("la"=laout$p_comm,"al"=alout$p_comm,"aa"=aaout$p_comm), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("la"=laout$p_uncom,"al"=alout$p_uncom,"aa"=aaout$p_uncom),
+boxplot(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom),
   main="proportion uncommon",col="white",ylim=c(0,1))
-beeswarm(list("la"=laout$p_uncom,"al"=alout$p_uncom,"aa"=aaout$p_uncom), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("la"=laout$p_disc,"al"=alout$p_disc,"aa"=aaout$p_disc),
+boxplot(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc),
   main="proportion discordant",col="white",ylim=c(0,1))
-beeswarm(list("la"=laout$p_disc,"al"=alout$p_disc,"aa"=aaout$p_disc), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc), add=TRUE,cex=1.2,pch=19)
 
 ```
 
