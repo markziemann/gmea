@@ -104,7 +104,115 @@ methylation.
 
 ## Methods
 
+### Implementation overview
+
+Functional enrichment analysis is a process of data summarisation from genes to gene sets (pathways).
+This is made more complicated for Infinium array data due to the presence of multiple probes per gene,
+meaning the data needs to be summarised from probes to genes to gene sets.
+
+We propose three different approaches for applying enrichment analysis depending on when the differential
+methylation step is conducted (**Figure 1**).
+
+1. <strong>Differential methylation analysis is conducted on probes and these results are aggregated
+to the gene and gene set level (called "LA").<.strong>
+In this approach differential analysis was conduced on probe values using limma.
+Differential probe methylation results (t-statistics) were then aggregated to the gene level by median.
+These median t-statistics were subject to downstream enrichment analysis using a one-sample two-sided
+t-test (a self-contained test) to estimate whether the t-statistic distribution of the gene set varies
+from zero.
+The use of a self-contained test is warranted as global hyper- or hypo-methylation is common between
+conditions, where competitive tests may give misleading results.
+The use of parametric tests is also warranted, as probe t-statistics typically exhibit a normal
+distribution, even in the presence of global hyper- or hypo-methylation.
+
+2. <strong>Differential methylation analysis conducted after probe-level methylation is aggregated to
+gene-level (called "AL").</strong>
+As each gene may have many probes, these individual data points were summarised into a single
+value for each individual.
+We used the mean of M-values for each probe belonging to a gene, which generated a new gene-level
+M-value matrix.
+This gene-level methylation matrix underwent differential analysis using limma, followed by an
+enrichment test as above (one-sample two-tailed t-test).
+
+3. <strong>Methylation values are aggregated to the gene set level for differential testing
+(called "AA").</strong>
+M-values for each probe were aggregated to the gene level by mean, and then aggregated again to the gene
+set level by mean or median.
+The resulting matrix of aggregated M-values underwent differential analysis with limma and the results
+including log fold changes and significance values were used to infer pathway regulation.
+This approach has a caveat in that it may partly violate the assumption of independent sampling, as
+it is known that some genes are represented in multiple gene sets.
+
+### Method validation
+
+As there are no established methods for benchmarking Infinium array based pathway regulation using
+known ground truth synthetic data, we used a split-and-analyse approach with a real dataset to
+evaluate the three approaches outlined above.
+We downloaded raw intensity EPIC IDAT files from GEO for study GSE158422 which consists of
+lung tumour and normal adjacent tissues from 37 patients.
+Probe annotations were obtained from the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19" Bioconductor
+package.
+Reactome gene sets were downloaded from the MSigDB website.
+From this set of samples, 18 patients were randomly selected into analysis A, where control and tumour
+samples were compared.
+From the remaining 19 samples, 18 were randomly selected into analysis B, where control and tumour
+samples were compared as above to act as an independent validation of analysis A.
+Analyses A and B were conducted using one of the three enrichment approaches outlined above, and the
+gene sets meeting a 5% FDR threshold in the hyper- and hypo-methylated directions were saved.
+Gene sets identified to be common in A and B analyses (FDR<0.05 and direction) were considered validated,
+gene sets identified in only one method were not considered validated, and gene sets that gave discordant
+direction (hyper- vs hypo-methylation) between A and B were classed as contradictory.
+This process was repeated 50 times to rigourously evaluate method performance.
+
+### Sensitivity analysis
+
+The same dataset including all 37 patients underwent analysis using the LA method, gsameth and ebGSEA.
+The effect size (enrichment score) of significantly differentially methylated pathways (FDR<0.05) was
+recorded.
+Then, a random subset of n patients was selected followed by pathway enrichment analysis with the
+respective method.
+The subset results were compared to the full n=37 results to test the sensitivity of these enrichment
+methods at differenent effect size levels.
+This process was repeated 20 times.
+
+### Association of methylation with gene expression
+
+As methylation at promoters and gene bodies is considered to have differing association with gene
+expression, we conducted LA analysis at gene promoters, gene bodies and whole gene separately and
+examined the relationship with RNA-seq based pathway regulation.
+RNA-seq counts were downloaded from the GEO database (Accession: GSE158420).
+HGNChelper was used to repair transmogrified gene names, followed by DESeq2 based differential analysis.
+Enrichment analysis of RNA-seq data was conducted using the mitch package with REACTOME gene sets.
+
+### Pathway-level differential methylation in assisted reproductive technology
+(i) the effect of assisted reproductive technology DNA methylation
+
+### Pathway-level differential methylation in hyperhomocysteinemia
+(2) the association of elevated plasma homocysteine with methylation patterns.
+
 ## Results
+
+### Evaluation of FCS methods for Infinium methylation array data
+
+We applied the three distinct approaches ("LA", "AL" and "AA") for pathway level differential
+methylation analysis to a dataset consisting of lung tumour and adjacent normal tissue from 37 patients.
+The dataset was split randomly into two groups of 18 patients and the overlap between subset was used to
+assess the consistency and validity of findings with 50 simulations.
+From the 1550 Reactome gene sets in the dataset, the AL method recorded the highest number of
+"valid" pathways with an average of 919.8 being identified in both subsets, which was much higher than
+LA and AA methods with 295.3 and 276.7 gene sets respectively (Figure 1A).
+The AL method also recorded the lowest number of uncommon sets (382.0) which was better than the LA and
+AA methods with 634.8 and 908.3 respectively (Figure 1B).
+We also noticed that the LA method sometimes yielded contradictory results, so we quantified the number
+of discordant observations, that is statistically significant but in the opposite direction.
+True to this observation, the LA method gave 461.6 discordant pathways which indicates a high rate of
+false-positives.
+Meanwhile the AL and AA methods gave a mean of 0.1 and 0.02 discordant pathways respectively.
+Taken together, these results indicate that the AL method gives the highest rate of common results
+suggesting good accuracy in terms of sensitivity and specificity in this context.
+
+### Comparision of AL method to existing pathway enrichment approaches
+
 
 ## Discussion
 
