@@ -45,9 +45,10 @@ suppressPackageStartupMessages({
   library("mitch")
   library("kableExtra")
   library("beeswarm")
+  library("missMethyl")
 })
 
-CORES=12
+CORES=24
 
 ```
 
@@ -104,7 +105,7 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 # AL GMEA: all probes
 
-Start with curating the sample info.
+Start with curating the sample info and design matrix.
 
 ```{r,samplesheet}
 
@@ -216,27 +217,37 @@ ttenrich <- function(m,genesets,cores=1) {
 
 ```
 
-Run AL method on methylation data
+Run AL method on methylation data.
+Record timings.
 
-```{}
+```{r,rungmea}
 
 # aggregation step
+tic()
 medf <- chragg(mval,myann,cores=CORES)
+toc() #51.5 sec
 
 # differential analysis
+tic()
 dmagg <- agglimma(medf,design)
+toc() #0.46 sec
+
 hist(dmagg$t)
 
 head(dmagg, 30) %>%
   kbl(caption="limma gene methylation results") %>%
   kable_paper("hover", full_width = F)
+
 # get t-stats
 m <- as.data.frame(dmagg$t)
-rownames(m1) <- rownames(magg1)
-colnames(m1) <- "t"
+rownames(m) <- rownames(dmagg)
+colnames(m) <- "t"
 
 # enrichment test
+tic()
 alres <- ttenrich(m=m,genesets=gs_symbols,cores=CORES)
+toc() #1.1 sec
+
 hist(alres$t_mean)
 
 alsig <- subset(alres,fdr<0.05)
@@ -257,6 +268,54 @@ head(alsig[order(alsig$t_median),],20) %>%
 
 ```
 
+# GSAMETH
+
+Individual probes have a distribution that leans positive, but after aggregation to genes it is actually
+negative.
+
+```{r,rungsameth1}
+
+# limma
+runlimma <- function(mval,design,myann) {
+  fit.reduced <- lmFit(mval,design)
+  fit.reduced <- eBayes(fit.reduced)
+  summary(decideTests(fit.reduced))
+  dm <- topTable(fit.reduced,coef=4, number = Inf)
+  dm <- merge(myann,dm,by=0)
+  dm <- dm[order(dm$P.Value),]
+  rownames(dm) <- dm$Row.names
+  dm$Row.names=NULL
+  return(dm)
+}
+
+dm <- runlimma(mval,design,myann)
+
+hist(dm$t,breaks=100,xlim=c(-10,10)) ; grid()
+
+head(dm, 10) %>% kbl() %>% kable_paper("hover", full_width = F)
+
+sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
+sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
+
+length(sigup)
+length(sigdn)
+
+tic()
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+toc() # 12.9 sec
+
+gsaup <- gsaup[order(gsaup$P.DE),]
+head(gsaup,10) %>% kbl(caption="Top hypermethylated pathways") %>% kable_paper("hover", full_width = F)
+
+gsadn <- gsadn[order(gsadn$P.DE),]
+head(gsadn,10) %>% kbl(caption="Top hypomethylated pathways") %>% kable_paper("hover", full_width = F)
+
+gsig_up <-  rownames(subset(gsaup,FDR<0.05))
+gsig_dn <-  rownames(subset(gsadn,FDR<0.05))
+
+```
+
 ## Overlap
 
 Use Euler diagrams to find the similarity.
@@ -266,14 +325,14 @@ Therefore the t-test based approach could be considered better.
 
 ```{r,ol1}
 
-lasig_up <- rownames(subset(lasig,t_median>0))
-lasig_dn <- rownames(subset(lasig,t_median<0))
-
 alsig_up <- rownames(subset(alsig,t_median>0))
 alsig_dn <- rownames(subset(alsig,t_median<0))
 
-v1 <- list("LA up"=lasig_up, "LA dn"=lasig_dn,
-  "AL up"=alsig_up,"AL dn"=alsig_dn)
+gsig_up <-  rownames(subset(gsaup,FDR<0.05))
+gsig_dn <-  rownames(subset(gsadn,FDR<0.05))
+
+v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
+  "GSAmeth up"=gsig_up,"GSAmeth dn"=gsig_dn)
 
 plot(euler(v1),quantities = TRUE)
 
@@ -287,13 +346,13 @@ plot(euler(v1),quantities = TRUE)
 
 dmp <- dm[grep("Promo",dm$Regulatory_Feature_Group),]
 
-tic()
-dmpagg <- agg(dmp,cores=CORES)
-toc()
+#tic()
+#dmpagg <- agg(dmp,cores=CORES)
+#toc()
 
-head(dmpagg$gme_res_df,20) %>%
-  kbl(caption="top gmea genes (t-test)") %>%
-  kable_paper("hover", full_width = F)
+#head(dmpagg$gme_res_df,20) %>%
+#  kbl(caption="top gmea genes (t-test)") %>%
+#  kable_paper("hover", full_width = F)
 
 ```
 
@@ -301,7 +360,7 @@ head(dmpagg$gme_res_df,20) %>%
 
 ```{r,save}
 
-save.image("GSE158422_gmea.Rdata")
+save.image("GSE158422_sensitivity.Rdata")
 
 sessionInfo()
 
