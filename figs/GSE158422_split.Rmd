@@ -29,7 +29,7 @@ suppressPackageStartupMessages({
 })
 
 # optimised for 128 GB sever with 32 threads
-CORES=8
+CORES=6
 
 ```
 
@@ -435,7 +435,7 @@ splitanalyze_aa <- function(seed){
   list("aares1"=aares1,"aares2"=aares2)
 }
 
-aares <- mclapply( seq(100,300,100) ,splitanalyze_aa,mc.cores=CORES)
+aares <- mclapply( seq(100,5000,100) ,splitanalyze_aa,mc.cores=CORES)
 
 ```
 
