@@ -268,6 +268,64 @@ head(alsig[order(alsig$t_median),],20) %>%
 
 ```
 
+Downsample
+
+```{r,al_down1,fig.height=10}
+
+#medf already exists
+
+SAMPLESIZES=c(2,3,6,10,16,22,30)
+
+ssres <- lapply(SAMPLESIZES,function(n) {
+  SEEDS <- seq(100,5000,100)
+  dsres <- mclapply(SEEDS, function(SEED) {
+    set.seed(SEED)
+    mysample <- sample(1:37,n,replace=FALSE)*2
+    mysample <- c(mysample,(mysample-1))
+    mysample <- mysample[order(mysample)]
+    design2 <- design[mysample,]
+    design2 <- design2[,colSums(design2)>0]
+    medf2 <- medf[,mysample]
+    dmagg2 <- agglimma(medf2,design2)
+    m2 <- as.data.frame(dmagg2$t)
+    rownames(m2) <- rownames(dmagg2)
+    colnames(m2) <- "t"
+    alres2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES)
+    head(alres2)
+    alsig2 <- subset(alres2,fdr<0.05)
+    TOT=nrow(alsig)
+    TP=length(which(rownames(alsig2) %in% rownames(alsig)))
+    FP=length(which(!rownames(alsig2) %in% rownames(alsig)))
+    TPES=mean(abs(alsig[which(rownames(alsig) %in% rownames(alsig2)),"t_mean"]))
+    RES=c("TOT"=TOT,"TP"=TP,"FP"=FP,"TPES"=TPES)
+    RES
+  },mc.cores=2)
+  do.call(rbind,dsres)
+})
+
+par(mfrow=c(3,1))
+
+dots <- lapply(ssres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0)
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h= ssres[[1]][1,1])
+
+dots <- lapply(ssres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(ssres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(ssres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(TPdots/FPdots)
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="TP per FP",xlab="sample size",cex=0)
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
+
+```
+
 # GSAMETH
 
 Individual probes have a distribution that leans positive, but after aggregation to genes it is actually
