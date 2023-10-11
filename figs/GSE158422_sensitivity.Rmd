@@ -306,30 +306,28 @@ ssres <- lapply(SAMPLESIZES,function(n) {
 par(mfrow=c(3,1))
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0)
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="GMEA") ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h= ssres[[1]][1,1])
 
 dots <- lapply(ssres,function(x) { x[,"FP"] })
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0) ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
 TPdots <- do.call(rbind,dots)
 dots <- lapply(ssres,function(x) { x[,"FP"] })
 FPdots <- do.call(rbind,dots)
-ratio <- t(TPdots/FPdots)
+ratio <- t(FPdots / (TPdots + FPdots))
 ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
-
-boxplot(ratio,names=SAMPLESIZES,col="white",ylab="TP per FP",xlab="sample size",cex=0)
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
 ```
 
 # GSAMETH
 
-Individual probes have a distribution that leans positive, but after aggregation to genes it is actually
-negative.
+Run GSA meth on the full dataset.
 
 ```{r,rungsameth1}
 
@@ -364,13 +362,87 @@ gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
 toc() # 12.9 sec
 
 gsaup <- gsaup[order(gsaup$P.DE),]
-head(gsaup,10) %>% kbl(caption="Top hypermethylated pathways") %>% kable_paper("hover", full_width = F)
-
 gsadn <- gsadn[order(gsadn$P.DE),]
-head(gsadn,10) %>% kbl(caption="Top hypomethylated pathways") %>% kable_paper("hover", full_width = F)
 
-gsig_up <-  rownames(subset(gsaup,FDR<0.05))
-gsig_dn <-  rownames(subset(gsadn,FDR<0.05))
+gsig_up <-  subset(gsaup,FDR<0.05)
+gsig_up %>% kbl(caption="Hypermethylated pathways") %>% kable_paper("hover", full_width = F)
+gsig_dn <-  subset(gsadn,FDR<0.05)
+gsig_dn %>% kbl(caption="Hypomethylated pathways") %>% kable_paper("hover", full_width = F)
+gsig <- rbind(gsig_up,gsig_dn)
+
+```
+
+Only 4 hyper and 1 hypomethylated gene set were identified.
+This is surprising as there were 1299 hypermethylated probes corresponding to 808 genes, and
+1016 hypomethylated probes corresponding to 657 genes.
+
+## GSAmeth Downsample
+
+```{r,gsamethdownsample}
+
+SAMPLESIZES=c(2,3,6,10,16,22,30)
+
+gsres <- lapply(SAMPLESIZES,function(n) {
+  SEEDS <- seq(100,5000,100)
+  dsres <- mclapply(SEEDS, function(SEED) {
+    set.seed(SEED)
+    mysample <- sample(1:37,n,replace=FALSE)*2
+    mysample <- c(mysample,(mysample-1))
+    mysample <- mysample[order(mysample)]
+    design2 <- design[mysample,]
+    design2 <- design2[,colSums(design2)>0]
+    #mval downsample
+    mval2 <- mval[,mysample]
+    dm2 <- runlimma(mval2,design2,myann)
+    sigup2 <- rownames(subset(dm2,adj.P.Val<0.05 & logFC>0))
+    sigdn2 <- rownames(subset(dm2,adj.P.Val<0.05 & logFC<0))
+    #gsamet
+    gsaup2 <- gsameth(sig.cpg=sigup2, all.cpg=rownames(dm2), collection=gs_entrez)
+    gsadn2 <- gsameth(sig.cpg=sigdn2, all.cpg=rownames(dm2), collection=gs_entrez)
+    gsig_up2 <- subset(gsaup2,FDR<0.05)
+    gsig_dn2 <- subset(gsadn2,FDR<0.05)
+    gsig2 <- rbind(gsig_up2,gsig_dn2)
+    TOT=nrow(gsig2)
+    TP=length(which(rownames(gsig2) %in% rownames(gsig)))
+    FP=length(which(!rownames(gsig2) %in% rownames(gsig)))
+    TPES=0
+    RES=c("TOT"=TOT,"TP"=TP,"FP"=FP,"TPES"=TPES)
+    RES
+  },mc.cores=8)
+  do.call(rbind,dsres)
+})
+
+mx <- matrix(rep(0,200),ncol=4)
+colnames(mx) <- c("TOT","TP","FP","TPES")
+
+# fix empty matrix
+gsres <- lapply(gsres,function(x) {
+  if ( typeof(x) == "character" ) {
+    mx
+  } else {
+    x
+  }
+} )
+
+par(mfrow=c(3,1))
+
+dots <- lapply(gsres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="GSAmeth")
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h= ssres[[1]][1,1])
+
+dots <- lapply(gsres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(gsres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(gsres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(FPdots / (TPdots + FPdots))
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
 ```
 
@@ -393,24 +465,6 @@ v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
   "GSAmeth up"=gsig_up,"GSAmeth dn"=gsig_dn)
 
 plot(euler(v1),quantities = TRUE)
-
-```
-
-# GMEA: promoter probes only
-
-## Limma-aggregate-1-sample t-test promoter only
-
-```{r,ls_promoter}
-
-dmp <- dm[grep("Promo",dm$Regulatory_Feature_Group),]
-
-#tic()
-#dmpagg <- agg(dmp,cores=CORES)
-#toc()
-
-#head(dmpagg$gme_res_df,20) %>%
-#  kbl(caption="top gmea genes (t-test)") %>%
-#  kable_paper("hover", full_width = F)
 
 ```
 
