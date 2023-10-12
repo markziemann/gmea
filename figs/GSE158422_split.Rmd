@@ -57,7 +57,7 @@ sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
 
 summary(unlist(lapply(sets,length)))
 
-genesets <- gmt_import("https://ziemann-lab.net/public/gmea_prototype/ReactomePathways.gmt")
+#genesets <- gmt_import("https://ziemann-lab.net/public/gmea_prototype/ReactomePathways.gmt")
 
 if (!file.exists("GSE158422_design.rds")) {
   download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
@@ -282,7 +282,7 @@ aalimma <- function(agag,design) {
 
 aal <- function(mval,myann,genesets,design,cores=1) {
   medf <- chragg(mval,myann,cores=cores)
-  agag <- gsagg(x=medf,genesets=gs_symbols,cores=cores)
+  agag <- gsagg(x=medf,genesets=genesets,cores=cores)
   aalres <- aalimma(agag=agag,design=design)
   return(aalres)
 }
@@ -299,7 +299,7 @@ which is a competitive test and could give more interpretable results.
 ```{r,alm}
 
 runmitch <- function(m,genesets,cores=1) {
-  mres <- mitch_calc(m,genesets,cores=cores)
+  mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores)
   mres <- mres$enrichment_result
   rownames(mres) <- mres$set
   mres$set=NULL
@@ -350,13 +350,11 @@ splitanalyze_la <- function(seed){
   design_b <- design_b[,colSums(design_b)>0]
   mval_b <- mval[,b]
 
-  # la1
   dm1 <- runlimma(mval_a,design_a,myann)
   dmagg1 <- agg(dm1,cores=floor(CORES/3))
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
   lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES/3)
 
-  # la2
   dm2 <- runlimma(mval_b,design_b,myann)
   dmagg2 <- agg(dm2,cores=floor(CORES/3))
   m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
@@ -394,7 +392,6 @@ splitanalyze_al <- function(seed){
   design_b <- design_b[,colSums(design_b)>0]
   mval_b <- mval[,b]
 
-  #al
   medf1 <- chragg(mval_a,myann,cores=floor(CORES/3))
   magg1 <- agglimma(medf1,design_a)
   m1 <- as.data.frame(magg1$t)
@@ -402,7 +399,6 @@ splitanalyze_al <- function(seed){
   colnames(m1) <- "t"
   alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES/3)
 
-  #al
   medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
   magg2 <- agglimma(medf2,design_b)
   m2 <- as.data.frame(magg2$t)
@@ -441,11 +437,9 @@ splitanalyze_aa <- function(seed){
   design_b <- design_b[,colSums(design_b)>0]
   mval_b <- mval[,b]
 
-  #aa1
   aares1 <- aal(mval=mval_a,myann=myann,genesets=gs_symbols,
     design=design_a,cores=floor(CORES/3))
 
-  #aa2
   aares2 <- aal(mval=mval_b,myann=myann,genesets=gs_symbols,
     design=design_b,cores=floor(CORES/3))
 
@@ -480,7 +474,6 @@ splitanalyze_alm <- function(seed){
   design_b <- design_b[,colSums(design_b)>0]
   mval_b <- mval[,b]
 
-  #al
   medf1 <- chragg(mval_a,myann,cores=floor(CORES/3))
   magg1 <- agglimma(medf1,design_a)
   m1 <- as.data.frame(magg1$t)
@@ -488,7 +481,6 @@ splitanalyze_alm <- function(seed){
   colnames(m1) <- "t"
   almres1 <- runmitch(m=m1,genesets=gs_symbols,cores=CORES)
 
-  #al
   medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
   magg2 <- agglimma(medf2,design_b)
   m2 <- as.data.frame(magg2$t)
@@ -612,7 +604,7 @@ alout <- do.call(rbind,lapply(alres,alcompare))
 
 aaout <- do.call(rbind,lapply(aares,aacompare))
 
-almout <- do.call(rbind,lapply(almres,alcompare))
+almout <- do.call(rbind,lapply(almres,almcompare))
 
 laout
 

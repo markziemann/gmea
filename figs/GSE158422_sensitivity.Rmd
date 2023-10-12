@@ -221,6 +221,16 @@ ttenrich <- function(m,genesets,cores=1) {
   return(res_df)
 }
 
+# runmitch is a helper function that runs mitch on a 1 column dataframe and just returns
+# the differential table
+runmitch <- function(m,genesets,cores=1) {
+  mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores)
+  mres <- mres$enrichment_result
+  rownames(mres) <- mres$set
+  mres$set=NULL
+  return(mres)
+}
+
 ```
 
 Run AL method on methylation data.
@@ -280,31 +290,7 @@ head(alsig[order(alsig$t_median),],20) %>%
 
 ```
 
-Try a competitive test.
-
-```{r,compet}
-
-mres <- mitch_calc(x=m,minsetsize=5,genesets=gs_symbols,cores=32,priority="effect")
-
-# hypermethylated
-mres_up <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist > 0)
-nrow(mres_up)
-head(mres_up,20) %>%
-  kbl(caption="hypermethylated pathways with competitive test") %>%
-  kable_paper("hover", full_width = F)
-
-# hypomethylated
-mres_dn <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist < 0)
-nrow(mres_dn)
-head(mres_dn,20) %>%
-  kbl(caption="hypomethylated pathways with competitive test") %>%
-  kable_paper("hover", full_width = F)
-
-```
-
-These results look more in line with cancer pathogenesis.
-
-Downsample AL test
+## Downsample AL test
 
 ```{r,al_down1,fig.height=10}
 
@@ -353,6 +339,90 @@ beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 dots <- lapply(ssres,function(x) { x[,"TP"] })
 TPdots <- do.call(rbind,dots)
 dots <- lapply(ssres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(FPdots / (TPdots + FPdots))
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
+
+```
+
+## ALM aggregate limma mitch
+
+Try a competitive test.
+
+```{r,compet}
+
+mres <- mitch_calc(x=m,minsetsize=5,genesets=gs_symbols,cores=32,priority="effect")
+almsig <- subset(mres$enrichment_result,p.adjustANOVA<0.05)
+rownames(almsig) <- almsig$set
+alm$set=NULL
+
+# hypermethylated
+mres_up <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist > 0)
+nrow(mres_up)
+head(mres_up,20) %>%
+  kbl(caption="hypermethylated pathways with competitive test") %>%
+  kable_paper("hover", full_width = F)
+
+# hypomethylated
+mres_dn <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist < 0)
+nrow(mres_dn)
+head(mres_dn,20) %>%
+  kbl(caption="hypomethylated pathways with competitive test") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+These results look more in line with cancer pathogenesis.
+
+Downsample alm method
+
+```{r,almdown}
+
+SAMPLESIZES=c(2,3,6,10,16,22,30)
+
+mmres <- lapply(SAMPLESIZES,function(n) {
+  SEEDS <- seq(100,5000,100)
+  dsres <- mclapply(SEEDS, function(SEED) {
+    set.seed(SEED)
+    mysample <- sample(1:37,n,replace=FALSE)*2
+    mysample <- c(mysample,(mysample-1))
+    mysample <- mysample[order(mysample)]
+    design2 <- design[mysample,]
+    design2 <- design2[,colSums(design2)>0]
+    medf2 <- medf[,mysample]
+    dmagg2 <- agglimma(medf2,design2)
+    m2 <- as.data.frame(dmagg2$t)
+    rownames(m2) <- rownames(dmagg2)
+    colnames(m2) <- "t"
+    almres2 <- runmitch(m=m2,genesets=gs_symbols,cores=CORES)
+    head(almres2)
+    almsig2 <- subset(almres2,p.adjustANOVA<0.05)
+    TOT=nrow(almsig)
+    TP=length(which(rownames(almsig2) %in% rownames(almsig)))
+    FP=length(which(!rownames(almsig2) %in% rownames(almsig)))
+    TPES=1
+    RES=c("TOT"=TOT,"TP"=TP,"FP"=FP,"TPES"=TPES)
+    RES
+  },mc.cores=2)
+  do.call(rbind,dsres)
+})
+
+par(mfrow=c(3,1))
+
+dots <- lapply(mmres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="ALM") ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h=mmres[[1]][1,1])
+
+dots <- lapply(mmres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0) ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(mmres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(mmres,function(x) { x[,"FP"] })
 FPdots <- do.call(rbind,dots)
 ratio <- t(FPdots / (TPdots + FPdots))
 ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
@@ -465,7 +535,7 @@ par(mfrow=c(3,1))
 dots <- lapply(gsres,function(x) { x[,"TP"] })
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="GSAmeth")
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
-abline(h= ssres[[1]][1,1])
+abline(h=gsres[[1]][1,1])
 
 dots <- lapply(gsres,function(x) { x[,"FP"] })
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
