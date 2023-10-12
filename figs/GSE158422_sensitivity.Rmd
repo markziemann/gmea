@@ -88,10 +88,16 @@ if (!file.exists("GSE158422_design.rds")) {
 }
 mval <- readRDS("GSE158422_mx.rds")
 
-boxplot(list("tumor"=matrix(colMeans(mval),ncol=2)[,1],"normal"=matrix(colMeans(mval),ncol=2)[,2]),
-  main="mean probe methylation mval")
+mval_means <- list("tumor"=matrix(colMeans(mval),ncol=2)[,1],"normal"=matrix(colMeans(mval),ncol=2)[,2])
+boxplot(mval_means, main="mean probe methylation mval",cex=0,col="white")
+beeswarm(mval_means,add=TRUE,pch=1,cex=1.5)
+lapply(mval_means,mean)
 
 ```
+
+We will assume mean probe methylation is a proxy measure for global methylation.
+The boxplot appears to show higher values in tumour samples, based on median and quartiles.
+However the mean values are actually lower in tumour samples compared to normal.
 
 Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
 
@@ -227,6 +233,12 @@ tic()
 medf <- chragg(mval,myann,cores=CORES)
 toc() #51.5 sec
 
+medf_means <- list("tumor"=matrix(colMeans(medf),ncol=2)[,1],"normal"=matrix(colMeans(medf),ncol=2)[,2])
+boxplot(medf_means, main="mean gene methylation mval",cex=0,col="white")
+beeswarm(medf_means,add=TRUE,pch=1,cex=1.5)
+
+lapply(medf_means,mean)
+
 # differential analysis
 tic()
 dmagg <- agglimma(medf,design)
@@ -268,7 +280,31 @@ head(alsig[order(alsig$t_median),],20) %>%
 
 ```
 
-Downsample
+Try a competitive test.
+
+```{r,compet}
+
+mres <- mitch_calc(x=m,minsetsize=5,genesets=gs_symbols,cores=32,priority="effect")
+
+# hypermethylated
+mres_up <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist > 0)
+nrow(mres_up)
+head(mres_up,20) %>%
+  kbl(caption="hypermethylated pathways with competitive test") %>%
+  kable_paper("hover", full_width = F)
+
+# hypomethylated
+mres_dn <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist < 0)
+nrow(mres_dn)
+head(mres_dn,20) %>%
+  kbl(caption="hypomethylated pathways with competitive test") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+These results look more in line with cancer pathogenesis.
+
+Downsample AL test
 
 ```{r,al_down1,fig.height=10}
 
@@ -378,7 +414,7 @@ This is surprising as there were 1299 hypermethylated probes corresponding to 80
 
 ## GSAmeth Downsample
 
-```{r,gsamethdownsample}
+```{r,gsamethdownsample,fig.height=10}
 
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 
@@ -444,6 +480,8 @@ ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
 boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
+par(mfrow=c(1,1))
+
 ```
 
 ## Overlap
@@ -458,10 +496,14 @@ Therefore the t-test based approach could be considered better.
 alsig_up <- rownames(subset(alsig,t_median>0))
 alsig_dn <- rownames(subset(alsig,t_median<0))
 
+msig_up <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist > 0)$set
+msig_dn <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist < 0)$set
+
 gsig_up <-  rownames(subset(gsaup,FDR<0.05))
 gsig_dn <-  rownames(subset(gsadn,FDR<0.05))
 
 v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
+  "mitch up"=msig_up,"mitch dn"=msig_dn,
   "GSAmeth up"=gsig_up,"GSAmeth dn"=gsig_dn)
 
 plot(euler(v1),quantities = TRUE)
