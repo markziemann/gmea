@@ -291,6 +291,23 @@ aal <- function(mval,myann,genesets,design,cores=1) {
 
 ```
 
+## Agg-limma-mitch function
+
+This approach uses the aggregated mvals, limma and instead of a 1-sample t-test it uses mitch
+which is a competitive test and could give more interpretable results.
+
+```{r,alm}
+
+runmitch <- function(m,genesets,cores=1) {
+  mres <- mitch_calc(m,genesets,cores=cores)
+  mres <- mres$enrichment_result
+  rownames(mres) <- mres$set
+  mres$set=NULL
+  return(mres)
+}
+
+```
+
 ## Prep
 
 ```{r,prep}
@@ -439,6 +456,54 @@ aares <- mclapply( seq(100,5000,100) ,splitanalyze_aa,mc.cores=CORES)
 
 ```
 
+## ALM competitive test
+
+```{r,almflow}
+
+splitanalyze_alm <- function(seed){
+  set.seed(seed)
+  a <- sample(1:37,18)
+  a <- a[order(a)]
+  nona <- setdiff(1:37,a)
+  set.seed(seed)
+  b <- sample(nona,18)
+  b <- b[order(b)]
+  a <- c( (a*2)-1 ,a*2 )
+  a <- a[order(a)]
+  b <- c( (b*2)-1 ,b*2 )
+  b <- b[order(b)]
+
+  design_a <- design[a,]
+  design_a <- design_a[,colSums(design_a)>0]
+  mval_a <- mval[,a]
+  design_b <- design[b,]
+  design_b <- design_b[,colSums(design_b)>0]
+  mval_b <- mval[,b]
+
+  #al
+  medf1 <- chragg(mval_a,myann,cores=floor(CORES/3))
+  magg1 <- agglimma(medf1,design_a)
+  m1 <- as.data.frame(magg1$t)
+  rownames(m1) <- rownames(magg1)
+  colnames(m1) <- "t"
+  almres1 <- runmitch(m=m1,genesets=gs_symbols,cores=CORES)
+
+  #al
+  medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
+  magg2 <- agglimma(medf2,design_b)
+  m2 <- as.data.frame(magg2$t)
+  rownames(m2) <- rownames(magg2)
+  colnames(m2) <- "t"
+  almres2 <- runmitch(m=m2,genesets=gs_symbols,cores=CORES)
+
+  list("almres1"=almres1,"almres2"=almres2)
+
+}
+
+almres <- mclapply( seq(100,5000,100) ,splitanalyze_alm,mc.cores=CORES)
+
+```
+
 ## Compare
 
 ```{r,summarise1}
@@ -513,6 +578,30 @@ aacompare <-function(aa){
   aaout
 }
 
+almcompare <-function(almres){
+  almres1 <- almres[[1]]
+  almres2 <- almres[[2]]
+  almsig1 <- subset(almres1,p.adjustANOVA<0.05)
+  almsig2 <- subset(almres2,p.adjustANOVA<0.05)
+
+  almsig1_up <- rownames(subset(almsig1,s.dist>0))
+  almsig1_dn <- rownames(subset(almsig1,s.dist<0))
+  almsig2_up <- rownames(subset(almsig2,s.dist>0))
+  almsig2_dn <- rownames(subset(almsig2,s.dist<0))
+
+  total <- length(unique(c(almsig1_up,almsig2_up,almsig1_dn,almsig2_dn)))
+  common <- length(intersect(almsig1_up, almsig2_up)) + length(intersect(almsig1_dn, almsig2_dn))
+  discordant <- length(intersect(almsig1_up, almsig2_dn)) + length(intersect(almsig1_dn, almsig2_up))
+  uncommon = total - common - discordant
+  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
+
+  almout <- data.frame(total,common,discordant,uncommon)
+  almout$p_comm <-almout$common / almout$total
+  almout$p_disc <-almout$discordant / almout$total
+  almout$p_uncom <-almout$uncommon / almout$total
+  almout
+}
+
 ```
 
 ```{r,compare1}
@@ -523,15 +612,19 @@ alout <- do.call(rbind,lapply(alres,alcompare))
 
 aaout <- do.call(rbind,lapply(aares,aacompare))
 
+almout <- do.call(rbind,lapply(almres,alcompare))
+
 laout
 
 alout
 
 aaout
 
-res <- do.call(rbind,lapply(list(laout,alout,aaout),colMeans))
+almout
 
-rownames(res) <- c("la","al","aa")
+res <- do.call(rbind,lapply(list(laout,alout,aaout,almout),colMeans))
+
+rownames(res) <- c("la","al","aa","alm")
 
 res <- as.data.frame(res)
 
@@ -542,6 +635,7 @@ res %>%
 apply(laout,2,mean)
 apply(alout,2,mean)
 apply(aaout,2,mean)
+apply(almout,2,mean)
 
 ```
 
@@ -553,37 +647,37 @@ Raw counts and proportions.
 
 par(mfrow=c(1,3))
 
-barplot(res$common,main="no. common",names.arg=c("LA","AL","AA"))
-barplot(res$uncommon,main="no. uncommon",names.arg=c("LA","AL","AA"))
-barplot(res$discordant,main="no. discordant",names.arg=c("LA","AL","AA"))
+barplot(res$common,main="no. common",names.arg=c("LA","AL","AA","ALM"))
+barplot(res$uncommon,main="no. uncommon",names.arg=c("LA","AL","AA","ALM"))
+barplot(res$discordant,main="no. discordant",names.arg=c("LA","AL","AA","ALM"))
 
-boxplot(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common),
+boxplot(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common,"ALM"=almout$common),
   main="no. common",col="white",ylim=c(0,1550))
-beeswarm(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common,"ALM"=almout$common), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon),
+boxplot(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon,"ALM"=almout$uncommon),
   main="no. uncommon",col="white",ylim=c(0,1550))
-beeswarm(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon,"ALM"=almout$uncommon), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant),
+boxplot(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant,"ALM"=almout$discordant),
   main="no. discordant",col="white",ylim=c(0,1550))
-beeswarm(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant,"ALM"=almout$discordant), add=TRUE,cex=1.2,pch=19)
 
-barplot(res$p_comm,main="proportion common",names.arg=c("LA","AL","AA"))
-barplot(res$p_uncom,main="proportion uncommon",names.arg=c("LA","AL","AA"))
-barplot(res$p_disc,main="proportion discordant",names.arg=c("LA","AL","AA"))
+barplot(res$p_comm,main="proportion common",names.arg=c("LA","AL","AA","ALM"))
+barplot(res$p_uncom,main="proportion uncommon",names.arg=c("LA","AL","AA","ALM"))
+barplot(res$p_disc,main="proportion discordant",names.arg=c("LA","AL","AA","ALM"))
 
-boxplot(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm),
+boxplot(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm,"ALM"=almout$p_comm),
   main="proportion common",col="white",ylim=c(0,1))
-beeswarm(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm,"ALM"=almout$p_comm), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom),
+boxplot(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom,"ALM"=almout$p_uncom),
   main="proportion uncommon",col="white",ylim=c(0,1))
-beeswarm(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom,"ALM"=almout$p_uncom), add=TRUE,cex=1.2,pch=19)
 
-boxplot(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc),
+boxplot(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc,"ALM"=almout$p_disc),
   main="proportion discordant",col="white",ylim=c(0,1))
-beeswarm(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc), add=TRUE,cex=1.2,pch=19)
+beeswarm(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc,"ALM"=almout$p_disc), add=TRUE,cex=1.2,pch=19)
 
 ```
 
