@@ -147,9 +147,10 @@ Select genes and probes to alter.
 seed=100
 frac_genes=0.5
 frac_probes=0.5
+nsamples=10
 normal_mval <- mval[,(1:(ncol(mval)/2)*2)]
 
-incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,frac_probes) {
+incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,frac_probes,groupsize) {
   # select gene sets to alter
   gset_mod <- gset_selection(genesetdatabase=genesetdatabase,seed=seed,gene_catalog=gene_catalog)
   # divide gene sets between hyper and hypomethylated
@@ -171,8 +172,9 @@ incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,fr
   pdn <- names(probe2gene[which(probe2gene %in% gdn2)])
   set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pup)*frac_probes))
   # divide samples between ctrl and case
-  groupsize=floor(ncol(mval)/2)
   ncols <- ncol(mval)
+  maxgroupsize=floor(ncols/2)
+  if ( groupsize > maxgroupsize ) { stop("groupsize cannot be larger than half the ncols of mval") }
   set.seed(seed) ; ctrl <- sample(1:ncols,groupsize)
   set.seed(seed) ; case <- sample(setdiff(1:ncols,ctrl),groupsize)
   mval_ctrl <- mval[,ctrl]
@@ -189,27 +191,77 @@ incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,fr
 
 ```
 
+## GSAMETH function
+
+```{r,gsameth_func}
+
+# limma
+runlimma <- function(mval,design,myann) {
+  fit.reduced <- lmFit(mval,design)
+  fit.reduced <- eBayes(fit.reduced)
+  dm <- topTable(fit.reduced,coef=ncol(design), number = Inf)
+  dm <- merge(myann,dm,by=0)
+  dm <- dm[order(dm$P.Value),]
+  rownames(dm) <- dm$Row.names
+  dm$Row.names=NULL
+  return(dm)
+}
+
+```
+
+
+
+
 This is how to use the function
 
-```{r,run1sim}
+```{r,rungsameth}
 
-sim <- incorp_dm(genesetdatabase=gs_symbols,myann=myann,gene_catalog=gene_catalog,
-  mval=normal_mval,seed=100,frac_genes=0.5,frac_probes=0.5) 
+simgsa <- function(genesetdatabase,myann,gene_catalog,
+  mval,seed,frac_genes,frac_probes,groupsize) {
 
-mval2 <- sim$mval
-ncols <- ncol(mval2)
-groupsize <- ncols/2
-ss <- data.frame(colnames(mval2))
-colnames(ss) <- "sample"
-ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  sim <- incorp_dm(genesetdatabase=gs_symbols,myann=myann,gene_catalog=gene_catalog,
+    mval=mval,seed=seed,frac_genes=0.5,frac_probes=0.5,groupsize=groupsize)
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  dm3 <- runlimma(mval=mval2,design=d,myann=myann)
+  pup3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC>0))
+  pdn3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC<0))
+  gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gs_entrez)
+  gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gs_entrez)
+  gsig_up3 <- rownames(subset(gsaup3,FDR<0.05))
+  gsig_dn3 <- rownames(subset(gsadn3,FDR<0.05))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(gsadn3)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
 
-d <- model.matrix(~ ss$case)
-fit.reduced <- lmFit(mval2,d)
-fit.reduced <- eBayes(fit.reduced)
 
-summary(decideTests(fit.reduced))
-dm <- topTable(fit.reduced,coef=ncol(d), number = Inf)
-head(dm)
+groupsize=10
+seed=100
+
+gres <- mclapply(1:50,function(i) {
+  simgsa(genesetdatabase=gs_symbols,myann=myann,gene_catalog=gene_catalog,
+    mval=normal_mval,seed=i*100,frac_genes=0.5,frac_probes=0.5,groupsize=groupsize)
+},mc.cores=10)
 
 ```
 
