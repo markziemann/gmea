@@ -145,52 +145,63 @@ Select genes and probes to alter.
 ```{r,incorp}
 
 seed=100
-
 frac_genes=0.5
 frac_probes=0.5
+normal_mval <- mval[,(1:(ncol(mval)/2)*2)]
 
-# select gene sets to alter
-gset_mod <- gset_selection(genesetdatabase=gs_symbols,seed=seed,gene_catalog=gene_catalog)
+incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,frac_probes) {
+  # select gene sets to alter
+  gset_mod <- gset_selection(genesetdatabase=genesetdatabase,seed=seed,gene_catalog=gene_catalog)
+  # divide gene sets between hyper and hypomethylated
+  nset <- floor(length(gset_mod)/2)
+  set.seed(seed) ; gtup <-sample(gset_mod,nset)
+  set.seed(seed) ; gtdn <- sample(setdiff(gset_mod,gtup),nset)
+  gup <- unname(unlist(gtup))
+  gdn <- unname(unlist(gtdn))
+  # make probe-gene vector
+  probe2gene <- strsplit(myann$UCSC_RefGene_Name,";")
+  names(probe2gene) <- rownames(myann)
+  probe2gene <- unlist(probe2gene)
+  # select probes hypermethylated
+  set.seed(seed) ; gup2 <- sample(gup,floor(length(gup)*frac_genes))
+  pup <- names(probe2gene[which(probe2gene %in% gup2)])
+  set.seed(seed) ; pup2 <- sample(pup,floor(length(pup)*frac_probes))
+  # select probes hypomethylated
+  set.seed(seed) ; gdn2 <- sample(gdn,floor(length(gdn)*frac_genes))
+  pdn <- names(probe2gene[which(probe2gene %in% gdn2)])
+  set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pup)*frac_probes))
+  # divide samples between ctrl and case
+  groupsize=floor(ncol(mval)/2)
+  ncols <- ncol(mval)
+  set.seed(seed) ; ctrl <- sample(1:ncols,groupsize)
+  set.seed(seed) ; case <- sample(setdiff(1:ncols,ctrl),groupsize)
+  mval_ctrl <- mval[,ctrl]
+  mval_case <- mval[,case]
+  # incorporate altered signals - change by +1 or -1
+  mval_case[rownames(mval_case) %in% pup2,] <-  mval_case[rownames(mval_case) %in% pup2,] +1
+  mval_case[rownames(mval_case) %in% pdn2,] <-  mval_case[rownames(mval_case) %in% pdn2,] -1
+  mval2 <- cbind(mval_ctrl,mval_case)
+  result <- list("mval"=mval2,"probes up"=pup2,"probes down"=pdn2,
+    "genes up"=gup2,"genes down"=gdn2,
+    "genesets up"=gtup,"genesets down"=gtdn)
+  return(result)
+}
 
-# select normal samples only
-normal <- mval[,(1:(ncol(mval)/2)*2)]
+```
 
-# divide gene sets between hyper and hypomethylated
-nset <- floor(length(gset_mod)/2)
-set.seed(seed) ; gtup <-sample(gset_mod,48)
-set.seed(seed) ; gtdn <- sample(setdiff(gset_mod,gtup),nset)
-gup <- unname(unlist(gtup))
-gdn <- unname(unlist(gtdn))
+This is how to use the function
 
-# make probe-gene vector
-probe2gene <- strsplit(myann$UCSC_RefGene_Name,";")
-names(probe2gene) <- rownames(myann)
-probe2gene <- unlist(probe2gene)
+```{r,run1sim}
 
-# select probes hypermethylated
-set.seed(seed) ; gup2 <- sample(gup,floor(length(gup)/2))
-pup <- names(probe2gene[which(probe2gene %in% gup2)])
-set.seed(seed) ; pup2 <- sample(pup,floor(length(pup)/2))
+sim <- incorp_dm(genesetdatabase=gs_symbols,myann=myann,gene_catalog=gene_catalog,
+  mval=normal_mval,seed=100,frac_genes=0.5,frac_probes=0.5) 
 
-# select probes hypomethylated
-set.seed(seed) ; gdn2 <- sample(gdn,floor(length(gdn)/2))
-pdn <- names(probe2gene[which(probe2gene %in% gdn2)])
-set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pup)/2))
-
-# divide samples between ctrl and case
-set.seed(seed) ; ctrl <- sample(1:ncol(normal),18)
-set.seed(seed) ; case <- sample(setdiff(1:37,ctrl),18)
-mval_ctrl <- mval[,ctrl]
-mval_case <- mval[,case]
-
-# incorporate altered signals - change by +1 or -1
-mval_case[rownames(mval_case) %in% pup2,] <-  mval_case[rownames(mval_case) %in% pup2,] +1
-mval_case[rownames(mval_case) %in% pdn2,] <-  mval_case[rownames(mval_case) %in% pdn2,] -1
-mval2 <- cbind(mval_ctrl,mval_case)
-
+mval2 <- sim$mval
+ncols <- ncol(mval2)
+groupsize <- ncols/2
 ss <- data.frame(colnames(mval2))
 colnames(ss) <- "sample"
-ss$case <- c(rep(0,18),rep(1,18))
+ss$case <- c(rep(0,groupsize),rep(1,groupsize))
 
 d <- model.matrix(~ ss$case)
 fit.reduced <- lmFit(mval2,d)
@@ -198,6 +209,7 @@ fit.reduced <- eBayes(fit.reduced)
 
 summary(decideTests(fit.reduced))
 dm <- topTable(fit.reduced,coef=ncol(d), number = Inf)
+head(dm)
 
 ```
 
