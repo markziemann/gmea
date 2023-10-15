@@ -146,18 +146,36 @@ Select genes and probes to alter.
 
 seed=100
 
+frac_genes=0.5
+frac_probes=0.5
+
 # select gene sets to alter
 gset_mod <- gset_selection(genesetdatabase=gs_symbols,seed=seed,gene_catalog=gene_catalog)
 
 # select normal samples only
 normal <- mval[,(1:(ncol(mval)/2)*2)]
 
-# divide sets between hyper and hypomethylated
+# divide gene sets between hyper and hypomethylated
 nset <- floor(length(gset_mod)/2)
 set.seed(seed) ; gtup <-sample(gset_mod,48)
 set.seed(seed) ; gtdn <- sample(setdiff(gset_mod,gtup),nset)
 gup <- unname(unlist(gtup))
 gdn <- unname(unlist(gtdn))
+
+# make probe-gene vector
+probe2gene <- strsplit(myann$UCSC_RefGene_Name,";")
+names(probe2gene) <- rownames(myann)
+probe2gene <- unlist(probe2gene)
+
+# select probes hypermethylated
+set.seed(seed) ; gup2 <- sample(gup,floor(length(gup)/2))
+pup <- names(probe2gene[which(probe2gene %in% gup2)])
+set.seed(seed) ; pup2 <- sample(pup,floor(length(pup)/2))
+
+# select probes hypomethylated
+set.seed(seed) ; gdn2 <- sample(gdn,floor(length(gdn)/2))
+pdn <- names(probe2gene[which(probe2gene %in% gdn2)])
+set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pup)/2))
 
 # divide samples between ctrl and case
 set.seed(seed) ; ctrl <- sample(1:ncol(normal),18)
@@ -165,9 +183,21 @@ set.seed(seed) ; case <- sample(setdiff(1:37,ctrl),18)
 mval_ctrl <- mval[,ctrl]
 mval_case <- mval[,case]
 
-# select probes 
+# incorporate altered signals - change by +1 or -1
+mval_case[rownames(mval_case) %in% pup2,] <-  mval_case[rownames(mval_case) %in% pup2,] +1
+mval_case[rownames(mval_case) %in% pdn2,] <-  mval_case[rownames(mval_case) %in% pdn2,] -1
+mval2 <- cbind(mval_ctrl,mval_case)
 
+ss <- data.frame(colnames(mval2))
+colnames(ss) <- "sample"
+ss$case <- c(rep(0,18),rep(1,18))
 
+d <- model.matrix(~ ss$case)
+fit.reduced <- lmFit(mval2,d)
+fit.reduced <- eBayes(fit.reduced)
+
+summary(decideTests(fit.reduced))
+dm <- topTable(fit.reduced,coef=ncol(d), number = Inf)
 
 ```
 
