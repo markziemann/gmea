@@ -203,7 +203,7 @@ incorp_dm <- function(genesets,myann,mval,seed,
   # select probes hypomethylated
   set.seed(seed) ; gdn2 <- sample(gdn,floor(length(gdn)*frac_genes))
   pdn <- names(probe2gene[which(probe2gene %in% gdn2)])
-  set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pup)*frac_probes))
+  set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pdn)*frac_probes))
   # divide samples between ctrl and case
   ncols <- ncol(mval)
   maxgroupsize=floor(ncols/2)
@@ -270,6 +270,8 @@ simgsa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   dm3 <- runlimma(mval=mval2,design=d,myann=myann)
   pup3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC>0))
   pdn3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC<0))
+  if ( length(pup3) < 250 ) { pup3 <- head(rownames(subset(dm3, logFC > 0)), 250) }
+  if ( length(pdn3) < 250 ) { pdn3 <- head(rownames(subset(dm3, logFC < 0)), 250) }
   # convert gene sets to entrez
   suppressWarnings(suppressMessages({ gene2entrez <- mapIds(org.Hs.eg.db, gene_catalog, 'ENTREZID', 'SYMBOL') }))
   gsets_entrez <- lapply(gsets,function(gs) {
@@ -689,8 +691,8 @@ Set assumptions.
 
 ```{r,set}
 
-groupsize=5
-delta=1
+groupsize=3
+delta=0.6
 num_dm_sets=50
 
 ```
@@ -701,7 +703,7 @@ Cannot be run in multicore due to fragility of AnnotationDbi SQLite objects.
 
 ```{r,rungsa}
 
-gres <- lapply(1:6,function(i) {
+gres <- lapply(1:100,function(i) {
   simgsa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
     groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 })
@@ -715,7 +717,7 @@ gres
 
 ```{r,runla}
 
-lares <- mclapply(1:6,function(i) {
+lares <- mclapply(1:100,function(i) {
   simla(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
     groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
@@ -729,7 +731,7 @@ lares
 
 ```{r,runal}
 
-alres <- mclapply(1:6,function(i) {
+alres <- mclapply(1:100,function(i) {
   simal(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
     groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
@@ -743,7 +745,7 @@ alres
 
 ```{r,runaa}
 
-aares <- mclapply(1:6,function(i) {
+aares <- mclapply(1:100,function(i) {
   simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
     groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
@@ -757,7 +759,7 @@ aares
 
 ```{r,runalm}
 
-almres <- mclapply(1:6,function(i) {
+almres <- mclapply(1:100,function(i) {
   simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
     groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
