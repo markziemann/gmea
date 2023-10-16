@@ -23,8 +23,9 @@ The general steps are:
 2. From the 37 samples, create two groups of 18 samples.
 One of these will be considered "control" and the other "case".
 
+3. Create random gene sets that have similar sized to Reactome pathways.
+
 3. Some gene sets will be selected to be differentially methylated.
-A requirement is that there will be no overlap between them.
 Half of these will be hypermethylated and the others will be hypomethylated.
 
 4. The changes will be incorporated into the "case" samples.
@@ -136,6 +137,8 @@ gsets <- randomGeneSets(gene_catalog,lengths,seed=100)
 ```
 
 Select nonoverlapping gene sets.
+
+Not in use now. Might delete later.
 
 ```{r,gset_selection}
 
@@ -252,9 +255,7 @@ simgsa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
-  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
-  # cut down length to num_dm_sets
-  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
     frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
@@ -270,14 +271,16 @@ simgsa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   pup3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC>0))
   pdn3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC<0))
   # convert gene sets to entrez
-  gene2entrez <- mapIds(org.Hs.eg.db, gene_catalog, 'ENTREZID', 'SYMBOL')
+  suppressWarnings(suppressMessages({ gene2entrez <- mapIds(org.Hs.eg.db, gene_catalog, 'ENTREZID', 'SYMBOL') }))
   gsets_entrez <- lapply(gsets,function(gs) {
     gs2 <- unique(gene2entrez[names(gene2entrez) %in% gs])
     gs2 <- gs2[!is.na(gs2)]
     return(gs2)
   })
-  gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gsets_entrez)
-  gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gsets_entrez)
+  suppressWarnings(suppressMessages({
+    gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gsets_entrez)
+    gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gsets_entrez)
+  }))
   gsig_up3 <- rownames(subset(gsaup3,FDR<0.05))
   gsig_dn3 <- rownames(subset(gsadn3,FDR<0.05))
   gtup <- names(sim[[6]])
@@ -388,9 +391,7 @@ simla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
-  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
-  # cut down length to num_dm_sets
-  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
     frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
@@ -500,9 +501,7 @@ simal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
-  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
-  # cut down length to num_dm_sets
-  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
     frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
@@ -547,7 +546,7 @@ simal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
 
 ## AA Aggregate-aggregate-limma functions
 
-Median value works well here.
+Use mean value works well here.
 
 ```{r,aafunc}
 
@@ -555,7 +554,7 @@ gsagg <- function(x,genesets,cores=1) {
   meds <- mclapply(1:length(genesets), function(i) {
     gs = genesets[[i]]
     xx <- x[rownames(x) %in% gs,]
-    med <- apply(xx,2,median)
+    med <- apply(xx,2,mean)
   },mc.cores=cores)
   mymed <- do.call(rbind,meds)
   rownames(mymed) <- names(genesets)
@@ -582,9 +581,7 @@ simaa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
-  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
-  # cut down length to num_dm_sets
-  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
     frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
@@ -620,19 +617,6 @@ simaa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   return(result)
 }
 
-genesetdatabase=gs_symbols
-groupsize=10
-delta=1
-num_dm_sets=50
-
-aares <- mclapply(1:6,function(i) {
-  simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
-},mc.cores=6)
-
-aares <- do.call(rbind,aares)
-aares
-
 ```
 
 ## Agg-limma-mitch function
@@ -643,7 +627,7 @@ which is a competitive test and could give more interpretable results.
 ```{r,alm}
 
 runmitch <- function(m,genesets,cores=1) {
-  mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores)
+  suppressMessages({ mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores) })
   mres <- mres$enrichment_result
   rownames(mres) <- mres$set
   mres$set=NULL
@@ -656,9 +640,7 @@ simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
-  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
-  # cut down length to num_dm_sets
-  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
     frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
@@ -699,34 +681,29 @@ simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   return(result)
 }
 
-genesetdatabase=gs_symbols
-groupsize=10
-delta=1
-num_dm_sets=50
-
-almres <- mclapply(1:6,function(i) {
-  simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
-},mc.cores=6)
-
-almres <- do.call(rbind,almres)
-almres
-
 ```
 
 # Run analyses
 
-## GSA meth sim
+Set assumptions.
 
-```{r,rungsa}
+```{r,set}
 
-groupsize=10
+groupsize=5
 delta=1
 num_dm_sets=50
 
+```
+
+## GSA meth sim
+
+Cannot be run in multicore due to fragility of AnnotationDbi SQLite objects.
+
+```{r,rungsa}
+
 gres <- lapply(1:6,function(i) {
   simgsa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 })
 
 gres <- do.call(rbind,gres)
@@ -740,7 +717,7 @@ gres
 
 lares <- mclapply(1:6,function(i) {
   simla(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
 
 lares <- do.call(rbind,lares)
@@ -754,7 +731,7 @@ lares
 
 alres <- mclapply(1:6,function(i) {
   simal(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
 
 alres <- do.call(rbind,alres)
@@ -768,7 +745,7 @@ alres
 
 aares <- mclapply(1:6,function(i) {
   simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
 
 aares <- do.call(rbind,aares)
@@ -782,7 +759,7 @@ aares
 
 almres <- mclapply(1:6,function(i) {
   simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
 },mc.cores=6)
 
 almres <- do.call(rbind,almres)
