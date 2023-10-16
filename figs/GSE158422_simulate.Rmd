@@ -36,14 +36,17 @@ Half of these will be hypermethylated and the others will be hypomethylated.
 ```{r,packages}
 
 suppressPackageStartupMessages({
+  library("stringi")
   library("limma")
-  library("eulerr")
+  library("missMethyl")
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library('org.Hs.eg.db')
   library("tictoc")
   library("mitch")
   library("kableExtra")
   library("beeswarm")
+  library("eulerr")
 })
 
 # optimised for 128 GB sever with 32 threads
@@ -92,9 +95,12 @@ boxplot(list("normal"=matrix(colMeans(mval),ncol=2)[,2],"tumor"=matrix(colMeans(
 
 ```
 
-# Reactome
+# Gene set database
 
-Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+We could use Reactome pathways, however these have a lot of overlapping sets, which could cause inflated
+false positives.
+A better solution could be to select random gene sets with sizes similar to Reactomes.
+Reactomes were downloaded on the 14th Sept 2023 from MsigDB.
 
 ```{r,gsdl}
 
@@ -104,15 +110,38 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 ```
 
+Get a vector of genes, and the length of gene sets from Reactome.
+
+Then generate random gene sets.
+
+```{r,gset_prep}
+
+gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+
+lengths <- unname(unlist(lapply(gs_symbols,length)))
+
+randomGeneSets <- function(gene_catalog, lengths, seed){
+  num_gsets <- length(lengths)
+  set.seed(seed) ; seeds <- sample(1:1e6, num_gsets)
+  gsets <- lapply(1:num_gsets,function(i) {
+    set.seed(seeds[i]) ; gs <- sample(gene_catalog,lengths[i])
+    return(gs)
+  } )
+  names(gsets)<-stri_rand_strings(length(gsets), 15, pattern = "[A-Za-z]")
+  return(gsets)
+}
+
+gsets <- randomGeneSets(gene_catalog,lengths,seed=100)
+
+```
+
 Select nonoverlapping gene sets.
 
 ```{r,gset_selection}
 
-gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
-
 gset_selection <- function(genesetdatabase,seed,gene_catalog) {
   set.seed(seed)
-  gsets <- gs_symbols[sample(1:length(genesetdatabase))]
+  gsets <- genesetdatabase[sample(1:length(genesetdatabase))]
   genelist=NULL
   genesets=NULL
   for ( i in 1:length(gsets) ) {
@@ -127,7 +156,7 @@ gset_selection <- function(genesetdatabase,seed,gene_catalog) {
   return(genesets)
 }
 
-gset_mod <- gset_selection(genesetdatabase=gs_symbols,seed=100,gene_catalog=gene_catalog)
+gset_mod <- gset_selection(genesetdatabase=gsets,seed=100,gene_catalog=gene_catalog)
 
 ```
 
@@ -147,16 +176,17 @@ Select genes and probes to alter.
 seed=100
 frac_genes=0.5
 frac_probes=0.5
+delta=1
 nsamples=10
 normal_mval <- mval[,(1:(ncol(mval)/2)*2)]
 
-incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,frac_probes,groupsize) {
-  # select gene sets to alter
-  gset_mod <- gset_selection(genesetdatabase=genesetdatabase,seed=seed,gene_catalog=gene_catalog)
+incorp_dm <- function(genesets,myann,mval,seed,
+  frac_genes,frac_probes,groupsize,delta=1) {
+
   # divide gene sets between hyper and hypomethylated
-  nset <- floor(length(gset_mod)/2)
-  set.seed(seed) ; gtup <-sample(gset_mod,nset)
-  set.seed(seed) ; gtdn <- sample(setdiff(gset_mod,gtup),nset)
+  nset <- floor(length(genesets)/2)
+  set.seed(seed) ; gtup <-sample(genesets,nset)
+  set.seed(seed) ; gtdn <- sample(setdiff(genesets,gtup),nset)
   gup <- unname(unlist(gtup))
   gdn <- unname(unlist(gtdn))
   # make probe-gene vector
@@ -180,8 +210,8 @@ incorp_dm <- function(genesetdatabase,myann,gene_catalog,mval,seed,frac_genes,fr
   mval_ctrl <- mval[,ctrl]
   mval_case <- mval[,case]
   # incorporate altered signals - change by +1 or -1
-  mval_case[rownames(mval_case) %in% pup2,] <-  mval_case[rownames(mval_case) %in% pup2,] +1
-  mval_case[rownames(mval_case) %in% pdn2,] <-  mval_case[rownames(mval_case) %in% pdn2,] -1
+  mval_case[rownames(mval_case) %in% pup2,] <-  mval_case[rownames(mval_case) %in% pup2,] + delta
+  mval_case[rownames(mval_case) %in% pdn2,] <-  mval_case[rownames(mval_case) %in% pdn2,] - delta
   mval2 <- cbind(mval_ctrl,mval_case)
   result <- list("mval"=mval2,"probes up"=pup2,"probes down"=pdn2,
     "genes up"=gup2,"genes down"=gdn2,
@@ -209,18 +239,26 @@ runlimma <- function(mval,design,myann) {
 
 ```
 
-
-
-
 This is how to use the function
+
+This could be complicated as it requires translation of symbols to entrez IDs, but
+could be simplified if the entrez translation is done at the gsameth step.
 
 ```{r,rungsameth}
 
-simgsa <- function(genesetdatabase,myann,gene_catalog,
-  mval,seed,frac_genes,frac_probes,groupsize) {
-
-  sim <- incorp_dm(genesetdatabase=gs_symbols,myann=myann,gene_catalog=gene_catalog,
-    mval=mval,seed=seed,frac_genes=0.5,frac_probes=0.5,groupsize=groupsize)
+simgsa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
+  # cut down length to num_dm_sets
+  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
   groupsize <- ncols/2
@@ -231,8 +269,15 @@ simgsa <- function(genesetdatabase,myann,gene_catalog,
   dm3 <- runlimma(mval=mval2,design=d,myann=myann)
   pup3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC>0))
   pdn3 <- rownames(subset(dm3,adj.P.Val<0.05 & logFC<0))
-  gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gs_entrez)
-  gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gs_entrez)
+  # convert gene sets to entrez
+  gene2entrez <- mapIds(org.Hs.eg.db, gene_catalog, 'ENTREZID', 'SYMBOL')
+  gsets_entrez <- lapply(gsets,function(gs) {
+    gs2 <- unique(gene2entrez[names(gene2entrez) %in% gs])
+    gs2 <- gs2[!is.na(gs2)]
+    return(gs2)
+  })
+  gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gsets_entrez)
+  gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gsets_entrez)
   gsig_up3 <- rownames(subset(gsaup3,FDR<0.05))
   gsig_dn3 <- rownames(subset(gsadn3,FDR<0.05))
   gtup <- names(sim[[6]])
@@ -254,51 +299,13 @@ simgsa <- function(genesetdatabase,myann,gene_catalog,
   return(result)
 }
 
-
-groupsize=10
-seed=100
-
-gres <- mclapply(1:50,function(i) {
-  simgsa(genesetdatabase=gs_symbols,myann=myann,gene_catalog=gene_catalog,
-    mval=normal_mval,seed=i*100,frac_genes=0.5,frac_probes=0.5,groupsize=groupsize)
-},mc.cores=10)
-
 ```
 
-
-
-
-
-
-
-# GMEA FUNCTIONS
-
-There are three approaches.
-First, limma can be done first, followed by aggregation by gene and then enrichment
-test (called LA).
-Secondly, probe values can be aggregated by gene, followed by limma, followed by
-enrichment test (AL).
-Third, probe values can be aggregated to gene level, and then aggregated to gene set
-level followed by limma test (AA).
-
-## LA
+## LA function
 
 This process runs limma first and then aggregates the results before doing an enrichment test.
 
 ```{r,lafunc}
-
-# limma
-runlimma <- function(mval,design,myann) {
-  fit.reduced <- lmFit(mval,design)
-  fit.reduced <- eBayes(fit.reduced)
-  summary(decideTests(fit.reduced))
-  dm <- topTable(fit.reduced,coef=4, number = Inf)
-  dm <- merge(myann,dm,by=0)
-  dm <- dm[order(dm$P.Value),]
-  rownames(dm) <- dm$Row.names
-  dm$Row.names=NULL
-  return(dm)
-}
 
 # aggregate
 agg <- function(dm,cores=1) {
@@ -375,6 +382,51 @@ ttenrich <- function(m,genesets,cores=1) {
   return(res_df)
 }
 
+simla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
+  # cut down length to num_dm_sets
+  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  dm3 <- runlimma(mval=mval2,design=d,myann=myann)
+  dmagg1 <- agg(dm3,cores=4)
+  m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
+  lares1 <- ttenrich(m=m1,genesets=gsets,cores=10)
+  gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(lares1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
 ```
 
 ## AL: Aggregate limma functions
@@ -441,6 +493,56 @@ agglimma <- function(medf,design) {
   return(dmagg)
 }
 
+
+simal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
+  # cut down length to num_dm_sets
+  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  # al pipeline
+  medf1 <- chragg(mval=mval2,myann=myann,cores=4)
+  magg1 <- agglimma(medf1,d)
+  m1 <- as.data.frame(magg1$t)
+  rownames(m1) <- rownames(magg1)
+  colnames(m1) <- "t"
+  alres1 <- ttenrich(m=m1,genesets=gsets,cores=10)
+  # summarise results
+  gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(alres1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
 ```
 
 ## AA Aggregate-aggregate-limma functions
@@ -474,7 +576,62 @@ aal <- function(mval,myann,genesets,design,cores=1) {
   return(aalres)
 }
 
-#aalres <- aal(mval=mval,myann=myann,genesets=gs_symbols,design=design,cores=CORES)
+simaa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
+  # cut down length to num_dm_sets
+  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  # aa pipeline
+  aares1 <- aal(mval=mval2, myann=myann, genesets=gsets, design=d, cores=4)
+  # summarise results
+  gsig_up3 <- rownames(subset(aares1, adj.P.Val < 0.05 & logFC > 0))
+  gsig_dn3 <- rownames(subset(aares1, adj.P.Val < 0.05 & logFC < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(aares1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
+genesetdatabase=gs_symbols
+groupsize=10
+delta=1
+num_dm_sets=50
+
+aares <- mclapply(1:6,function(i) {
+  simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+},mc.cores=6)
+
+aares <- do.call(rbind,aares)
+aares
 
 ```
 
@@ -493,370 +650,143 @@ runmitch <- function(m,genesets,cores=1) {
   return(mres)
 }
 
-```
-
-## Prep
-
-```{r,prep}
-
-# prep
-sex <- as.data.frame(design)$sex
-tumor <- as.data.frame(design)$tumor
-patient <- as.character(unlist(lapply(1:ncol(mval),function(i) {c(i,i)})))
-patient <- head(patient,ncol(mval))
-design <- model.matrix(~ patient + tumor )
-rownames(design) <- colnames(mval)
-
-```
-
-## LA workflow split and analyse
-
-split 74 samples 37 patients split into 18 + 18
-Conduct LA workflow analysis.
-Then make overlap.
-
-```{r,laflow}
-
-splitanalyze_la <- function(seed){
-  set.seed(seed)
-  a <- sample(1:37,18)
-  a <- a[order(a)]
-  nona <- setdiff(1:37,a)
-  set.seed(seed)
-  b <- sample(nona,18)
-  b <- b[order(b)]
-  a <- c( (a*2)-1 ,a*2 )
-  a <- a[order(a)]
-  b <- c( (b*2)-1 ,b*2 )
-  b <- b[order(b)]
-
-  design_a <- design[a,]
-  design_a <- design_a[,colSums(design_a)>0]
-  mval_a <- mval[,a]
-  design_b <- design[b,]
-  design_b <- design_b[,colSums(design_b)>0]
-  mval_b <- mval[,b]
-
-  dm1 <- runlimma(mval_a,design_a,myann)
-  dmagg1 <- agg(dm1,cores=floor(CORES/3))
-  m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
-  lares1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES/3)
-
-  dm2 <- runlimma(mval_b,design_b,myann)
-  dmagg2 <- agg(dm2,cores=floor(CORES/3))
-  m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
-  lares2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES/3)
-
-  list("lares1"=lares1,"lares2"=lares2)
-
-}
-
-lares <- mclapply( seq(100,5000,100) ,splitanalyze_la,mc.cores=CORES)
-
-```
-
-## AL workflow split and analyse
-
-```{r,alflow}
-
-splitanalyze_al <- function(seed){
-  set.seed(seed)
-  a <- sample(1:37,18)
-  a <- a[order(a)]
-  nona <- setdiff(1:37,a)
-  set.seed(seed)
-  b <- sample(nona,18)
-  b <- b[order(b)]
-  a <- c( (a*2)-1 ,a*2 )
-  a <- a[order(a)]
-  b <- c( (b*2)-1 ,b*2 )
-  b <- b[order(b)]
-
-  design_a <- design[a,]
-  design_a <- design_a[,colSums(design_a)>0]
-  mval_a <- mval[,a]
-  design_b <- design[b,]
-  design_b <- design_b[,colSums(design_b)>0]
-  mval_b <- mval[,b]
-
-  medf1 <- chragg(mval_a,myann,cores=floor(CORES/3))
-  magg1 <- agglimma(medf1,design_a)
+simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  gset_mod <- gset_selection(genesetdatabase=gsets,seed=seed,gene_catalog=gene_catalog)
+  # cut down length to num_dm_sets
+  set.seed(seed) ; gset_mod <- sample(gset_mod,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  # alm pipeline
+  medf1 <- chragg(mval2,myann,cores=4)
+  magg1 <- agglimma(medf1,d)
   m1 <- as.data.frame(magg1$t)
   rownames(m1) <- rownames(magg1)
   colnames(m1) <- "t"
-  alres1 <- ttenrich(m=m1,genesets=gs_symbols,cores=CORES/3)
-
-  medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
-  magg2 <- agglimma(medf2,design_b)
-  m2 <- as.data.frame(magg2$t)
-  rownames(m2) <- rownames(magg2)
-  colnames(m2) <- "t"
-  alres2 <- ttenrich(m=m2,genesets=gs_symbols,cores=CORES/3)
-
-  list("alres1"=alres1,"alres2"=alres2)
+  almres1 <- runmitch(m=m1,genesets=gsets,cores=4)
+  # summarise results
+  gsig_up3 <- rownames( subset( almres1, p.adjustANOVA < 0.05 & s.dist > 0 ) )
+  gsig_dn3 <- rownames( subset( almres1, p.adjustANOVA < 0.05 & s.dist < 0 ) )
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(almres1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
 }
 
-alres <- mclapply( seq(100,5000,100) ,splitanalyze_al,mc.cores=CORES)
+genesetdatabase=gs_symbols
+groupsize=10
+delta=1
+num_dm_sets=50
+
+almres <- mclapply(1:6,function(i) {
+  simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+},mc.cores=6)
+
+almres <- do.call(rbind,almres)
+almres
 
 ```
 
-## AA workflow split and analyse
+# Run analyses
 
-```{r,aaflow}
+## GSA meth sim
 
-splitanalyze_aa <- function(seed){
-  set.seed(seed)
-  a <- sample(1:37,18)
-  a <- a[order(a)]
-  nona <- setdiff(1:37,a)
-  set.seed(seed)
-  b <- sample(nona,18)
-  b <- b[order(b)]
-  a <- c( (a*2)-1 ,a*2 )
-  a <- a[order(a)]
-  b <- c( (b*2)-1 ,b*2 )
-  b <- b[order(b)]
+```{r,rungsa}
 
-  design_a <- design[a,]
-  design_a <- design_a[,colSums(design_a)>0]
-  mval_a <- mval[,a]
-  design_b <- design[b,]
-  design_b <- design_b[,colSums(design_b)>0]
-  mval_b <- mval[,b]
+groupsize=10
+delta=1
+num_dm_sets=50
 
-  aares1 <- aal(mval=mval_a,myann=myann,genesets=gs_symbols,
-    design=design_a,cores=floor(CORES/3))
+gres <- lapply(1:6,function(i) {
+  simgsa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+})
 
-  aares2 <- aal(mval=mval_b,myann=myann,genesets=gs_symbols,
-    design=design_b,cores=floor(CORES/3))
+gres <- do.call(rbind,gres)
+gres
 
-  list("aares1"=aares1,"aares2"=aares2)
-}
+```
 
-aares <- mclapply( seq(100,5000,100) ,splitanalyze_aa,mc.cores=CORES)
+## LA sim
+
+```{r,runla}
+
+lares <- mclapply(1:6,function(i) {
+  simla(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+},mc.cores=6)
+
+lares <- do.call(rbind,lares)
+lares
+
+```
+
+## AL sim
+
+```{r,runal}
+
+alres <- mclapply(1:6,function(i) {
+  simal(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+},mc.cores=6)
+
+alres <- do.call(rbind,alres)
+alres
+
+```
+
+## AA sim
+
+```{r,runaa}
+
+aares <- mclapply(1:6,function(i) {
+  simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+},mc.cores=6)
+
+aares <- do.call(rbind,aares)
+aares
 
 ```
 
 ## ALM competitive test
 
-```{r,almflow}
+```{r,runalm}
 
-splitanalyze_alm <- function(seed){
-  set.seed(seed)
-  a <- sample(1:37,18)
-  a <- a[order(a)]
-  nona <- setdiff(1:37,a)
-  set.seed(seed)
-  b <- sample(nona,18)
-  b <- b[order(b)]
-  a <- c( (a*2)-1 ,a*2 )
-  a <- a[order(a)]
-  b <- c( (b*2)-1 ,b*2 )
-  b <- b[order(b)]
+almres <- mclapply(1:6,function(i) {
+  simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    groupsize=10, delta=delta, num_dm_sets=num_dm_sets)
+},mc.cores=6)
 
-  design_a <- design[a,]
-  design_a <- design_a[,colSums(design_a)>0]
-  mval_a <- mval[,a]
-  design_b <- design[b,]
-  design_b <- design_b[,colSums(design_b)>0]
-  mval_b <- mval[,b]
-
-  medf1 <- chragg(mval_a,myann,cores=floor(CORES/3))
-  magg1 <- agglimma(medf1,design_a)
-  m1 <- as.data.frame(magg1$t)
-  rownames(m1) <- rownames(magg1)
-  colnames(m1) <- "t"
-  almres1 <- runmitch(m=m1,genesets=gs_symbols,cores=CORES)
-
-  medf2 <- chragg(mval_b,myann,cores=floor(CORES/3))
-  magg2 <- agglimma(medf2,design_b)
-  m2 <- as.data.frame(magg2$t)
-  rownames(m2) <- rownames(magg2)
-  colnames(m2) <- "t"
-  almres2 <- runmitch(m=m2,genesets=gs_symbols,cores=CORES)
-
-  list("almres1"=almres1,"almres2"=almres2)
-
-}
-
-almres <- mclapply( seq(100,5000,100) ,splitanalyze_alm,mc.cores=CORES)
-
-```
-
-## Compare
-
-```{r,summarise1}
-
-lacompare <- function(lares){
-  lares1 <- lares[[1]]
-  lares2 <- lares[[2]]
-  lasig1 <- subset(lares1,fdr<0.05)
-  lasig2 <- subset(lares2,fdr<0.05)
-  lasig1_up <- rownames(subset(lasig1,t_median>0))
-  lasig1_dn <- rownames(subset(lasig1,t_median<0))
-  lasig2_up <- rownames(subset(lasig2,t_median>0))
-  lasig2_dn <- rownames(subset(lasig2,t_median<0))
-
-  total <- length(unique(c(lasig1_up,lasig2_up,lasig1_dn,lasig2_dn)))
-  common <- length(intersect(lasig1_up, lasig2_up)) + length(intersect(lasig1_dn, lasig2_dn))
-  discordant <- length(intersect(lasig1_up, lasig2_dn)) + length(intersect(lasig1_dn, lasig2_up))
-  uncommon = total - common - discordant
-
-  laout <- data.frame(total,common,discordant,uncommon)
-  laout$p_comm <-laout$common / laout$total
-  laout$p_disc <-laout$discordant / laout$total
-  laout$p_uncom <-laout$uncommon / laout$total
-  laout
-}
-
-alcompare <-function(alres){
-  alres1 <- alres[[1]]
-  alres2 <- alres[[2]]
-  alsig1 <- subset(alres1,fdr<0.05)
-  alsig2 <- subset(alres2,fdr<0.05)
-
-  alsig1_up <- rownames(subset(alsig1,t_median>0))
-  alsig1_dn <- rownames(subset(alsig1,t_median<0))
-  alsig2_up <- rownames(subset(alsig2,t_median>0))
-  alsig2_dn <- rownames(subset(alsig2,t_median<0))
-
-  total <- length(unique(c(alsig1_up,alsig2_up,alsig1_dn,alsig2_dn)))
-  common <- length(intersect(alsig1_up, alsig2_up)) + length(intersect(alsig1_dn, alsig2_dn))
-  discordant <- length(intersect(alsig1_up, alsig2_dn)) + length(intersect(alsig1_dn, alsig2_up))
-  uncommon = total - common - discordant
-  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
-
-  alout <- data.frame(total,common,discordant,uncommon)
-  alout$p_comm <-alout$common / alout$total
-  alout$p_disc <-alout$discordant / alout$total
-  alout$p_uncom <-alout$uncommon / alout$total
-  alout
-}
-
-aacompare <-function(aa){
-  aa1 <- aa[[1]]
-  aa2 <- aa[[2]]
-  aasig1 <- subset(aa1,adj.P.Val<0.05)
-  aasig2 <- subset(aa2,adj.P.Val<0.05)
-
-  aasig1_up <- rownames(subset(aasig1,logFC>0))
-  aasig1_dn <- rownames(subset(aasig1,logFC<0))
-  aasig2_up <- rownames(subset(aasig2,logFC>0))
-  aasig2_dn <- rownames(subset(aasig2,logFC<0))
-
-  total <- length(unique(c(aasig1_up,aasig2_up,aasig1_dn,aasig2_dn)))
-  common <- length(intersect(aasig1_up, aasig2_up)) + length(intersect(aasig1_dn, aasig2_dn))
-  discordant <- length(intersect(aasig1_up, aasig2_dn)) + length(intersect(aasig1_dn, aasig2_up))
-  uncommon = total - common - discordant
-  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
-
-  aaout <- data.frame(total,common,discordant,uncommon)
-  aaout$p_comm <- aaout$common / aaout$total
-  aaout$p_disc <- aaout$discordant / aaout$total
-  aaout$p_uncom <-aaout$uncommon / aaout$total
-  aaout
-}
-
-almcompare <-function(almres){
-  almres1 <- almres[[1]]
-  almres2 <- almres[[2]]
-  almsig1 <- subset(almres1,p.adjustANOVA<0.05)
-  almsig2 <- subset(almres2,p.adjustANOVA<0.05)
-
-  almsig1_up <- rownames(subset(almsig1,s.dist>0))
-  almsig1_dn <- rownames(subset(almsig1,s.dist<0))
-  almsig2_up <- rownames(subset(almsig2,s.dist>0))
-  almsig2_dn <- rownames(subset(almsig2,s.dist<0))
-
-  total <- length(unique(c(almsig1_up,almsig2_up,almsig1_dn,almsig2_dn)))
-  common <- length(intersect(almsig1_up, almsig2_up)) + length(intersect(almsig1_dn, almsig2_dn))
-  discordant <- length(intersect(almsig1_up, almsig2_dn)) + length(intersect(almsig1_dn, almsig2_up))
-  uncommon = total - common - discordant
-  result <- c("total"=total,"common"=common,"discordant"=discordant,"uncommon"=uncommon)
-
-  almout <- data.frame(total,common,discordant,uncommon)
-  almout$p_comm <-almout$common / almout$total
-  almout$p_disc <-almout$discordant / almout$total
-  almout$p_uncom <-almout$uncommon / almout$total
-  almout
-}
-
-```
-
-```{r,compare1}
-
-laout <- do.call(rbind,lapply(lares,lacompare))
-
-alout <- do.call(rbind,lapply(alres,alcompare))
-
-aaout <- do.call(rbind,lapply(aares,aacompare))
-
-almout <- do.call(rbind,lapply(almres,almcompare))
-
-laout
-
-alout
-
-aaout
-
-almout
-
-res <- do.call(rbind,lapply(list(laout,alout,aaout,almout),colMeans))
-
-rownames(res) <- c("la","al","aa","alm")
-
-res <- as.data.frame(res)
-
-res %>%
-  kbl(caption="overall summary") %>%
-  kable_paper("hover", full_width = F)
-
-apply(laout,2,mean)
-apply(alout,2,mean)
-apply(aaout,2,mean)
-apply(almout,2,mean)
-
-```
-
-Plot some data.
-
-Raw counts and proportions.
-
-```{r,plots1,fig.height=5,fig.width=9}
-
-par(mfrow=c(1,3))
-
-barplot(res$common,main="no. common",names.arg=c("LA","AL","AA","ALM"))
-barplot(res$uncommon,main="no. uncommon",names.arg=c("LA","AL","AA","ALM"))
-barplot(res$discordant,main="no. discordant",names.arg=c("LA","AL","AA","ALM"))
-
-boxplot(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common,"ALM"=almout$common),
-  main="no. common",col="white",ylim=c(0,1550))
-beeswarm(list("LA"=laout$common,"AL"=alout$common,"AA"=aaout$common,"ALM"=almout$common), add=TRUE,cex=1.2,pch=19)
-
-boxplot(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon,"ALM"=almout$uncommon),
-  main="no. uncommon",col="white",ylim=c(0,1550))
-beeswarm(list("LA"=laout$uncommon,"AL"=alout$uncommon,"AA"=aaout$uncommon,"ALM"=almout$uncommon), add=TRUE,cex=1.2,pch=19)
-
-boxplot(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant,"ALM"=almout$discordant),
-  main="no. discordant",col="white",ylim=c(0,1550))
-beeswarm(list("LA"=laout$discordant,"AL"=alout$discordant,"AA"=aaout$discordant,"ALM"=almout$discordant), add=TRUE,cex=1.2,pch=19)
-
-barplot(res$p_comm,main="proportion common",names.arg=c("LA","AL","AA","ALM"))
-barplot(res$p_uncom,main="proportion uncommon",names.arg=c("LA","AL","AA","ALM"))
-barplot(res$p_disc,main="proportion discordant",names.arg=c("LA","AL","AA","ALM"))
-
-boxplot(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm,"ALM"=almout$p_comm),
-  main="proportion common",col="white",ylim=c(0,1))
-beeswarm(list("LA"=laout$p_comm,"AL"=alout$p_comm,"AA"=aaout$p_comm,"ALM"=almout$p_comm), add=TRUE,cex=1.2,pch=19)
-
-boxplot(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom,"ALM"=almout$p_uncom),
-  main="proportion uncommon",col="white",ylim=c(0,1))
-beeswarm(list("LA"=laout$p_uncom,"AL"=alout$p_uncom,"AA"=aaout$p_uncom,"ALM"=almout$p_uncom), add=TRUE,cex=1.2,pch=19)
-
-boxplot(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc,"ALM"=almout$p_disc),
-  main="proportion discordant",col="white",ylim=c(0,1))
-beeswarm(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc,"ALM"=almout$p_disc), add=TRUE,cex=1.2,pch=19)
+almres <- do.call(rbind,almres)
+almres
 
 ```
 
@@ -864,7 +794,7 @@ beeswarm(list("LA"=laout$p_disc,"AL"=alout$p_disc,"AA"=aaout$p_disc,"ALM"=almout
 
 ```{r,save}
 
-save.image("GSE158422_split.Rdata")
+save.image("GSE158422_simulate.Rdata")
 
 sessionInfo()
 
