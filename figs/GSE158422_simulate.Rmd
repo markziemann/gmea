@@ -100,26 +100,13 @@ boxplot(list("normal"=matrix(colMeans(mval),ncol=2)[,2],"tumor"=matrix(colMeans(
 
 We could use Reactome pathways, however these have a lot of overlapping sets, which could cause inflated
 false positives.
-A better solution could be to select random gene sets with sizes similar to Reactomes.
-Reactomes were downloaded on the 14th Sept 2023 from MsigDB.
-
-```{r,gsdl}
-
-gs_entrez <- gmt_import("c2.cp.reactome.v2023.1.Hs.entrez.gmt")
-
-gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
-
-```
-
-Get a vector of genes, and the length of gene sets from Reactome.
-
-Then generate random gene sets.
+A better solution could be to select random gene sets with size range between 10 and 100 genes.
 
 ```{r,gset_prep}
 
 gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
 
-lengths <- unname(unlist(lapply(gs_symbols,length)))
+lengths <- rep(1:10,100)*10
 
 randomGeneSets <- function(gene_catalog, lengths, seed){
   num_gsets <- length(lengths)
@@ -408,7 +395,7 @@ simla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   dm3 <- runlimma(mval=mval2,design=d,myann=myann)
   dmagg1 <- agg(dm3,cores=4)
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
-  lares1 <- ttenrich(m=m1,genesets=gsets,cores=10)
+  lares1 <- ttenrich(m=m1,genesets=gsets,cores=4)
   gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
   gtup <- names(sim[[6]])
@@ -521,7 +508,7 @@ simal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   m1 <- as.data.frame(magg1$t)
   rownames(m1) <- rownames(magg1)
   colnames(m1) <- "t"
-  alres1 <- ttenrich(m=m1,genesets=gsets,cores=10)
+  alres1 <- ttenrich(m=m1,genesets=gsets,cores=4)
   # summarise results
   gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
@@ -691,9 +678,13 @@ Set assumptions.
 
 ```{r,set}
 
-groupsize=3
-delta=0.6
 num_dm_sets=50
+sims=4
+
+groupsizes=c(3,6,12,18)
+deltas=c(0.1,0.3,0.5,0.7,1.0)
+params <- expand.grid("groupsizes"=groupsizes,"deltas"=deltas)
+params
 
 ```
 
@@ -703,12 +694,17 @@ Cannot be run in multicore due to fragility of AnnotationDbi SQLite objects.
 
 ```{r,rungsa}
 
-gres <- lapply(1:100,function(i) {
-  simgsa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+gres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- lapply(1:sims,function(i) {
+    simgsa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5,
+      frac_probes=0.5, groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  })
+  res <- do.call(rbind,res)
+  return(res)
 })
 
-gres <- do.call(rbind,gres)
 gres
 
 ```
@@ -717,12 +713,17 @@ gres
 
 ```{r,runla}
 
-lares <- mclapply(1:100,function(i) {
-  simla(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-},mc.cores=6)
+lares <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simla(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
 
-lares <- do.call(rbind,lares)
 lares
 
 ```
@@ -731,12 +732,17 @@ lares
 
 ```{r,runal}
 
-alres <- mclapply(1:100,function(i) {
-  simal(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-},mc.cores=6)
+alres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:50,function(i) {
+    simal(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,alres)
+  return(res)
+})
 
-alres <- do.call(rbind,alres)
 alres
 
 ```
@@ -745,12 +751,17 @@ alres
 
 ```{r,runaa}
 
-aares <- mclapply(1:100,function(i) {
-  simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-},mc.cores=6)
+aares <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:50,function(i) {
+    simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
 
-aares <- do.call(rbind,aares)
 aares
 
 ```
@@ -759,12 +770,17 @@ aares
 
 ```{r,runalm}
 
-almres <- mclapply(1:100,function(i) {
-  simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-    groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-},mc.cores=6)
+almres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
 
-almres <- do.call(rbind,almres)
 almres
 
 ```
