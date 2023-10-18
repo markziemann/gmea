@@ -43,11 +43,9 @@ suppressPackageStartupMessages({
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
   library('org.Hs.eg.db')
-  library("tictoc")
+  library("psych")
   library("mitch")
   library("kableExtra")
-  library("beeswarm")
-  library("eulerr")
 })
 
 # optimised for 128 GB sever with 32 threads
@@ -982,6 +980,11 @@ simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   return(result)
 }
 
+
+F1 <- function(x,y) {
+  ( 2 * x * y ) / ( x + y )
+}
+
 ```
 
 # Run analyses
@@ -991,10 +994,10 @@ Set assumptions.
 ```{r,set}
 
 num_dm_sets=50
-sims=4
+sims=10
 
-groupsizes=c(3,6,12,18)
-deltas=c(0.1,0.3,0.5,0.7,1.0)
+groupsizes=c(3,6,12)
+deltas=c(0.1,0.2,0.3,0.5)
 params <- expand.grid("groupsizes"=groupsizes,"deltas"=deltas)
 params
 
@@ -1023,6 +1026,18 @@ gres2 <- do.call(rbind,lapply(gres,colMeans))
 
 gres2
 
+gres3p <- do.call(rbind,lapply(groupsizes, function (g) { gres2[params$groupsizes==g,"PREC"] }))
+colnames(gres3p) <- deltas
+rownames(gres3p) <- groupsizes
+gres3p
+
+gres3r <- do.call(rbind,lapply(groupsizes, function (g) { gres2[params$groupsizes==g,"REC"] }))
+colnames(gres3r) <- deltas
+rownames(gres3r) <- groupsizes
+gres3r
+
+F1(gres3p,gres3r)
+
 ```
 
 ## LA sim
@@ -1045,6 +1060,18 @@ lares <- lapply(1:nrow(params) , function(j) {
 lares2 <- do.call(rbind,lapply(lares,colMeans))
 
 lares2
+
+lares3p <- do.call(rbind,lapply(groupsizes, function (g) { lares2[params$groupsizes==g,"PREC"] }))
+colnames(lares3p) <- deltas
+rownames(lares3p) <- groupsizes
+lares3p
+
+lares3r <- do.call(rbind,lapply(groupsizes, function (g) { lares2[params$groupsizes==g,"REC"] }))
+colnames(lares3r) <- deltas
+rownames(lares3r) <- groupsizes
+lares3r
+
+F1(lares3p,lares3r)
 
 ```
 
@@ -1069,6 +1096,18 @@ lacres2 <- do.call(rbind,lapply(lacres,colMeans))
 
 lacres2
 
+lacres3p <- do.call(rbind,lapply(groupsizes, function (g) { lacres2[params$groupsizes==g,"PREC"] }))
+colnames(lacres3p) <- deltas
+rownames(lacres3p) <- groupsizes
+lacres3p
+
+lacres3r <- do.call(rbind,lapply(groupsizes, function (g) { lacres2[params$groupsizes==g,"REC"] }))
+colnames(lacres3r) <- deltas
+rownames(lacres3r) <- groupsizes
+lacres3r
+
+F1(lacres3p,lacres3r)
+
 ```
 
 ### nonparametric self-contained
@@ -1092,6 +1131,18 @@ nlares2 <- do.call(rbind,lapply(nlares,colMeans))
 
 nlares2
 
+nlares3p <- do.call(rbind,lapply(groupsizes, function (g) { nlares2[params$groupsizes==g,"PREC"] }))
+colnames(nlares3p) <- deltas
+rownames(nlares3p) <- groupsizes
+nlares3p
+
+nlares3r <- do.call(rbind,lapply(groupsizes, function (g) { nlares2[params$groupsizes==g,"REC"] }))
+colnames(nlares3r) <- deltas
+rownames(nlares3r) <- groupsizes
+nlares3r
+
+F1(nlares3p,nlares3r)
+
 ```
 
 ### nonparametric competitive
@@ -1114,6 +1165,18 @@ nlacres
 nlacres2 <- do.call(rbind,lapply(nlacres,colMeans))
 
 nlacres2
+
+nlacres3p <- do.call(rbind,lapply(groupsizes, function (g) { nlacres2[params$groupsizes==g,"PREC"] }))
+colnames(nlacres3p) <- deltas
+rownames(nlacres3p) <- groupsizes
+nlacres3p
+
+nlacres3r <- do.call(rbind,lapply(groupsizes, function (g) { nlacres2[params$groupsizes==g,"REC"] }))
+colnames(nlacres3r) <- deltas
+rownames(nlacres3r) <- groupsizes
+nlacres3r
+
+F1(nlacres3p,nlacres3r)
 
 ```
 
@@ -1140,6 +1203,18 @@ alres2 <- do.call(rbind,lapply(alres,colMeans))
 
 alres2
 
+alres3p <- do.call(rbind,lapply(groupsizes, function (g) { alres2[params$groupsizes==g,"PREC"] }))
+colnames(alres3p) <- deltas
+rownames(alres3p) <- groupsizes
+alres3p
+
+alres3r <- do.call(rbind,lapply(groupsizes, function (g) { alres2[params$groupsizes==g,"REC"] }))
+colnames(alres3r) <- deltas
+rownames(alres3r) <- groupsizes
+alres3r
+
+F1(alres3p,alres3r)
+
 ```
 
 ### parametric competitive
@@ -1162,6 +1237,18 @@ alcres
 alcres2 <- do.call(rbind,lapply(alcres,colMeans))
 
 alcres2
+
+alcres3p <- do.call(rbind,lapply(groupsizes, function (g) { alcres2[params$groupsizes==g,"PREC"] }))
+colnames(alcres3p) <- deltas
+rownames(alcres3p) <- groupsizes
+alcres3p
+
+alcres3r <- do.call(rbind,lapply(groupsizes, function (g) { alcres2[params$groupsizes==g,"REC"] }))
+colnames(alcres3r) <- deltas
+rownames(alcres3r) <- groupsizes
+alcres3r
+
+F1(alcres3p,alcres3r)
 
 ```
 
@@ -1186,6 +1273,18 @@ nalres2 <- do.call(rbind,lapply(nalres,colMeans))
 
 nalres2
 
+nalres3p <- do.call(rbind,lapply(groupsizes, function (g) { nalres2[params$groupsizes==g,"PREC"] }))
+colnames(nalres3p) <- deltas
+rownames(nalres3p) <- groupsizes
+nalres3p
+
+nalres3r <- do.call(rbind,lapply(groupsizes, function (g) { nalres2[params$groupsizes==g,"REC"] }))
+colnames(nalres3r) <- deltas
+rownames(nalres3r) <- groupsizes
+nalres3r
+
+F1(nalres3p,nalres3r)
+
 ```
 
 ### nonparametric competitive
@@ -1208,6 +1307,18 @@ nalcres
 nalcres2 <- do.call(rbind,lapply(nalcres,colMeans))
 
 nalcres2
+
+nalcres3p <- do.call(rbind,lapply(groupsizes, function (g) { nalcres2[params$groupsizes==g,"PREC"] }))
+colnames(nalcres3p) <- deltas
+rownames(nalcres3p) <- groupsizes
+nalcres3p
+
+nalcres3r <- do.call(rbind,lapply(groupsizes, function (g) { nalcres2[params$groupsizes==g,"REC"] }))
+colnames(nalcres3r) <- deltas
+rownames(nalcres3r) <- groupsizes
+nalcres3r
+
+F1(nalcres3p,nalcres3r)
 
 ```
 
@@ -1232,6 +1343,18 @@ aares2 <- do.call(rbind,lapply(aares,colMeans))
 
 aares2
 
+aares3p <- do.call(rbind,lapply(groupsizes, function (g) { aares2[params$groupsizes==g,"PREC"] }))
+colnames(aares3p) <- deltas
+rownames(aares3p) <- groupsizes
+aares3p
+
+aares3r <- do.call(rbind,lapply(groupsizes, function (g) { aares2[params$groupsizes==g,"REC"] }))
+colnames(aares3r) <- deltas
+rownames(aares3r) <- groupsizes
+aares3r
+
+F1(aares3p,aares3r)
+
 ```
 
 ## ALM competitive test
@@ -1254,6 +1377,18 @@ almres
 almres2 <- do.call(rbind,lapply(almres,colMeans))
 
 almres2
+
+almres3p <- do.call(rbind,lapply(groupsizes, function (g) { almres2[params$groupsizes==g,"PREC"] }))
+colnames(almres3p) <- deltas
+rownames(almres3p) <- groupsizes
+almres3p
+
+almres3r <- do.call(rbind,lapply(groupsizes, function (g) { almres2[params$groupsizes==g,"REC"] }))
+colnames(almres3r) <- deltas
+rownames(almres3r) <- groupsizes
+almres3r
+
+F1(almres3p,almres3r)
 
 ```
 
