@@ -344,9 +344,10 @@ agg <- function(dm,cores=1) {
   return(out)
 }
 
-# enrich
-ttenrich <- function(m,genesets,cores=1) {
+# enrich parametric
+ttenrich <- function(m,genesets,cores=1,testtype="selfcontained") {
   res <- mclapply( 1:length(genesets), function(i) {
+    scores <- m[,1]
     gs <- genesets[i]
     name <- names(gs)
     n_members <- length(which(rownames(m) %in% gs[[1]]))
@@ -355,7 +356,8 @@ ttenrich <- function(m,genesets,cores=1) {
       myn <- length(tstats)
       mymean <- mean(tstats)
       mymedian <- median(tstats)
-      wt <- t.test(tstats)
+      if ( testtype == "selfcontained" ) { wt <- t.test(tstats) }
+      if ( testtype == "competitive" ) { wt <- t.test(tstats,scores) }
       res <- c(name,myn,mymean,mymedian,wt$p.value)
     }
   } , mc.cores = cores)
@@ -374,6 +376,39 @@ ttenrich <- function(m,genesets,cores=1) {
   return(res_df)
 }
 
+# enrich non-parametric
+wtenrich <- function(m,genesets,cores=1,testtype="selfcontained") {
+  res <- mclapply( 1:length(genesets), function(i) {
+    scores <- m[,1]
+    gs <- genesets[i]
+    name <- names(gs)
+    n_members <- length(which(rownames(m) %in% gs[[1]]))
+    if ( n_members > 4 ) {
+      tstats <- m[which(rownames(m) %in% gs[[1]]),]
+      myn <- length(tstats)
+      mymean <- mean(tstats)
+      mymedian <- median(tstats)
+      if ( testtype == "selfcontained" ) { wt <- wilcox.test(tstats) }
+      if ( testtype == "competitive" ) { wt <- wilcox.test(tstats,scores) }
+      res <- c(name,myn,mymean,mymedian,wt$p.value)
+    }
+  } , mc.cores = cores)
+  res_df <- do.call(rbind, res)
+  rownames(res_df) <- res_df[,1]
+  res_df <- res_df[,-1]
+  colnames(res_df) <- c("n_genes","t_mean","t_median","pval")
+  tmp <- apply(res_df,2,as.numeric)
+  rownames(tmp) <- rownames(res_df)
+  res_df <- tmp
+  res_df <- as.data.frame(res_df)
+  res_df <- res_df[order(res_df$pval),]
+  res_df$logp <- -log10(res_df$pval )
+  res_df$fdr <- p.adjust(res_df$pval,method="fdr")
+  res_df[order(abs(res_df$pval)),]
+  return(res_df)
+}
+
+# parametric self-contained
 simla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
   gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
@@ -395,7 +430,7 @@ simla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   dm3 <- runlimma(mval=mval2,design=d,myann=myann)
   dmagg1 <- agg(dm3,cores=4)
   m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
-  lares1 <- ttenrich(m=m1,genesets=gsets,cores=4)
+  lares1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="selfcontained")
   gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
   gtup <- names(sim[[6]])
@@ -416,6 +451,139 @@ simla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
   return(result)
 }
+
+# parametric competitive
+simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  dm3 <- runlimma(mval=mval2,design=d,myann=myann)
+  dmagg1 <- agg(dm3,cores=4)
+  m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
+  lares1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(lares1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
+# nonparametric self-contained
+simnla <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  dm3 <- runlimma(mval=mval2,design=d,myann=myann)
+  dmagg1 <- agg(dm3,cores=4)
+  m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
+  lares1 <- wtenrich(m=m1,genesets=gsets,cores=4,testtype="selfcontained")
+  gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(lares1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
+# nonparametric competitive
+simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  dm3 <- runlimma(mval=mval2,design=d,myann=myann)
+  dmagg1 <- agg(dm3,cores=4)
+  m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
+  lares1 <- wtenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(lares1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
 
 ```
 
@@ -483,7 +651,7 @@ agglimma <- function(medf,design) {
   return(dmagg)
 }
 
-
+# AL approach parametric self-contained
 simal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
   gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
@@ -508,7 +676,151 @@ simal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   m1 <- as.data.frame(magg1$t)
   rownames(m1) <- rownames(magg1)
   colnames(m1) <- "t"
-  alres1 <- ttenrich(m=m1,genesets=gsets,cores=4)
+  alres1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="selfcontained")
+  # summarise results
+  gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(alres1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
+# AL approach parametric competitive
+simalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  # al pipeline
+  medf1 <- chragg(mval=mval2,myann=myann,cores=4)
+  magg1 <- agglimma(medf1,d)
+  m1 <- as.data.frame(magg1$t)
+  rownames(m1) <- rownames(magg1)
+  colnames(m1) <- "t"
+  alres1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  # summarise results
+  gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(alres1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
+# AL approach nonparametric self-contained
+simnal <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  # al pipeline
+  medf1 <- chragg(mval=mval2,myann=myann,cores=4)
+  magg1 <- agglimma(medf1,d)
+  m1 <- as.data.frame(magg1$t)
+  rownames(m1) <- rownames(magg1)
+  colnames(m1) <- "t"
+  alres1 <- wtenrich(m=m1,genesets=gsets,cores=4,testtype="selfcontained")
+  # summarise results
+  gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
+  gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(alres1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
+
+# AL approach nonparametric competitive
+simnalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  # al pipeline
+  medf1 <- chragg(mval=mval2,myann=myann,cores=4)
+  magg1 <- agglimma(medf1,d)
+  m1 <- as.data.frame(magg1$t)
+  rownames(m1) <- rownames(magg1)
+  colnames(m1) <- "t"
+  alres1 <- wtenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
   # summarise results
   gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
@@ -698,7 +1010,7 @@ gres <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
   delta = params[j,2]
   res <- lapply(1:sims,function(i) {
-    simgsa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5,
+    simgsa(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5,
       frac_probes=0.5, groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
   })
   res <- do.call(rbind,res)
@@ -707,9 +1019,15 @@ gres <- lapply(1:nrow(params) , function(j) {
 
 gres
 
+gres2 <- do.call(rbind,lapply(gres,colMeans))
+
+gres2
+
 ```
 
 ## LA sim
+
+### parametric self-contained
 
 ```{r,runla}
 
@@ -717,33 +1035,179 @@ lares <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
   delta = params[j,2]
   res <- mclapply(1:sims,function(i) {
-    simla(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    simla(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
   },mc.cores=4)
   res <- do.call(rbind,res)
   return(res)
 })
 
-lares
+lares2 <- do.call(rbind,lapply(lares,colMeans))
+
+lares2
+
+```
+
+### parametric competitive
+
+```{r,runlac}
+
+lacres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simlac(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+lacres
+
+lacres2 <- do.call(rbind,lapply(lacres,colMeans))
+
+lacres2
+
+```
+
+### nonparametric self-contained
+
+```{r,runnla}
+
+nlares <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simnla(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+nlares
+
+nlares2 <- do.call(rbind,lapply(nlares,colMeans))
+
+nlares2
+
+```
+
+### nonparametric competitive
+
+```{r,runnlac}
+
+nlacres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simnlac(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+nlacres
+
+nlacres2 <- do.call(rbind,lapply(nlacres,colMeans))
+
+nlacres2
 
 ```
 
 ## AL sim
+
+### parametric self-contained
 
 ```{r,runal}
 
 alres <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
   delta = params[j,2]
-  res <- mclapply(1:50,function(i) {
-    simal(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+  res <- mclapply(1:sims,function(i) {
+    simal(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
   },mc.cores=4)
-  res <- do.call(rbind,alres)
+  res <- do.call(rbind,res)
   return(res)
 })
 
 alres
+
+alres2 <- do.call(rbind,lapply(alres,colMeans))
+
+alres2
+
+```
+
+### parametric competitive
+
+```{r,runalc}
+
+alcres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simalc(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+alcres
+
+alcres2 <- do.call(rbind,lapply(alcres,colMeans))
+
+alcres2
+
+```
+
+### nonparametric self-contained
+
+```{r,runnal}
+
+nalres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simnal(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+nalres
+
+nalres2 <- do.call(rbind,lapply(nalres,colMeans))
+
+nalres2
+
+```
+
+### nonparametric competitive
+
+```{r,runnalc}
+
+nalcres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simnalc(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+nalcres
+
+nalcres2 <- do.call(rbind,lapply(nalcres,colMeans))
+
+nalcres2
 
 ```
 
@@ -754,8 +1218,8 @@ alres
 aares <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
   delta = params[j,2]
-  res <- mclapply(1:50,function(i) {
-    simaa(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+  res <- mclapply(1:sims,function(i) {
+    simaa(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
   },mc.cores=4)
   res <- do.call(rbind,res)
@@ -763,6 +1227,10 @@ aares <- lapply(1:nrow(params) , function(j) {
 })
 
 aares
+
+aares2 <- do.call(rbind,lapply(aares,colMeans))
+
+aares2
 
 ```
 
@@ -774,7 +1242,7 @@ almres <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
   delta = params[j,2]
   res <- mclapply(1:sims,function(i) {
-    simalm(genesetdatabase=gs_symbols, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+    simalm(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
   },mc.cores=4)
   res <- do.call(rbind,res)
@@ -782,6 +1250,10 @@ almres <- lapply(1:nrow(params) , function(j) {
 })
 
 almres
+
+almres2 <- do.call(rbind,lapply(almres,colMeans))
+
+almres2
 
 ```
 
@@ -794,3 +1266,25 @@ save.image("GSE158422_simulate.Rdata")
 sessionInfo()
 
 ```
+
+## Notes
+
+LA
+
+* simla: parametric self-contained
+
+* simlac: parametric competitive
+
+* simnla: nonparametric self-contained
+
+* simnlac: nonparametric competitive
+
+AL
+
+* simal: parametric self-contained
+
+* simalc: parametric competitive
+
+* simnal: nonparametric self-contained
+
+* simnalc: nonparametric competitive
