@@ -955,6 +955,73 @@ F1(lacres3p,lacres3r) %>% kbl(caption="LA parametric F1") %>% kable_paper("hover
 
 ```
 
+
+### parametric competitive with "top" aggregation
+
+```{r,runlac}
+
+lactopres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simlactop(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=2)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+lactopres2 <- do.call(rbind,lapply(lactopres,colMeans))
+
+lactopres2 %>% kbl(caption="LA parametric results (top agg)") %>% kable_paper("hover", full_width = F)
+
+lactopres3p <- do.call(rbind,lapply(groupsizes, function (g) { lactopres2[params$groupsizes==g,"PREC"] }))
+colnames(lactopres3p) <- deltas
+rownames(lactopres3p) <- groupsizes
+lactopres3p %>% kbl(caption="LA parametric precision (top agg)") %>% kable_paper("hover", full_width = F)
+
+lactopres3r <- do.call(rbind,lapply(groupsizes, function (g) { lactopres2[params$groupsizes==g,"REC"] }))
+colnames(lactopres3r) <- deltas
+rownames(lactopres3r) <- groupsizes
+lactopres3r %>% kbl(caption="LA parametric recall (top agg)") %>% kable_paper("hover", full_width = F)
+
+F1(lactopres3p,lactopres3r) %>% kbl(caption="LA parametric F1 (top agg)") %>% kable_paper("hover", full_width = F)
+
+```
+
+### parametric competitive aggregation with geometric mean
+
+```{r,runlac}
+
+lacgeores <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simlacgeo(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=2)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+lacgeores2 <- do.call(rbind,lapply(lacgeores,colMeans))
+
+lacgeores2 %>% kbl(caption="LA parametric results with geometric mean") %>% kable_paper("hover", full_width = F)
+
+lacgeores3p <- do.call(rbind,lapply(groupsizes, function (g) { lacgeores2[params$groupsizes==g,"PREC"] }))
+colnames(lacgeores3p) <- deltas
+rownames(lacgeores3p) <- groupsizes
+lacgeores3p %>% kbl(caption="LA parametric precision with geometric mean") %>% kable_paper("hover", full_width = F)
+
+lacgeores3r <- do.call(rbind,lapply(groupsizes, function (g) { lacgeores2[params$groupsizes==g,"REC"] }))
+colnames(lacgeores3r) <- deltas
+rownames(lacgeores3r) <- groupsizes
+lacgeores3r %>% kbl(caption="LA parametric recall with geometric mean") %>% kable_paper("hover", full_width = F)
+
+F1(lacgeores3p,lacgeores3r) %>% kbl(caption="LA parametric F1 with geometric mean") %>% kable_paper("hover", full_width = F)
+
+```
+
 ### nonparametric competitive
 
 ```{r,runnlac}
