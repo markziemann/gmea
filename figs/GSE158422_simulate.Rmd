@@ -37,6 +37,7 @@ Half of these will be hypermethylated and the others will be hypomethylated.
 ```{r,packages}
 
 suppressPackageStartupMessages({
+  library("splicejam")
   library("stringi")
   library("limma")
   library("missMethyl")
@@ -296,8 +297,6 @@ This process runs limma first and then aggregates the results before doing an en
 
 ```{r,lafunc}
 
-# geometric mean might come in handy
-geomean <- function(x) { exp(mean(log(x))) }
 
 # aggregate
 agg <- function(dm,cores=1) {
@@ -366,7 +365,7 @@ geoagg <- function(dm,cores=1) {
     g <- gn[i]
     tstats <- df[which(df$genes==g),"tvals"]
     myn <- length(tstats)
-    mymean <- geomean(tstats)
+    mymean <- splicejam::jamGeomean(tstats)
     mymedian <- median(tstats)
     top <- tstats[order(-abs(tstats))][1]
     if ( length(tstats) > 2 ) {
@@ -875,8 +874,12 @@ Set assumptions.
 num_dm_sets=50
 sims=10
 
-groupsizes=c(3,5,8,12)
-deltas=c(0.1,0.2,0.3,0.4,0.5)
+#groupsizes=c(3,5,8,12)
+#deltas=c(0.1,0.2,0.3,0.4,0.5)
+
+groupsizes=5
+deltas=0.4
+
 params <- expand.grid("groupsizes"=groupsizes,"deltas"=deltas)
 
 params %>% kbl(caption="Parameters to test") %>% kable_paper("hover", full_width = F)
@@ -958,6 +961,8 @@ F1(lacres3p,lacres3r) %>% kbl(caption="LA parametric F1") %>% kable_paper("hover
 
 ### parametric competitive with "top" aggregation
 
+Too many false positives.
+
 ```{r,runlac}
 
 lactopres <- lapply(1:nrow(params) , function(j) {
@@ -990,6 +995,8 @@ F1(lactopres3p,lactopres3r) %>% kbl(caption="LA parametric F1 (top agg)") %>% ka
 ```
 
 ### parametric competitive aggregation with geometric mean
+
+Precision is same but recall was very low.
 
 ```{r,runlac}
 
