@@ -37,7 +37,6 @@ Half of these will be hypermethylated and the others will be hypomethylated.
 ```{r,packages}
 
 suppressPackageStartupMessages({
-  library("splicejam")
   library("stringi")
   library("limma")
   library("missMethyl")
@@ -365,7 +364,7 @@ geoagg <- function(dm,cores=1) {
     g <- gn[i]
     tstats <- df[which(df$genes==g),"tvals"]
     myn <- length(tstats)
-    mymean <- splicejam::jamGeomean(tstats)
+    mymean <- jamGeomean(tstats)
     mymedian <- median(tstats)
     top <- tstats[order(-abs(tstats))][1]
     if ( length(tstats) > 2 ) {
@@ -935,7 +934,7 @@ lacres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlac(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=2)
+  },mc.cores=4)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -963,7 +962,7 @@ F1(lacres3p,lacres3r) %>% kbl(caption="LA parametric F1") %>% kable_paper("hover
 
 Too many false positives.
 
-```{r,runlac}
+```{r,runlactop}
 
 lactopres <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
@@ -971,7 +970,7 @@ lactopres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlactop(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=2)
+  },mc.cores=4)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -998,7 +997,13 @@ F1(lactopres3p,lactopres3r) %>% kbl(caption="LA parametric F1 (top agg)") %>% ka
 
 Precision is same but recall was very low.
 
-```{r,runlac}
+```{r,runlacgeomean}
+
+jamGeomean <- function(x, na.rm=TRUE) {
+   x2 <- mean(log2(1 + abs(x)) * sign(x),
+      na.rm=na.rm);
+   sign(x2) * (2 ^ abs(x2) - 1);
+}
 
 lacgeores <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
@@ -1006,7 +1011,7 @@ lacgeores <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlacgeo(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=2)
+  },mc.cores=4)
   res <- do.call(rbind,res)
   return(res)
 })
