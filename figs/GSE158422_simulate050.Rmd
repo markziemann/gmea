@@ -1083,8 +1083,6 @@ F1(nlacres3p,nlacres3r) %>% kbl(caption="LA nonparametric F1") %>% kable_paper("
 
 ```{r,runlacm}
 
-simlacm
-
 lacmres <- lapply(1:nrow(params) , function(j) {
   groupsize = params[j,1]
   delta = params[j,2]
