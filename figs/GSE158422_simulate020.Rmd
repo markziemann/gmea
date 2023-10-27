@@ -109,7 +109,7 @@ Therefore, a reasonable analysis would include small (20), medium (50) and large
 
 gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
 
-lengths <- rep(50,1000)
+lengths <- rep(20,1000)
 
 randomGeneSets <- function(gene_catalog, lengths, seed){
   num_gsets <- length(lengths)
