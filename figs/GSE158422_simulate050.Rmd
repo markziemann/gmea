@@ -99,13 +99,17 @@ boxplot(list("normal"=matrix(colMeans(mval),ncol=2)[,2],"tumor"=matrix(colMeans(
 
 We could use Reactome pathways, however these have a lot of overlapping sets, which could cause inflated
 false positives.
-A better solution could be to select random gene sets with size range between 10 and 100 genes.
+After some testing, I found that the gene set size strongly impacts the accuracy.
+
+For reference, Reactome sets have a mean of 48 and median of 15, while MSigDB has a median of 47 and mean of 116.
+
+Therefore, a reasonable analysis would include small (20), medium (50) and large (100) sets.
 
 ```{r,gset_prep}
 
 gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
 
-lengths <- rep(1:10,100)*10
+lengths <- rep(50,1000)
 
 randomGeneSets <- function(gene_catalog, lengths, seed){
   num_gsets <- length(lengths)
@@ -296,7 +300,6 @@ This process runs limma first and then aggregates the results before doing an en
 
 ```{r,lafunc}
 
-
 # aggregate
 agg <- function(dm,cores=1) {
   gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
@@ -454,7 +457,7 @@ wtenrich <- function(m,genesets,cores=1,testtype="selfcontained") {
   return(res_df)
 }
 
-# parametric competitive
+# LA parametric competitive
 simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
   gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
@@ -498,7 +501,7 @@ simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   return(result)
 }
 
-# parametric competitive top
+# LA parametric competitive top
 simlactop <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
   gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
@@ -542,7 +545,7 @@ simlactop <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probe
   return(result)
 }
 
-# parametric competitive geometric
+# LA parametric competitive geometric
 simlacgeo <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
   gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
@@ -586,7 +589,7 @@ simlacgeo <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probe
   return(result)
 }
 
-# nonparametric competitive
+# LA nonparametric competitive
 simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
   gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
@@ -630,6 +633,49 @@ simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   return(result)
 }
 
+# LA competitive mitch
+simlacm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
+  # generate gene sets
+  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  lengths <- unname(unlist(lapply(genesetdatabase,length)))
+  gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
+  # select gene sets to alter
+  set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
+  # incorporate select changes
+  sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+  # set up limma
+  mval2 <- sim$mval
+  ncols <- ncol(mval2)
+  groupsize <- ncols/2
+  ss <- data.frame(colnames(mval2))
+  colnames(ss) <- "sample"
+  ss$case <- c(rep(0,groupsize),rep(1,groupsize))
+  d <- model.matrix(~ ss$case )
+  dm3 <- runlimma(mval=mval2,design=d,myann=myann)
+  dmagg1 <- agg(dm3,cores=4)
+  m1 <- dmagg1$gme_res_df[,"mean",drop=FALSE]
+  lamres1 <- runmitch(m=m1,genesets=gsets,cores=4)
+  gsig_up3 <- rownames( subset( lamres1, p.adjustANOVA < 0.05 & s.dist > 0 ) )
+  gsig_dn3 <- rownames( subset( lamres1, p.adjustANOVA < 0.05 & s.dist < 0 ) )
+  gtup <- names(sim[[6]])
+  gtdn <- names(sim[[7]])
+  UPTP=length(intersect(gsig_up3 ,gtup))
+  UPFP=length(setdiff(gsig_up3 ,gtup))
+  UPFN=length(setdiff(gtup,gsig_up3))
+  DNTP=length(intersect(gsig_dn3 ,gtdn))
+  DNFP=length(setdiff(gsig_dn3 ,gtdn))
+  DNFN=length(setdiff(gtdn,gsig_dn3))
+  TP=UPTP+DNTP
+  FP=UPFP+DNFP
+  FN=UPFN+DNFN
+  TN=nrow(lares1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  PREC=TP/(TP+FP)
+  REC=TP/(TP+FN)
+  F1=TP/(TP+(0.5*(FP+FN)))
+  result <- c("TP"=TP,"FP"=FP,"FN"=FN,"TN"=TN,"PREC"=PREC,"REC"=REC)
+  return(result)
+}
 
 ```
 
@@ -871,11 +917,10 @@ Set assumptions.
 ```{r,set}
 
 num_dm_sets=50
-sims=10
+sims=4
 
 #groupsizes=c(3,5,8,12)
 #deltas=c(0.1,0.2,0.3,0.4,0.5)
-
 groupsizes=5
 deltas=0.4
 
@@ -997,42 +1042,7 @@ F1(lactopres3p,lactopres3r) %>% kbl(caption="LA parametric F1 (top agg)") %>% ka
 
 Precision is same but recall was very low.
 
-```{r,runlacgeomean}
-
-jamGeomean <- function(x, na.rm=TRUE) {
-   x2 <- mean(log2(1 + abs(x)) * sign(x),
-      na.rm=na.rm);
-   sign(x2) * (2 ^ abs(x2) - 1);
-}
-
-lacgeores <- lapply(1:nrow(params) , function(j) {
-  groupsize = params[j,1]
-  delta = params[j,2]
-  res <- mclapply(1:sims,function(i) {
-    simlacgeo(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
-      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
-  res <- do.call(rbind,res)
-  return(res)
-})
-
-lacgeores2 <- do.call(rbind,lapply(lacgeores,colMeans))
-
-lacgeores2 %>% kbl(caption="LA parametric results with geometric mean") %>% kable_paper("hover", full_width = F)
-
-lacgeores3p <- do.call(rbind,lapply(groupsizes, function (g) { lacgeores2[params$groupsizes==g,"PREC"] }))
-colnames(lacgeores3p) <- deltas
-rownames(lacgeores3p) <- groupsizes
-lacgeores3p %>% kbl(caption="LA parametric precision with geometric mean") %>% kable_paper("hover", full_width = F)
-
-lacgeores3r <- do.call(rbind,lapply(groupsizes, function (g) { lacgeores2[params$groupsizes==g,"REC"] }))
-colnames(lacgeores3r) <- deltas
-rownames(lacgeores3r) <- groupsizes
-lacgeores3r %>% kbl(caption="LA parametric recall with geometric mean") %>% kable_paper("hover", full_width = F)
-
-F1(lacgeores3p,lacgeores3r) %>% kbl(caption="LA parametric F1 with geometric mean") %>% kable_paper("hover", full_width = F)
-
-```
+Not included.
 
 ### nonparametric competitive
 
@@ -1064,6 +1074,43 @@ rownames(nlacres3r) <- groupsizes
 nlacres3r %>% kbl(caption="LA nonparametric recall") %>% kable_paper("hover", full_width = F)
 
 F1(nlacres3p,nlacres3r) %>% kbl(caption="LA nonparametric F1") %>% kable_paper("hover", full_width = F)
+
+```
+
+
+### LA competitive mitch
+
+
+```{r,runlacm}
+
+simlacm
+
+lacmres <- lapply(1:nrow(params) , function(j) {
+  groupsize = params[j,1]
+  delta = params[j,2]
+  res <- mclapply(1:sims,function(i) {
+    simlacm(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
+      groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
+  },mc.cores=4)
+  res <- do.call(rbind,res)
+  return(res)
+})
+
+lacmres2 <- do.call(rbind,lapply(lacmres,colMeans))
+
+lacmres2 %>% kbl(caption="LA mitch results") %>% kable_paper("hover", full_width = F)
+
+lacmres3p <- do.call(rbind,lapply(groupsizes, function (g) { lacmres2[params$groupsizes==g,"PREC"] }))
+colnames(lacmres3p) <- deltas
+rownames(lacmres3p) <- groupsizes
+lacmres3p %>% kbl(caption="LA mitch precision") %>% kable_paper("hover", full_width = F)
+
+lacmres3r <- do.call(rbind,lapply(groupsizes, function (g) { lacmres2[params$groupsizes==g,"REC"] }))
+colnames(lacmres3r) <- deltas
+rownames(lacmres3r) <- groupsizes
+lacmres3r %>% kbl(caption="LA mitch recall") %>% kable_paper("hover", full_width = F)
+
+F1(lacmres3p,lacmres3r) %>% kbl(caption="LA mitch F1") %>% kable_paper("hover", full_width = F)
 
 ```
 
