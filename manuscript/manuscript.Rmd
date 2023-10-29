@@ -1,5 +1,5 @@
 ---
-title: "Functional class scoring-based enrichment tests of Infinium DNA methylation data"
+title: "Finally, functional class scoring enrichment analysis of Infinium DNA methylation data"
 date: "`r Sys.Date()`"
 output:
   rmdformats::robobook:
@@ -79,28 +79,45 @@ disease.
 * Many hundreds of epigenome-wide association studies (EWASs) are conducted each year to understand DNA
 methylation patterns in disease and other contexts.
 
-* Infinium arrays remain the preferred platform for genomic methylation profiling due to relatively
-low cost and analytical simplicity as compared to high throughput methylation sequencing.
+* Infinium arrays remain the preferred platform for EWASs due to low cost and analytical simplicity
+as compared to high throughput methylation sequencing.
 
-* Infinium arrays have multiple probes per gene in different locations including promoters, CpG islands,
-gene bodies and enhancers, which complicates downstream functional enrichment analysis, otherwise known
-as pathway analysis or gene set enrichment analysis.
+* Infinium arrays typically have multiple probes per gene in different locations including promoters,
+CpG islands, gene bodies and enhancers, which complicates downstream functional enrichment analysis,
+otherwise known as pathway analysis or gene set enrichment analysis.
 
 * Enrichment analysis comes in two popular types; over-representation analysis (ORA) and functional
 class scoring (FCS).
-In ORA, genes with measurements that meet an arbitrary significance threshold are selected and compared
+
+In ORA, genes with probes that meet an arbitrary significance threshold are selected and compared
 to a background list consisting of genes measured in the assay.
 The test seeks to identify sets of genes (eg: ontologies, pathways) that are over-represented in the
 gene list of interest relative to the background.
+
 Functional class scoring takes a different approach by ranking all detected genes by a differential
 regulation score (eg: fold change, confident effect size) followed by a test to assess whether each
 set of genes has distribution of scores that is different to the null.
 Currently there are no specialised approaches for the application of FCS to Infinium array data.
 
-* Here, we evaluate different approaches to apply FCS to Infinium array.
-These methods vary in the sequence of data aggregation and differential testing steps which are
-required to go from probe-level methylation measurements to evidence of pathway-level differential
-methylation.
+* Here, we systematically evaluate different approaches to apply FCS to Infinium array.
+
+* Due to the fact that genes have many probes, there are many concevable ways that FCS could be applied
+to Infinium Methylation data.
+
+* Method group 1: Limma is performed on the probe level and the probes beloning to each gene are scored
+and these scores are aggregated to the gene level.
+The gene scores undergo an enrichment test.
+
+* Method group 2: The probe methylation values beloning to each gene are aggregated before differential
+methylation analysis with limma.
+Then, differential methylation results for each gene are scored, followed by an enrichment test.
+
+With the above, there are options for how the aggregation steps are done, whether parametric or
+non-parametric tests are used and whether the enrichment tests are self-contained or competitive.
+
+To determine the best approach to applying FCS to Infinium methylation data, in this study we use
+simulated data.
+The proposed FCS methods are also compared against existing ORA methods.
 
 ## Methods
 
