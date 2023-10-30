@@ -125,42 +125,83 @@ The proposed FCS methods are also compared against existing ORA methods.
 
 Functional enrichment analysis is a process of data summarisation from genes to gene sets (pathways).
 This is made more complicated for Infinium array data due to the presence of multiple probes per gene,
-meaning the data needs to be summarised from probes to genes to gene sets.
+meaning the data needs to be summarised from probes to genes and then to gene sets.
+Here, we outline seven potential approaches for FCS of Infinium methylation data:
 
-We propose three different approaches for applying enrichment analysis depending on when the differential
-methylation step is conducted (**Figure 1**).
+1. Limma Average t-test (LAT).
+Differential methylation analysis is conducted at the probe level with limma, and the limma
+t-statistics for each gene are summarised (mean).
+The mean t-statistics are used in a downstream two-sample two-way t-test of gene set enrichment.
 
-1. <strong>Differential methylation analysis is conducted on probes and these results are aggregated
-to the gene and gene set level (called "LA").<.strong>
-In this approach differential analysis was conduced on probe values using limma.
-Differential probe methylation results (t-statistics) were then aggregated to the gene level by median.
-These median t-statistics were subject to downstream enrichment analysis using a one-sample two-sided
-t-test (a self-contained test) to estimate whether the t-statistic distribution of the gene set varies
-from zero.
-The use of a self-contained test is warranted as global hyper- or hypo-methylation is common between
-conditions, where competitive tests may give misleading results.
-The use of parametric tests is also warranted, as probe t-statistics typically exhibit a normal
-distribution, even in the presence of global hyper- or hypo-methylation.
+2. Limma Top t-test (LTT).
+As above, except instead of calculating the mean t-statistic, the probe with the largest magnitude is selected
+to represent the gene.
 
-2. <strong>Differential methylation analysis conducted after probe-level methylation is aggregated to
-gene-level (called "AL").</strong>
-As each gene may have many probes, these individual data points were summarised into a single
-value for each individual.
-We used the mean of M-values for each probe belonging to a gene, which generated a new gene-level
-M-value matrix.
-This gene-level methylation matrix underwent differential analysis using limma, followed by an
-enrichment test as above (one-sample two-tailed t-test).
+3. Limma Average Wilcox (LAW).
+Similar to LAT, except instead of the two-sided t-test of gene set enrichment, a non-parametric alternative,
+the Wilcoxon signed-rank test.
 
-3. <strong>Methylation values are aggregated to the gene set level for differential testing
-(called "AA").</strong>
-M-values for each probe were aggregated to the gene level by mean, and then aggregated again to the gene
-set level by mean or median.
-The resulting matrix of aggregated M-values underwent differential analysis with limma and the results
-including log fold changes and significance values were used to infer pathway regulation.
-This approach has a caveat in that it may partly violate the assumption of independent sampling, as
-it is known that some genes are represented in multiple gene sets.
+4. Limma Average Mitch (LAM).
+Similar to LAW, however instead of the Wilcoxon test, the Mitch package is used to execute a two-way,
+two-sample ANOVA-on-ranks test (Kruskal Wallis).
+
+5. Aggregate Limma t-test (ALT).
+In this method, all probe measurements beloning to each gene are averaged before conducting differential
+methylation andlysis with limma.
+The limma t-statistics are then used downstream for enrichment analysis with the two-sample two-way t-test.
+
+6. Aggregate Limma Wilcox (ALW).
+Similar to ALT, however it uses the Wilcoxon non-parametric test for gene set enrichment.
+
+7. Aggregate Limma Mitch (ALM).
+Similar to ALW, however uses the Mitch package to execute a two-way, two-sample ANOVA-on-ranks test
+(Kruskal Wallis).
+
+The above were compared to a standard ORA based approach (GSA), which involves limma on probes, selection of
+statistically significant probes (FDR<0.05) for ORA with the `GSAmeth()` function of missMethyl which conducts a
+modified hypergeometric test that accounts for multiple probe biases.
+In the case that fewer than 250 significant probes are identified, then 250 probes with the smallest p-values
+were selected.
 
 ### Method validation
+
+To assess these methods, we adopted a simulated data approach.
+EPIC Infinium array data derived from non-cancerous lung tissue of 37 cancer patients was used for our
+evaluations.
+We randomly sampled datasets to serve as control and cases (no replacement), with group sizes varying between
+3 and 12.
+One thousand random gene sets were created with sizes varying between 20 and 100 members.
+Randow gene sets were used to avoid problems caused by the large overlap among real gene sets.
+Throughout our evaluations, 50 gene sets were selected to be differentially methylated, 25 with increased and 25
+with decreased methylation.
+From these gene sets, half of the members were selected.
+For those selected genes, half of the annotated probes were selected.
+We adjusted the m-values in the case group by a specified amount, which we call the "delta", which we varied
+between 0.1 and 0.4.
+Following the incorporation of methylation changes to selected probes in the case group, the data underwent
+enrichment analysis using `GSAmeth` approach, or one of the seven FCS methods outlined above.
+Enrichment results were then filtered for FDR<0.05 and correct direction of methylation change.
+Differentially methylated gene sets observed were compared to gene sets selected to be the ground truth, so that
+the number of true positives (TP), false positives (FP) and false negatives (FN) could be determined.
+At each setting for group size, delta and gene set size, 20 replications were conducted each with a set seed
+to ensure reproducibility.
+Mean TP, FP and FN values were determined, and then precision, recall and F1 scores were calculated.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 As there are no established methods for benchmarking Infinium array based pathway regulation using
 known ground truth synthetic data, we used a split-and-analyse approach with a real dataset to
