@@ -1303,8 +1303,6 @@ aares <- lapply(1:nrow(params) , function(j) {
   return(res)
 })
 
-aares
-
 aares2 <- do.call(rbind,lapply(aares,colMeans))
 
 aares2
@@ -1329,7 +1327,7 @@ F1(aares3p,almres3r) %>% kbl(caption="AA F1") %>% kable_paper("hover", full_widt
 
 ```{r,save}
 
-save.image("GSE158422_simulate.Rdata")
+save.image("GSE158422_simulate050.Rdata")
 
 sessionInfo()
 
