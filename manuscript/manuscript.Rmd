@@ -195,14 +195,6 @@ Mean TP, FP and FN values were determined, and then precision, recall and F1 sco
 
 
 
-
-
-
-
-
-
-
-
 As there are no established methods for benchmarking Infinium array based pathway regulation using
 known ground truth synthetic data, we used a split-and-analyse approach with a real dataset to
 evaluate the three approaches outlined above.
@@ -251,6 +243,17 @@ Enrichment analysis of RNA-seq data was conducted using the mitch package with R
 ## Results
 
 ### Evaluation of FCS methods for Infinium methylation array data
+
+Simulations were conducted using the seven FCS methods (LAT, LTT, LAW, LAM, ALT, ALW, ALM) and GSAmeth,
+with group sizes of 3-12 and delta values between 0.1 and 0.5, and random gene sets with sizes 20, 50
+and 100.
+Precision and recall were calculated for these tests (Figure 1).
+As expected, precision and recall values were better when group sizes and delta values were larger.
+
+
+These data showed a strong relationship between the size of the gene sets and the precision and recall,
+regardless of the enrichment test used.
+On the whole, precision and recall were better 
 
 We applied the three distinct approaches ("LA", "AL" and "AA") for pathway level differential
 methylation analysis to a dataset consisting of lung tumour and adjacent normal tissue from 37 patients.
