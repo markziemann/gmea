@@ -1,0 +1,179 @@
+---
+title: "Testing gene methylation enrichment analysis approaches using simulated data - summarise data"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+In this report we establish a new method for generating simulated data with known ground truth.
+This will be used to test different gene methylation enrichment approaches systematically.
+
+The general steps are:
+
+1. Import GSE158422 data corresponding to control (non-tumour tissue).
+
+2. From the 37 samples, create two groups of 18 samples.
+One of these will be considered "control" and the other "case".
+
+3. Create random gene sets that have similar sized to Reactome pathways.
+
+3. Some gene sets will be selected to be differentially methylated.
+Half of these will be hypermethylated and the others will be hypomethylated.
+
+4. The changes will be incorporated into the "case" samples.
+
+5. The enrichment analysis will be conducted.
+
+6. The accuracy will be calculated.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("stringi")
+  library("limma")
+  library("missMethyl")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library('org.Hs.eg.db')
+  library("psych")
+  library("mitch")
+  library("kableExtra")
+})
+
+```
+
+## Functions
+
+```{r,functions}
+
+F1 <- function(x,y) {
+  ( 2 * x * y ) / ( x + y )
+}
+
+```
+
+# Geneset size = 100
+
+```{r,gsa}
+
+load("GSE158422_simulate100.Rdata")
+
+par(mfrow=c(2,3))
+
+gres2[,"PREC"] <- gres2[,"TP"] / ( gres2[,"TP"] + gres2[,"FP"] )
+gres3p <- do.call(rbind,lapply(groupsizes, function (g) { gres2[params$groupsizes==g,"PREC"] }))
+colnames(gres3p) <- deltas
+rownames(gres3p) <- groupsizes
+gres3p %>% kbl(caption="GSAmeth precision") %>% kable_paper("hover", full_width = F)
+
+gres3r <- do.call(rbind,lapply(groupsizes, function (g) { gres2[params$groupsizes==g,"REC"] }))
+colnames(gres3r) <- deltas
+rownames(gres3r) <- groupsizes
+gres3r %>% kbl(caption="GSAmeth recall") %>% kable_paper("hover", full_width = F)
+
+gres3f <- F1(gres3p,gres3r)
+gres3f %>% kbl(caption="GSAmeth F1") %>% kable_paper("hover", full_width = F)
+
+plot(rownames(gres3p),gres3p[,"0.5"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(gres3p),gres3p[,"0.4"],type="b",col="red")
+lines(rownames(gres3p),gres3p[,"0.3"],type="b",col="blue")
+lines(rownames(gres3p),gres3p[,"0.2"],type="b",col="darkgreen")
+grid()
+
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen"), cex=1)
+
+plot(rownames(gres3r),gres3r[,"0.5"],type="b",las=1,ylab="recall",xlab="group size",
+  main="GSA",ylim=c(0,1))
+lines(rownames(gres3r),gres3r[,"0.4"],type="b",col="red")
+lines(rownames(gres3r),gres3r[,"0.3"],type="b",col="blue")
+lines(rownames(gres3r),gres3r[,"0.2"],type="b",col="darkgreen")
+grid()
+
+plot(rownames(gres3r),gres3f[,"0.5"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(gres3r),gres3f[,"0.4"],type="b",col="red")
+lines(rownames(gres3r),gres3f[,"0.3"],type="b",col="blue")
+lines(rownames(gres3r),gres3f[,"0.2"],type="b",col="darkgreen")
+grid()
+
+lacmres2[,"PREC"] <- lacmres2[,"TP"] / ( lacmres2[,"TP"] + lacmres2[,"FP"] )
+lacmres3p <- do.call(rbind,lapply(groupsizes, function (g) { lacmres2[params$groupsizes==g,"PREC"] }))
+colnames(lacmres3p) <- deltas
+rownames(lacmres3p) <- groupsizes
+lacmres3p %>% kbl(caption="LAM precision") %>% kable_paper("hover", full_width = F)
+
+lacmres3r <- do.call(rbind,lapply(groupsizes, function (g) { lacmres2[params$groupsizes==g,"REC"] }))
+colnames(lacmres3r) <- deltas
+rownames(lacmres3r) <- groupsizes
+lacmres3r %>% kbl(caption="LAM recall") %>% kable_paper("hover", full_width = F)
+
+lacmres3f <- F1(lacmres3p,lacmres3r)
+lacmres3f %>% kbl(caption="LAM F1") %>% kable_paper("hover", full_width = F)
+
+plot(rownames(lacmres3p),lacmres3p[,"0.5"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(lacmres3p),lacmres3p[,"0.4"],type="b",col="red")
+lines(rownames(lacmres3p),lacmres3p[,"0.3"],type="b",col="blue")
+lines(rownames(lacmres3p),lacmres3p[,"0.2"],type="b",col="darkgreen")
+grid()
+
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen"), cex=1)
+
+plot(rownames(lacmres3r),lacmres3r[,"0.5"],type="b",las=1,ylab="recall",xlab="group size",
+  main="LAM",ylim=c(0,1))
+lines(rownames(lacmres3r),lacmres3r[,"0.4"],type="b",col="red")
+lines(rownames(lacmres3r),lacmres3r[,"0.3"],type="b",col="blue")
+lines(rownames(lacmres3r),lacmres3r[,"0.2"],type="b",,col="darkgreen")
+grid()
+
+plot(rownames(lacmres3r),lacmres3f[,"0.5"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(lacmres3r),lacmres3f[,"0.4"],type="b",col="red")
+lines(rownames(lacmres3r),lacmres3f[,"0.3"],type="b",col="blue")
+lines(rownames(lacmres3r),lacmres3f[,"0.2"],type="b",col="darkgreen")
+grid()
+
+dev.off()
+
+```
+
+## Session information
+
+```{r,save}
+
+sessionInfo()
+
+```
+
+## Notes
+
+LA
+
+* simla: parametric self-contained
+
+* simlac: parametric competitive
+
+* simnla: nonparametric self-contained
+
+* simnlac: nonparametric competitive
+
+AL
+
+* simal: parametric self-contained
+
+* simalc: parametric competitive
+
+* simnal: nonparametric self-contained
+
+* simnalc: nonparametric competitive
