@@ -1022,6 +1022,7 @@ gres <- lapply(1:nrow(params) , function(j) {
 })
 
 gres2 <- do.call(rbind,lapply(gres,colMeans))
+gres2[,"PREC"] <- gres2[,"TP"] / ( gres2[,"TP"] + gres2[,"FP"] )
 
 gres2 %>% kbl(caption="GSAmeth results") %>% kable_paper("hover", full_width = F)
 
@@ -1029,7 +1030,6 @@ gres3p <- do.call(rbind,lapply(groupsizes, function (g) { gres2[params$groupsize
 colnames(gres3p) <- deltas
 rownames(gres3p) <- groupsizes
 gres3p %>% kbl(caption="GSAmeth precision") %>% kable_paper("hover", full_width = F)
-
 
 gres3r <- do.call(rbind,lapply(groupsizes, function (g) { gres2[params$groupsizes==g,"REC"] }))
 colnames(gres3r) <- deltas
@@ -1058,6 +1058,7 @@ lacres <- lapply(1:nrow(params) , function(j) {
 })
 
 lacres2 <- do.call(rbind,lapply(lacres,colMeans))
+lacres2[,"PREC"] <- lacres2[,"TP"] / ( lacres2[,"TP"] + lacres2[,"FP"] )
 
 lacres2 %>% kbl(caption="LA parametric results") %>% kable_paper("hover", full_width = F)
 
@@ -1093,6 +1094,7 @@ lactopres <- lapply(1:nrow(params) , function(j) {
 })
 
 lactopres2 <- do.call(rbind,lapply(lactopres,colMeans))
+lactopres2[,"PREC"] <- lactopres2[,"TP"] / ( lactopres2[,"TP"] + lactopres2[,"FP"] )
 
 lactopres2 %>% kbl(caption="LA parametric results (top agg)") %>% kable_paper("hover", full_width = F)
 
@@ -1132,6 +1134,7 @@ nlacres <- lapply(1:nrow(params) , function(j) {
 })
 
 nlacres2 <- do.call(rbind,lapply(nlacres,colMeans))
+nlacres2[,"PREC"] <- nlacres2[,"TP"] / ( nlacres2[,"TP"] + nlacres2[,"FP"] )
 
 nlacres2 %>% kbl(caption="LA nonparametric results") %>% kable_paper("hover", full_width = F)
 
@@ -1166,6 +1169,7 @@ lacmres <- lapply(1:nrow(params) , function(j) {
 })
 
 lacmres2 <- do.call(rbind,lapply(lacmres,colMeans))
+lacmres2[,"PREC"] <- lacmres2[,"TP"] / ( lacmres2[,"TP"] + lacmres2[,"FP"] )
 
 lacmres2 %>% kbl(caption="LA mitch results") %>% kable_paper("hover", full_width = F)
 
@@ -1201,6 +1205,7 @@ alcres <- lapply(1:nrow(params) , function(j) {
 })
 
 alcres2 <- do.call(rbind,lapply(alcres,colMeans))
+alcres2[,"PREC"] <- alcres2[,"TP"] / ( alcres2[,"TP"] + alcres2[,"FP"] )
 
 alcres2 %>% kbl(caption="AL parametric results") %>% kable_paper("hover", full_width = F)
 
@@ -1234,9 +1239,9 @@ nalcres <- lapply(1:nrow(params) , function(j) {
 })
 
 nalcres2 <- do.call(rbind,lapply(nalcres,colMeans))
+nalcres2[,"PREC"] <- nalcres2[,"TP"] / ( nalcres2[,"TP"] + nalcres2[,"FP"] )
 
 nalcres2 %>% kbl(caption="AL nonparametric results") %>% kable_paper("hover", full_width = F)
-
 
 nalcres3p <- do.call(rbind,lapply(groupsizes, function (g) { nalcres2[params$groupsizes==g,"PREC"] }))
 colnames(nalcres3p) <- deltas
