@@ -1273,6 +1273,7 @@ almres <- lapply(1:nrow(params) , function(j) {
 })
 
 almres2 <- do.call(rbind,lapply(almres,colMeans))
+almres2[,"PREC"] <- almres2[,"TP"] / ( almres2[,"TP"] + almres2[,"FP"] )
 
 almres2 %>% kbl(caption="ALM results") %>% kable_paper("hover", full_width = F)
 
@@ -1306,8 +1307,7 @@ aares <- lapply(1:nrow(params) , function(j) {
 })
 
 aares2 <- do.call(rbind,lapply(aares,colMeans))
-
-aares2
+aares2[,"PREC"] <- aares2[,"TP"] / ( aares2[,"TP"] + aares2[,"FP"] )
 
 aares2 %>% kbl(caption="AA results") %>% kable_paper("hover", full_width = F)
 
