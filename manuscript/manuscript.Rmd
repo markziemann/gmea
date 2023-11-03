@@ -171,7 +171,7 @@ evaluations.
 We randomly sampled datasets to serve as control and cases (no replacement), with group sizes varying between
 3 and 12.
 One thousand random gene sets were created with sizes varying between 20 and 100 members.
-Randow gene sets were used to avoid problems caused by the large overlap among real gene sets.
+Random gene sets were used to avoid problems caused by the large overlap among real gene sets.
 Throughout our evaluations, 50 gene sets were selected to be differentially methylated, 25 with increased and 25
 with decreased methylation.
 From these gene sets, half of the members were selected.
@@ -247,7 +247,22 @@ Enrichment analysis of RNA-seq data was conducted using the mitch package with R
 Simulations were conducted using the seven FCS methods (LAT, LTT, LAW, LAM, ALT, ALW, ALM) and GSAmeth,
 with group sizes of 3-12 and delta values between 0.1 and 0.5, and random gene sets with sizes 20, 50
 and 100.
-Precision and recall were calculated for these tests (Figure 1).
+True positives, false positives and false negatives were used to calculate overall precision and recall
+at these three gene set sizes (Figure 1).
+We found that overall recall was positively associated with the size of the gene sets considered.
+At 20 genes per set, GSA had the highest overall performance, with F1 of 0.25, followed by LAW with 0.06.
+At 50 genes per set, GSA and LAM achieved similar F1 values of ~0.39.
+At 100 genes per set, LAM achieved the highest F1 performance of 0.70 followed by LAT with 0.61, while
+GSA scored only 0.42.
+This result suggests that FCS methods perform better than ORA with gene set sizes >50.
+Performance results for GSA and LAM methods with 100 genes per set shows that recall was higher for most
+simulations, particularly with lower group sizes.
+Taken together, this result suggests that LAM offers improved sensitivity over existing approaches when
+the gene sets are larger than 50 members.
+
+
+ in Figure 2.
+This 
 As expected, precision and recall values were better when group sizes and delta values were larger.
 
 
