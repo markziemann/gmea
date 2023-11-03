@@ -69,9 +69,11 @@ summarise <- function(x) {
 Make a set of three barplots which summarise method performance over the range of group size and
 delta values, for gene set sizes of 20, 50 and 200.
 
-```{r,summary,fig.width=10,fig.height=4}
+```{r,summary,fig.width=12,fig.height=3}
 
 par(mfrow=c(1,3))
+
+mar = c(5.1, 4.1, 5.1, 2.1)
 
 load("GSE158422_simulate020.Rdata")
 
@@ -80,8 +82,12 @@ l <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
 
 x <- do.call(rbind,lapply(l,summarise))
 
-barplot(t(x),beside=TRUE,ylim=c(0,1.2),ylab="index", legend = colnames(x) ,main="20 genes per set")
+cols <- c("white","gray","black")
+
+barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, main="20 genes per set")
 grid()
+
+legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.8)
 
 load("GSE158422_simulate050.Rdata")
 
@@ -90,9 +96,7 @@ l <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
 
 x <- do.call(rbind,lapply(l,summarise))
 
-par(mfrow=c(1,1))
-
-barplot(t(x),beside=TRUE,ylim=c(0,1.2),ylab="index", legend = colnames(x) ,main="50 genes per set")
+barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, main="50 genes per set")
 grid()
 
 load("GSE158422_simulate100.Rdata")
@@ -102,9 +106,7 @@ l <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
 
 x <- do.call(rbind,lapply(l,summarise))
 
-par(mfrow=c(1,1))
-
-barplot(t(x),beside=TRUE,ylim=c(0,1.2),ylab="index", legend = colnames(x) ,main="100 genes per set")
+barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, main="100 genes per set")
 grid()
 
 ```
