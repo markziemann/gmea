@@ -250,15 +250,18 @@ and 100.
 True positives, false positives and false negatives were used to calculate overall precision and recall
 at these three gene set sizes (Figure 1).
 We found that overall recall was positively associated with the size of the gene sets considered.
-At 20 genes per set, GSA had the highest overall performance, with F1 of 0.25, followed by LAW with 0.06.
-At 50 genes per set, GSA and LAM achieved similar F1 values of ~0.39.
+At 20 genes per set, GSA had the highest overall performance, with F1 of 0.25, followed by LAW with 0.06.At 50 genes per set, GSA and LAM achieved similar F1 values of ~0.39.
 At 100 genes per set, LAM achieved the highest F1 performance of 0.70 followed by LAT with 0.61, while
 GSA scored only 0.42.
 This result suggests that FCS methods perform better than ORA with gene set sizes >50.
-Performance results for GSA and LAM methods with 100 genes per set shows that recall was higher for most
-simulations, particularly with lower group sizes.
+
+![Figure 1. Precision, recall and F1 for enrichment tests with simulated data.]("path/to/image")
+
+Performance results for GSA and LAM methods with 100 genes per set shows that LAM recall was higher for
+most simulations, particularly with lower group sizes.
 Taken together, this result suggests that LAM offers improved sensitivity over existing approaches when
 the gene sets are larger than 50 members.
+
 
 
  in Figure 2.
