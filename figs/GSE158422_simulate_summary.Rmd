@@ -75,43 +75,72 @@ mar = c(5.1, 4.1, 5.1, 2.1)
 
 load("GSE158422_simulate020.Rdata")
 
-l <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
+l1 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
   "LAM"=lacmres2,"ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
 
-x <- do.call(rbind,lapply(l,summarise))
+x1 <- do.call(rbind,lapply(l1,summarise))
 
-x %>% kbl(caption="sim 20 res") %>% kable_paper("hover", full_width = F)
+x1 %>% kbl(caption="sim 20 res") %>% kable_paper("hover", full_width = F)
 
 cols <- c("white","gray","black")
 
-barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="20 genes per set")
+barplot(t(x1),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="20 genes per set")
 grid()
 
 legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.7)
 
 load("GSE158422_simulate050.Rdata")
 
-l <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
+l2 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
   "LAM"=lacmres2,"ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
 
-x <- do.call(rbind,lapply(l,summarise))
+x2 <- do.call(rbind,lapply(l2,summarise))
 
-x %>% kbl(caption="sim 50 res") %>% kable_paper("hover", full_width = F)
+x2 %>% kbl(caption="sim 50 res") %>% kable_paper("hover", full_width = F)
 
-barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="50 genes per set")
+barplot(t(x2),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="50 genes per set")
 grid()
 
 load("GSE158422_simulate100.Rdata")
 
-l <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
+l3 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
   "LAM"=lacmres2,"ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
 
-x <- do.call(rbind,lapply(l,summarise))
+x3 <- do.call(rbind,lapply(l3,summarise))
 
 x %>% kbl(caption="sim 100 res") %>% kable_paper("hover", full_width = F)
 
 barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="100 genes per set")
 grid()
+
+```
+
+Make a PNG copy of the data.
+
+```{r,summary_png,fig.width=5,fig.height=4}
+
+png(filename="fig1.png",height=70,width=210,units="mm",res=200)
+
+par(mar = c(2.5, 4.1, 2.1, 0.5))
+
+par(mfrow=c(1,3))
+
+cols <- c("white","gray","black")
+
+barplot(t(x1),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.75, cex.axis=0.75, main="20 genes per set")
+grid()
+
+legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.75)
+
+barplot(t(x2),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.75, cex.axis=0.75, main="50 genes per set")
+grid()
+
+barplot(t(x3),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.75, cex.axis=0.75, main="100 genes per set")
+grid()
+
+dev.off()
+
+par(mfrow=c(1,1))
 
 ```
 
