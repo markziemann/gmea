@@ -392,6 +392,63 @@ lines(rownames(lacmres3r),lacmres3f[,"0.3"],type="b",col="blue")
 lines(rownames(lacmres3r),lacmres3f[,"0.2"],type="b",col="darkgreen")
 grid()
 
+# png
+png(filename="fig2.png",height=150,width=210,units="mm",res=200)
+
+par(mar = c(4.1, 4.1, 2.1, 0.5))
+
+par(mfrow=c(2,3))
+
+plot(rownames(gres3p),gres3p[,"0.5"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(gres3p),gres3p[,"0.4"],type="b",col="red")
+lines(rownames(gres3p),gres3p[,"0.3"],type="b",col="blue")
+lines(rownames(gres3p),gres3p[,"0.2"],type="b",col="darkgreen")
+grid()
+
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen"), cex=1)
+
+plot(rownames(gres3r),gres3r[,"0.5"],type="b",las=1,ylab="recall",xlab="group size",
+  main="GSA",ylim=c(0,1))
+lines(rownames(gres3r),gres3r[,"0.4"],type="b",col="red")
+lines(rownames(gres3r),gres3r[,"0.3"],type="b",col="blue")
+lines(rownames(gres3r),gres3r[,"0.2"],type="b",col="darkgreen")
+grid()
+
+plot(rownames(gres3r),gres3f[,"0.5"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(gres3r),gres3f[,"0.4"],type="b",col="red")
+lines(rownames(gres3r),gres3f[,"0.3"],type="b",col="blue")
+lines(rownames(gres3r),gres3f[,"0.2"],type="b",col="darkgreen")
+grid()
+
+plot(rownames(lacmres3p),lacmres3p[,"0.5"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(lacmres3p),lacmres3p[,"0.4"],type="b",col="red")
+lines(rownames(lacmres3p),lacmres3p[,"0.3"],type="b",col="blue")
+lines(rownames(lacmres3p),lacmres3p[,"0.2"],type="b",col="darkgreen")
+grid()
+
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen"), cex=1)
+
+plot(rownames(lacmres3r),lacmres3r[,"0.5"],type="b",las=1,ylab="recall",xlab="group size",
+  main="LAM",ylim=c(0,1))
+lines(rownames(lacmres3r),lacmres3r[,"0.4"],type="b",col="red")
+lines(rownames(lacmres3r),lacmres3r[,"0.3"],type="b",col="blue")
+lines(rownames(lacmres3r),lacmres3r[,"0.2"],type="b",,col="darkgreen")
+grid()
+
+plot(rownames(lacmres3r),lacmres3f[,"0.5"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(rownames(lacmres3r),lacmres3f[,"0.4"],type="b",col="red")
+lines(rownames(lacmres3r),lacmres3f[,"0.3"],type="b",col="blue")
+lines(rownames(lacmres3r),lacmres3f[,"0.2"],type="b",col="darkgreen")
+grid()
+
+dev.off()
+
 par(mfrow=c(1,1))
 
 ```
