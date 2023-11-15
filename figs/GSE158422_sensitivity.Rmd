@@ -51,8 +51,6 @@ suppressPackageStartupMessages({
 
 CORES=24
 
-TESTING=TRUE
-
 ```
 
 ## Load data
@@ -286,42 +284,9 @@ This will run the LAM analysis at group sizes of 2, 3, 6, 10, 16, 22 and 30,
 
 ```{r,al_down1,fig.height=10}
 
-#testing
-SAMPLESIZES=c(22,10,3)
-ssres <- lapply(SAMPLESIZES,function(n) {
-  SEEDS <- seq(100,300,100)
-  dsres <- mclapply(SEEDS, function(SEED) {
-    set.seed(SEED)
-    mysample <- sample(1:37,n,replace=FALSE)*2
-    mysample <- c(mysample,(mysample-1))
-    mysample <- mysample[order(mysample)]
-    design2 <- design[mysample,]
-    design2 <- design2[,colSums(design2)>0]
-    mval2 <- mval[,mysample]
-    dm2 <- runlimma(mval=mval2,design=design2,myann=myann)
-    dmagg2 <- agg(dm2,cores=2)
-    m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
-    lamres2 <- runmitch(m=m2,genesets=gs_symbols,cores=2)
-    lamsig2 <- subset(lamres2,p.adjustANOVA<0.05)
-    lamsigsets2 <- paste(rownames(lamsig2),as.character(lamsig2$s.dist > 0))
-    TOT=length(lamsigsets2)
-    TP=length(which(lamsigsets2 %in% lamsigsets))
-    FP=length(which(!lamsigsets2 %in% lamsigsets))
-    FN=length(which(!lamsigsets %in% lamsigsets2))
-    RES=c("TOT"=TOT,"TP"=TP,"FP"=FP,"FN"=FN)
-    RES
-  },mc.cores=5)
-  do.call(rbind,dsres)
-})
-blah()
-
-
-# full
-if (TESTING == FALSE) {
-
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 ssres <- lapply(SAMPLESIZES,function(n) {
-  SEEDS <- seq(100,300,100)
+  SEEDS <- seq(100,5000,100)
   dsres <- mclapply(SEEDS, function(SEED) {
     set.seed(SEED)
     mysample <- sample(1:37,n,replace=FALSE)*2
@@ -345,13 +310,11 @@ ssres <- lapply(SAMPLESIZES,function(n) {
   },mc.cores=5)
   do.call(rbind,dsres)
 })
-
-}
 
 par(mfrow=c(3,1))
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="GMEA") ; grid()
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="LAM") ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h= ssres[[1]][1,1])
 
@@ -368,6 +331,8 @@ ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
 boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
+par(mfrow=c(1,1))
+
 ```
 
 # GSAMETH
@@ -376,26 +341,14 @@ Run GSA meth on the full dataset.
 
 ```{r,rungsameth1}
 
-# limma
-runlimma <- function(mval,design,myann) {
-  fit.reduced <- lmFit(mval,design)
-  fit.reduced <- eBayes(fit.reduced)
-  summary(decideTests(fit.reduced))
-  dm <- topTable(fit.reduced,coef=4, number = Inf)
-  dm <- merge(myann,dm,by=0)
-  dm <- dm[order(dm$P.Value),]
-  rownames(dm) <- dm$Row.names
-  dm$Row.names=NULL
-  return(dm)
-}
-
 dm <- runlimma(mval,design,myann)
 
 hist(dm$t,breaks=100,xlim=c(-10,10)) ; grid()
 
-head(dm, 10) %>% kbl() %>% kable_paper("hover", full_width = F)
+head(dm, 10) %>% kbl(caption="Top 10 probes by p-value") %>% kable_paper("hover", full_width = F)
 
 sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
+
 sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
 
 length(sigup)
@@ -403,16 +356,20 @@ length(sigdn)
 
 tic()
 gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsaup) <- paste(rownames(gsaup),"UP")
 gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
-toc() # 12.9 sec
+rownames(gsadn) <- paste(rownames(gsadn),"DN")
+toc() # 12.9, 12.6, 11.5
 
 gsaup <- gsaup[order(gsaup$P.DE),]
 gsadn <- gsadn[order(gsadn$P.DE),]
 
 gsig_up <-  subset(gsaup,FDR<0.05)
-gsig_up %>% kbl(caption="Hypermethylated pathways") %>% kable_paper("hover", full_width = F)
+head(gsig_up,20) %>% kbl(caption="Hypermethylated pathways") %>% kable_paper("hover", full_width = F)
+
 gsig_dn <-  subset(gsadn,FDR<0.05)
-gsig_dn %>% kbl(caption="Hypomethylated pathways") %>% kable_paper("hover", full_width = F)
+head(gsig_dn,20) %>% kbl(caption="Hypomethylated pathways") %>% kable_paper("hover", full_width = F)
+
 gsig <- rbind(gsig_up,gsig_dn)
 
 ```
@@ -439,26 +396,33 @@ gsres <- lapply(SAMPLESIZES,function(n) {
     #mval downsample
     mval2 <- mval[,mysample]
     dm2 <- runlimma(mval2,design2,myann)
-    sigup2 <- rownames(subset(dm2,adj.P.Val<0.05 & logFC>0))
-    sigdn2 <- rownames(subset(dm2,adj.P.Val<0.05 & logFC<0))
-    #gsamet
-    gsaup2 <- gsameth(sig.cpg=sigup2, all.cpg=rownames(dm2), collection=gs_entrez)
-    gsadn2 <- gsameth(sig.cpg=sigdn2, all.cpg=rownames(dm2), collection=gs_entrez)
-    gsig_up2 <- subset(gsaup2,FDR<0.05)
-    gsig_dn2 <- subset(gsadn2,FDR<0.05)
-    gsig2 <- rbind(gsig_up2,gsig_dn2)
-    TOT=nrow(gsig2)
-    TP=length(which(rownames(gsig2) %in% rownames(gsig)))
-    FP=length(which(!rownames(gsig2) %in% rownames(gsig)))
-    TPES=0
-    RES=c("TOT"=TOT,"TP"=TP,"FP"=FP,"TPES"=TPES)
+    if ( is.na(dm2$logFC[1]) ) {
+      RES=c("TOT"=0,"TP"=0,"FP"=0,"FN"=length(rownames(gsig)) )
+    } else {
+      sigup2 <- rownames(subset(dm2,adj.P.Val<0.05 & UCSC_RefGene_Name != "" & logFC>0))
+      if ( length(sigup2) < 250 ) { sigup2 <- head(rownames(subset(dm2,logFC>0 & UCSC_RefGene_Name != "" )),250) }
+      sigdn2 <- rownames(subset(dm2,adj.P.Val<0.05 & UCSC_RefGene_Name != "" & logFC<0))
+      if ( length(sigdn2) < 250 ) { sigdn2 <- head(rownames(subset(dm2,logFC<0 & UCSC_RefGene_Name != "" )),250) }
+      gsaup2 <- gsameth(sig.cpg=sigup2, all.cpg=rownames(dm2), collection=gs_entrez)
+      rownames(gsaup2) <- paste(rownames(gsaup2),"UP")
+      gsadn2 <- gsameth(sig.cpg=sigdn2, all.cpg=rownames(dm2), collection=gs_entrez)
+      rownames(gsadn2) <- paste(rownames(gsadn2),"DN")
+      gsig_up2 <- subset(gsaup2,FDR<0.05)
+      gsig_dn2 <- subset(gsadn2,FDR<0.05)
+      gsig2 <- rbind(gsig_up2,gsig_dn2)
+      TOT=nrow(gsig2)
+      TP=length(which(rownames(gsig2) %in% rownames(gsig)))
+      FP=length(which(!rownames(gsig2) %in% rownames(gsig)))
+      FN=length(which(!rownames(gsig) %in% rownames(gsig2)))
+      RES=c("TOT"=TOT,"TP"=TP,"FP"=FP,"FN"=FN)
+    }
     RES
-  },mc.cores=8)
+  }, mc.cores=5)
   do.call(rbind,dsres)
 })
 
 mx <- matrix(rep(0,200),ncol=4)
-colnames(mx) <- c("TOT","TP","FP","TPES")
+colnames(mx) <- c("TOT","TP","FP","FN")
 
 # fix empty matrix
 gsres <- lapply(gsres,function(x) {
@@ -501,6 +465,8 @@ methylated gene sets.
 Therefore the t-test based approach could be considered better.
 
 ```{r,ol1}
+
+blah()
 
 alsig_up <- rownames(subset(alsig,t_median>0))
 alsig_dn <- rownames(subset(alsig,t_median<0))

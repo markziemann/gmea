@@ -223,7 +223,7 @@ Then, a random subset of n patients was selected followed by pathway enrichment 
 respective method.
 The subset results were compared to the full n=37 results to test the sensitivity of these enrichment
 methods at differenent effect size levels.
-This process was repeated 20 times.
+This process was repeated 50 times.
 
 ### Association of methylation with gene expression
 
@@ -274,25 +274,11 @@ Next, GSA and LAM methods were applied to compare paired normal and cancer methy
 * Show sensitivity analysis with range of samples from 3 to 30.
 
 
+* LAM has better performance than GSAmeth
 
+* Could be due to (1) filtering genes without annotations, and (2) FDR not applied for sets without members.
 
-
-We applied the three distinct approaches ("LA", "AL" and "AA") for pathway level differential
-methylation analysis to a dataset consisting of lung tumour and adjacent normal tissue from 37 patients.
-The dataset was split randomly into two groups of 18 patients and the overlap between subset was used to
-assess the consistency and validity of findings with 50 simulations.
-From the 1550 Reactome gene sets in the dataset, the AL method recorded the highest number of
-"valid" pathways with an average of 919.8 being identified in both subsets, which was much higher than
-LA and AA methods with 295.3 and 276.7 gene sets respectively (Figure 1A).
-The AL method also recorded the lowest number of uncommon sets (382.0) which was better than the LA and
-AA methods with 634.8 and 908.3 respectively (Figure 1B).
-We also noticed that the LA method sometimes yielded contradictory results, so we quantified the number
-of discordant observations, that is statistically significant but in the opposite direction.
-True to this observation, the LA method gave 461.6 discordant pathways which indicates a high rate of
-false-positives.
-Meanwhile the AL and AA methods gave a mean of 0.1 and 0.02 discordant pathways respectively.
-Taken together, these results indicate that the AL method gives the highest rate of common results
-suggesting good accuracy in terms of sensitivity and specificity in this context.
+* Can make changes to the GSAmeth codes to fix the problems.
 
 ### Comparision of AL method to existing pathway enrichment approaches
 
