@@ -1,5 +1,5 @@
 ---
-title: "Finally, functional class scoring enrichment analysis of Infinium DNA methylation data"
+title: "Finally, a functional class scoring method for enrichment analysis of Infinium DNA methylation data"
 date: "`r Sys.Date()`"
 output:
   rmdformats::robobook:
@@ -263,7 +263,7 @@ LAM recall was superior for most simulations, particularly with lower group size
 Taken together, this result suggests that LAM offers improved sensitivity over existing approaches when
 the gene sets are larger than 50 members.
 
-![Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests over a range of group sizes, delta values and gene set sizes.](../figs/fig2.png)
+![Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests over a range of group sizes and delta values. One hundred genes per set.](../figs/fig2.png)
 
 ### Sensitivity of GSA and LAM methods with real cancer data
 
