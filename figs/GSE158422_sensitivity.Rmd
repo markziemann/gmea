@@ -211,13 +211,11 @@ runmitch <- function(m,genesets,cores=1) {
 }
 
 ```
+## Run limma
 
-## Run LAM
+Run limma and look at the absolute effect sizes.
 
-Run LAM method on tumour-normal methylation data.
-Record timings.
-
-```{r,rungmea}
+```{r,limma1}
 
 dim(mval)
 dim(design)
@@ -227,6 +225,54 @@ dm <- runlimma(mval=mval,design=design,myann=myann)
 toc() ## mean(23.7 26.8 25.4)=23.7
 top <- head(dm,20)
 top <- top[order(top$logFC),]
+
+par(mfrow=c(3,1))
+
+sig <- head(subset(dm,adj.P.Val < 0.05 ),100)
+sigmval <- mval[rownames(mval) %in% rownames(sig),]
+es <- lapply(1:nrow(sigmval), function(i) {
+  x <- sigmval[i,]
+  mx <- matrix(x,ncol=2)
+  cancer <- median(mx[,1])
+  normal <- median(mx[,2])
+  abs(cancer-normal)
+} )
+hist(unlist(es),main="top 100 probes", xlab="probe effect size")
+
+sig <- head(subset(dm,adj.P.Val < 0.05 ),1000)
+sig <- sig[101:1000,]
+sigmval <- mval[rownames(mval) %in% rownames(sig),]
+es <- lapply(1:nrow(sigmval), function(i) {
+  x <- sigmval[i,]
+  mx <- matrix(x,ncol=2)
+  cancer <- median(mx[,1])
+  normal <- median(mx[,2])
+  abs(cancer-normal)
+} )
+hist(unlist(es),main="top 1000 probes ex top 100", xlab="probe effect size")
+
+sig <- head(subset(dm,adj.P.Val < 0.05 ),10000)
+sig <- sig[1001:10000,]
+sigmval <- mval[rownames(mval) %in% rownames(sig),]
+es <- lapply(1:nrow(sigmval), function(i) {
+  x <- sigmval[i,]
+  mx <- matrix(x,ncol=2)
+  cancer <- median(mx[,1])
+  normal <- median(mx[,2])
+  abs(cancer-normal)
+} )
+hist(unlist(es), main="top 10000 probes ex top 1000", xlab="probe effect size")
+
+par(mfrow=c(1,1))
+
+```
+
+## Run LAM
+
+Run LAM method on tumour-normal methylation data.
+Record timings.
+
+```{r,rungmea}
 
 tic()
 dmagg <- agg(dm,cores=32)
@@ -270,10 +316,13 @@ grid()
 
 par( mar = c(5.1, 4.1, 4.1, 2.1) )
 
-lamsig$s.dist
+hist(lamsig$s.dist)
 
 # distinguish up (TRUE) and down (FALSE)
 lamsigsets <- paste(rownames(lamsig),as.character(lamsig$s.dist > 0))
+
+lamsigsets2 <- gsub(" TRUE"," UP",lamsigsets)
+lamsigsets2 <- gsub(" FALSE"," DN",lamsigsets2)
 
 ```
 
@@ -316,7 +365,7 @@ par(mfrow=c(3,1))
 dots <- lapply(ssres,function(x) { x[,"TP"] })
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="LAM") ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
-abline(h= ssres[[1]][1,1])
+abline(h=nrow(lamsig))
 
 dots <- lapply(ssres,function(x) { x[,"FP"] })
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0) ; grid()
@@ -371,6 +420,7 @@ gsig_dn <-  subset(gsadn,FDR<0.05)
 head(gsig_dn,20) %>% kbl(caption="Hypomethylated pathways") %>% kable_paper("hover", full_width = F)
 
 gsig <- rbind(gsig_up,gsig_dn)
+gsigsets <- rownames(gsig)
 
 ```
 
@@ -438,7 +488,7 @@ par(mfrow=c(3,1))
 dots <- lapply(gsres,function(x) { x[,"TP"] })
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="GSAmeth")
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
-abline(h=gsres[[1]][1,1])
+abline(h=nrow(gsig))
 
 dots <- lapply(gsres,function(x) { x[,"FP"] })
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
@@ -466,20 +516,10 @@ Therefore the t-test based approach could be considered better.
 
 ```{r,ol1}
 
-blah()
+lamsigsets2
+gsigsets
 
-alsig_up <- rownames(subset(alsig,t_median>0))
-alsig_dn <- rownames(subset(alsig,t_median<0))
-
-msig_up <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist > 0)$set
-msig_dn <- subset(mres$enrichment_result,p.adjustANOVA<0.05 & s.dist < 0)$set
-
-gsig_up <-  rownames(subset(gsaup,FDR<0.05))
-gsig_dn <-  rownames(subset(gsadn,FDR<0.05))
-
-v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
-  "mitch up"=msig_up,"mitch dn"=msig_dn,
-  "GSAmeth up"=gsig_up,"GSAmeth dn"=gsig_dn)
+v1 <- list("LAM"=lamsigsets2,"GSA"=gsigsets)
 
 plot(euler(v1),quantities = TRUE)
 
