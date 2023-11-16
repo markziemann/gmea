@@ -205,7 +205,7 @@ Function to run mitch analysis.
 ```{r,mitchfunc}
 
 runmitch <- function(m,genesets,cores=1) {
-  suppressMessages({ mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores, priority=effect) })
+  suppressMessages({ mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores, priority="effect") })
   mres <- mres$enrichment_result
   rownames(mres) <- mres$set
   mres$set=NULL
@@ -730,7 +730,7 @@ barnames2 <- paste(barnames2,gsub("TRUE","...",gsub("FALSE","",sapply(barnames,n
 cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
 par(mar = c(6.1, 20.1, 1.1, 0.5))
 barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames2, cex.names=0.55,
-  cex.axis=0.6,col=cols)
+  cex.axis=0.7,col=cols)
 title(main="LAM",cex = 0.8)
 title(xlab="S dist",cex=0.6)
 grid()
