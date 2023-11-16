@@ -47,7 +47,6 @@ suppressPackageStartupMessages({
   library("kableExtra")
   library("beeswarm")
   library("missMethyl")
-  library("vioplot")
 })
 
 CORES=24
