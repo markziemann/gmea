@@ -47,6 +47,7 @@ suppressPackageStartupMessages({
   library("kableExtra")
   library("beeswarm")
   library("missMethyl")
+  library("vioplot")
 })
 
 CORES=24
@@ -413,10 +414,10 @@ toc() # 12.9, 12.6, 11.5
 gsaup <- gsaup[order(gsaup$P.DE),]
 gsadn <- gsadn[order(gsadn$P.DE),]
 
-gsig_up <-  subset(gsaup,FDR<0.05)
+gsig_up <- subset(gsaup,FDR<0.05)
 head(gsig_up,20) %>% kbl(caption="Hypermethylated pathways") %>% kable_paper("hover", full_width = F)
 
-gsig_dn <-  subset(gsadn,FDR<0.05)
+gsig_dn <- subset(gsadn,FDR<0.05)
 head(gsig_dn,20) %>% kbl(caption="Hypomethylated pathways") %>% kable_paper("hover", full_width = F)
 
 gsig <- rbind(gsig_up,gsig_dn)
@@ -524,6 +525,43 @@ v1 <- list("LAM"=lamsigsets2,"GSA"=gsigsets)
 plot(euler(v1),quantities = TRUE)
 
 ```
+
+Now look at the size of these genesets.
+Make sure these are ACTUALLY detected.
+Make a vector of genes.
+
+```{r,sizes}
+
+detgenes <- unique(unlist(strsplit(dm$UCSC_RefGene_Name,";")))
+
+gsigsets1 <- sapply(strsplit(gsigsets," "),'[[',1)
+gsigsets1set <- gs_symbols[names(gs_symbols) %in% gsigsets1]
+gsigsets1len <- unlist(lapply(gsigsets1set,function(set) {
+  length(set[which(set %in% detgenes)])
+}))
+
+lamsigsets1 <- sapply(strsplit(lamsigsets2," "),'[[',1)
+lamsigsets1set <- gs_symbols[names(gs_symbols) %in% lamsigsets1]
+lamsigsets1len <- unlist(lapply(lamsigsets1set,function(set) {
+  length(set[which(set %in% detgenes)])
+}))
+
+summary(gsigsets1len)
+summary(lamsigsets1len)
+
+GSANAME=paste("GSA (",length(gsigsets1len),")",sep="")
+LAMNAME=paste("LAM (",length(lamsigsets1len),")",sep="")
+mylist <- list(GSANAME=gsigsets1len,LAMNAME=lamsigsets1len)
+boxplot(mylist,cex=0, ylab="gene set size",names=c(GSANAME,LAMNAME))
+beeswarm(mylist,pch=19,add=TRUE,cex=0.7)
+
+```
+
+Interesting result that shows that LAM detected gene sets are smaller (59.5) than
+GSA sets (205).
+
+This could be due to one of the quirks in some ORA analyses were genes without an
+annotation are excluded.
 
 ## Session information
 
