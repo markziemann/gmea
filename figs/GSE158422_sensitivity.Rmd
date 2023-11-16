@@ -48,6 +48,7 @@ suppressPackageStartupMessages({
   library("beeswarm")
   library("missMethyl")
   library("gridExtra")
+  library("png")
 })
 
 CORES=24
@@ -204,7 +205,7 @@ Function to run mitch analysis.
 ```{r,mitchfunc}
 
 runmitch <- function(m,genesets,cores=1) {
-  suppressMessages({ mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores) })
+  suppressMessages({ mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores, priority=effect) })
   mres <- mres$enrichment_result
   rownames(mres) <- mres$set
   mres$set=NULL
@@ -324,7 +325,6 @@ hist(lamsig$s.dist)
 
 # distinguish up (TRUE) and down (FALSE)
 lamsigsets <- paste(rownames(lamsig),as.character(lamsig$s.dist > 0))
-
 lamsigsets2 <- gsub(" TRUE"," UP",lamsigsets)
 lamsigsets2 <- gsub(" FALSE"," DN",lamsigsets2)
 
@@ -400,12 +400,36 @@ hist(dm$t,breaks=100,xlim=c(-10,10)) ; grid()
 
 head(dm, 10) %>% kbl(caption="Top 10 probes by p-value") %>% kable_paper("hover", full_width = F)
 
-sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
+sizes=c(1000,5000,10000,20000,50000,100000,200000,300000,350000,400000,450000,500000)
+nsigs <- lapply(sizes, function(z) {
+  dmsig <- head(dm,z)
+  dmsigup <- rownames(subset(dmsig,logFC>0))
+  dmsigdn <- rownames(subset(dmsig,logFC<0))
+  gsaup <- gsameth(sig.cpg=dmsigup, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsaup) <- paste(rownames(gsaup),"UP")
+  gsadn <- gsameth(sig.cpg=dmsigdn, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsadn) <- paste(rownames(gsadn),"DN")
+  nsig <- nrow(subset(rbind(gsaup,gsadn),FDR<0.05))
+  return(nsig)
+})
+nsigs <- unlist(nsigs)
+names(nsigs) <- sizes
+par( mar = c(5.1, 6.1, 4.1, 2.1) )
+barplot(nsigs,horiz=TRUE,las=1,xlab="no. significant sets")
+mtext("no. probes selected", 2, 4)
 
+
+sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
 sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
 
 length(sigup)
 length(sigdn)
+
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsaup) <- paste(rownames(gsaup),"UP")
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsadn) <- paste(rownames(gsadn),"DN")
+ngsig <- nrow(subset(rbind(gsaup,gsadn),FDR<0.05))
 
 tic()
 gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
@@ -440,7 +464,41 @@ First calculate the background which is the detected genes with annotations.
 detgenes <- unique(unlist(strsplit(dm$UCSC_RefGene_Name,";")))
 reactomegenes <- unique(unlist(gs_symbols))
 length(reactomegenes)
-BGSIZE=length(which(detgenes %in% reactomegenes))
+BG=detgenes[(which(detgenes %in% reactomegenes))]
+BGSIZE=length(BG)
+FGUP <- unique(unlist(strsplit(subset(dm,logFC > 0 & adj.P.Val < 0.05)$UCSC_RefGene_Name,";")))
+FGUP <- FGUP[which(FGUP %in% reactomegenes)]
+FGDN <- unique(unlist(strsplit(subset(dm,logFC < 0 & adj.P.Val < 0.05)$UCSC_RefGene_Name,";")))
+FGDN <- FGDN[which(FGDN %in% reactomegenes)]
+
+myes <- lapply(1:nrow(gsig), function(i) {
+  set=rownames(gsig)[i]
+  set1=sapply(strsplit(set," "),"[[",1)
+  setg <- gs_symbols[[which(names(gs_symbols)==set1)]]
+  setg <- setg[which(setg %in% detgenes)]
+  SETSIZE=length(setg)
+  NUMUP = (length(intersect(FGUP,setg))/length(FGUP))
+  NUMDN = (length(intersect(FGDN,setg))/length(FGDN))
+  NUM=max(NUMUP,NUMDN)
+  DEN = (SETSIZE/BGSIZE)
+  ES=NUM/DEN
+  res=c("numerator"=NUM,"denominator"=DEN,"ES"=ES)
+  return(res)
+})
+
+myes <- data.frame(do.call(rbind,myes))
+gsiges <- data.frame(gsig,myes)
+gsiges <- head(gsiges[order(-gsiges$ES),],20)
+gsiges <- gsiges[order(gsiges$ES),]
+
+barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(gsiges)))
+cols <- gsub("FALSE","blue",gsub("TRUE","red",grepl(" UP",barnames)))
+barnames <- gsub("DN","",gsub(" UP","",barnames))
+
+par(mar = c(5.1, 27.1, 4.1, 2.1))
+barplot(abs(gsiges$ES),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.75,
+  cex.axis=0.85, col=cols, xlab="Enrichment score",main="GSA")
+grid()
 
 ```
 
@@ -659,6 +717,7 @@ rasterImage(pic,0,0,1,1)
 par(mar = c(4.5, 4.1, 2.1, 0.5))
 
 #B
+par(mar = c(4.5, 4.1, 2.1, 0.5))
 boxplot(mylist,cex=0, ylab="gene set size",names=c(GSANAME,LAMNAME))
 beeswarm(mylist,pch=1,add=TRUE,cex=0.3)
 
@@ -666,16 +725,28 @@ beeswarm(mylist,pch=1,add=TRUE,cex=0.3)
 top <- head(lamsig,20)
 top <- top[order(top$s.dist),]
 barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
+barnames2 <- substring(barnames, 1, 60)
+barnames2 <- paste(barnames2,gsub("TRUE","...",gsub("FALSE","",sapply(barnames,nchar)>60)))
 cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
-par(mar = c(6.1, 18.1, 1.1, 0.5))
-barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.4,
-  cex.axis=0.5,col=cols)
+par(mar = c(6.1, 20.1, 1.1, 0.5))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames2, cex.names=0.55,
+  cex.axis=0.6,col=cols)
 title(main="LAM",cex = 0.8)
 title(xlab="S dist",cex=0.6)
 grid()
 
 #D
+barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(gsiges)))
+cols <- gsub("FALSE","blue",gsub("TRUE","red",grepl(" UP",barnames)))
+barnames <- gsub("DN","",gsub(" UP","",barnames))
+barnames2 <- substring(barnames, 1, 60)
+barnames2 <- paste(barnames2,gsub("TRUE","...",gsub("FALSE","",sapply(barnames,nchar)>60)))
+par(mar = c(6.1, 20.1, 1.1, 0.5))
+barplot(abs(gsiges$ES),horiz=TRUE,las=1,names.arg=barnames2, cex.names=0.55,
+  cex.axis=0.7, col=cols, xlab="Enrichment score",main="GSA")
+grid()
 
+dev.off()
 
 ```
 
