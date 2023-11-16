@@ -47,6 +47,7 @@ suppressPackageStartupMessages({
   library("kableExtra")
   library("beeswarm")
   library("missMethyl")
+  library("gridExtra")
 })
 
 CORES=24
@@ -238,6 +239,7 @@ es <- lapply(1:nrow(sigmval), function(i) {
   abs(cancer-normal)
 } )
 hist(unlist(es),main="top 100 probes", xlab="probe effect size")
+summary(unlist(es))
 
 sig <- head(subset(dm,adj.P.Val < 0.05 ),1000)
 sig <- sig[101:1000,]
@@ -250,6 +252,7 @@ es <- lapply(1:nrow(sigmval), function(i) {
   abs(cancer-normal)
 } )
 hist(unlist(es),main="top 1000 probes ex top 100", xlab="probe effect size")
+summary(unlist(es))
 
 sig <- head(subset(dm,adj.P.Val < 0.05 ),10000)
 sig <- sig[1001:10000,]
@@ -262,6 +265,7 @@ es <- lapply(1:nrow(sigmval), function(i) {
   abs(cancer-normal)
 } )
 hist(unlist(es), main="top 10000 probes ex top 1000", xlab="probe effect size")
+summary(unlist(es))
 
 par(mfrow=c(1,1))
 
@@ -428,6 +432,18 @@ Only 4 hyper and 1 hypomethylated gene set were identified.
 This is surprising as there were 1299 hypermethylated probes corresponding to 808 genes, and
 1016 hypomethylated probes corresponding to 657 genes.
 
+Calc GSA enrichment scores.
+First calculate the background which is the detected genes with annotations.
+
+```{r,GSAes}
+
+detgenes <- unique(unlist(strsplit(dm$UCSC_RefGene_Name,";")))
+reactomegenes <- unique(unlist(gs_symbols))
+length(reactomegenes)
+BGSIZE=length(which(detgenes %in% reactomegenes))
+
+```
+
 ## GSAmeth Downsample
 
 ```{r,gsamethdownsample,fig.height=10}
@@ -509,10 +525,9 @@ par(mfrow=c(1,1))
 
 PNG output of boxplots.
 
-
 ```{r,pngboxplot}
 
-png(filename="fig3.png",height=150,width=210,units="mm",res=200)
+png(filename="fig4.png",height=150,width=210,units="mm",res=200)
 par(mar = c(4.5, 4.1, 2.1, 0.5))
 par(mfrow=c(3,2))
 
@@ -578,10 +593,15 @@ message("common")
 intersect(lamsigsets2, gsigsets)
 
 message("specific to LAM")
-setdiff(lamsigsets2, gsigsets)
+LAMspec <- setdiff(lamsigsets2, gsigsets)
+LAMspec
 
 message("specific to GSA")
-setdiff(gsigsets, lamsigsets2)
+GSAspec <- setdiff(gsigsets, lamsigsets2)
+GSAspec
+
+message("discordant")
+intersect( sapply(strsplit(LAMspec," "),"[[",1) , sapply(strsplit(GSAspec," "),"[[",1) )
 
 ```
 
@@ -613,6 +633,49 @@ LAMNAME=paste("LAM (",length(lamsigsets1len),")",sep="")
 mylist <- list(GSANAME=gsigsets1len,LAMNAME=lamsigsets1len)
 boxplot(mylist,cex=0, ylab="gene set size",names=c(GSANAME,LAMNAME))
 beeswarm(mylist,pch=19,add=TRUE,cex=0.7)
+
+```
+
+Make Fig3 an euler diagram, boxplot of sizes and barplot of top results.
+
+```{r,eulerbox}
+
+
+png(filename="euler.png",height=75,width=105,units="mm",res=200)
+plot(euler(v1),quantities = TRUE)
+dev.off()
+
+pic <- readPNG("euler.png")
+
+png(filename="fig3.png",height=150,width=210,units="mm",res=200)
+par(mar = c(4.5, 4.1, 2.1, 0.5))
+par(mfrow=c(2,2))
+
+#A overlap of LAM and GSA results
+par(mar = c(2,0,2,0))
+plot.new()
+plot.window(xlim = c(0 , 1), ylim = c( 0, 1))
+rasterImage(pic,0,0,1,1)
+par(mar = c(4.5, 4.1, 2.1, 0.5))
+
+#B
+boxplot(mylist,cex=0, ylab="gene set size",names=c(GSANAME,LAMNAME))
+beeswarm(mylist,pch=1,add=TRUE,cex=0.3)
+
+#C
+top <- head(lamsig,20)
+top <- top[order(top$s.dist),]
+barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
+cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
+par(mar = c(6.1, 18.1, 1.1, 0.5))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.4,
+  cex.axis=0.5,col=cols)
+title(main="LAM",cex = 0.8)
+title(xlab="S dist",cex=0.6)
+grid()
+
+#D
+
 
 ```
 
