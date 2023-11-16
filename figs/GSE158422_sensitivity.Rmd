@@ -507,6 +507,57 @@ par(mfrow=c(1,1))
 
 ```
 
+PNG output of boxplots.
+
+
+```{r,pngboxplot}
+
+png(filename="fig3.png",height=150,width=210,units="mm",res=200)
+par(mar = c(4.5, 4.1, 2.1, 0.5))
+par(mfrow=c(3,2))
+
+dots <- lapply(ssres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",cex=0,main="LAM") ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h=nrow(lamsig))
+
+dots <- lapply(gsres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",cex=0,main="GSA") ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h=nrow(gsig))
+
+dots <- lapply(ssres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(gsres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(ssres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(ssres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(FPdots / (TPdots + FPdots))
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(gsres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(gsres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(FPdots / (TPdots + FPdots))
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
+
+dev.off()
+
+par(mfrow=c(1,1))
+
+```
+
 ## Overlap
 
 Use Euler diagrams to find the similarity.
@@ -522,6 +573,15 @@ gsigsets
 v1 <- list("LAM"=lamsigsets2,"GSA"=gsigsets)
 
 plot(euler(v1),quantities = TRUE)
+
+message("common")
+intersect(lamsigsets2, gsigsets)
+
+message("specific to LAM")
+setdiff(lamsigsets2, gsigsets)
+
+message("specific to GSA")
+setdiff(gsigsets, lamsigsets2)
 
 ```
 
