@@ -268,8 +268,8 @@ simgsa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
     return(gs2)
   })
   suppressWarnings(suppressMessages({
-    gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gsets_entrez)
-    gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gsets_entrez)
+    gsaup3 <- gsameth(sig.cpg=pup3, all.cpg=rownames(dm3), collection=gsets_entrez, array.type="EPIC")
+    gsadn3 <- gsameth(sig.cpg=pdn3, all.cpg=rownames(dm3), collection=gsets_entrez, array.type="EPIC")
   }))
   gsig_up3 <- rownames(subset(gsaup3,FDR<0.05))
   gsig_dn3 <- rownames(subset(gsadn3,FDR<0.05))
