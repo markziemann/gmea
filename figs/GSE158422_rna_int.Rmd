@@ -13,6 +13,12 @@ theme: cosmo
 
 ## Introduction
 
+Let's take a look at how pathway methylation associates with gene expression.
+
+Partition methylation analysis between promoter and body.
+
+Compare to GSAmeth.
+
 ```{r,packages}
 
 suppressPackageStartupMessages({
@@ -24,6 +30,7 @@ suppressPackageStartupMessages({
   library("mitch")
   library("kableExtra")
   library("beeswarm")
+  library("missMethyl")
   library("HGNChelper")
   library("gplots")
 })
@@ -32,12 +39,21 @@ CORES=12
 
 ```
 
-## Load annotations
+## Load annotations and methylation data
 
 ```{r,annotation}
 
-load("GSE158422_gmea.Rdata")
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+summary(unlist(lapply(sets,length)))
 
+design <- readRDS("GSE158422_design.rds")
+mval <- readRDS("GSE158422_mx.rds")
+dm <- readRDS("GSE158422_dm.rds")
 
 ```
 
@@ -51,12 +67,14 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 ```
 
+
 ## Load RNA expression
 
 From GEO https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420
 GSE158420_counts.txt.gz
 
 ## DESEQ2
+
 
 ```{r,deseq1}
 
@@ -130,14 +148,13 @@ heatmap.2(  as.matrix(dge[1:50,c(7:ncol(dge))]), col=colfunc(25),scale="row",
 
 ```
 
-Pathway enrichment with mitch.
+RNA expression pathway enrichment with mitch.
 
 ```{r,mitch}
 
+rna <- mitch_import(dge, DEtype="deseq2")
 
-y <- mitch_import(dge, DEtype="deseq2")
-
-res <- mitch_calc(y, genesets=gs_symbols, priority="effect",cores=CORES)
+res <- mitch_calc(rna, genesets=gs_symbols, priority="effect",cores=32)
 
 mres <- res$enrichment_result
 msig <- subset(mres,p.adjustANOVA<0.05)
@@ -158,60 +175,223 @@ Use Euler diagrams to find the similarity.
 As medians are normally distributed about the zero, one would expect equal numbers of up and down-
 methylated gene sets.
 
+```{r,lamfunc}
 
-```{r,overlap1}
+# LAM aggregate
+agg <- function(dm,cores=1) {
+  dm <- dm[which(dm$UCSC_RefGene_Name!=""),]
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=cores)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a["t"],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=cores)
+  df <- do.call(rbind,l)
+  keep <- names(which(table(df$genes)>1))
+  df <- df[df$genes %in% keep,]
+  gn <- unique(df$genes)
+  gme_res <- lapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    top <- tstats[order(-abs(tstats))][1]
+    if ( length(tstats) > 2 ) {
+      ttest <- t.test(tstats)
+      pval <- ttest$p.value
+    } else {
+      pval = 1
+    }
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,
+      "median"=mymedian, "top"=top, "pval"=pval)
+  } )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,"pval"])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$fdr <- p.adjust(gme_res_df$pval)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
 
-load("GSE158422_gmea.Rdata")
+```
 
-head(mres)
+Here we will look at parallel analysis of gene body and promoter.
 
-head(alres)
+```{r,promoterbody}
 
-head(lares)
+table(dm$Regulatory_Feature_Group)
 
-msig_up <- subset(msig,s.dist>0)$set
-msig_dn <- subset(msig,s.dist<0)$set
+# all gene
+dmagg <- agg(dm=dm,cores=16)
+str(dmagg)
+head(dmagg$gme_res_df)
+dim(dm)
+dim(dmagg$gme_res_df)
+mm <- dmagg$gme_res_df[,"mean",drop=FALSE]
+mmres <- mitch_calc(mm, genesets=gs_symbols, priority="effect",cores=32)
+mmres_up <- subset(mmres$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
+mmres_dn <- subset(mmres$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
+nrow(mmres_up)
+nrow(mmres_dn)
+head(mmres_up,20)
+head(mmres_dn,20)
 
-lasig_up <- rownames(subset(lasig,t_median>0))
-lasig_dn <- rownames(subset(lasig,t_median<0))
+# promoter
+dmpr <- dm[grep("Promoter",dm$Regulatory_Feature_Group),]
+dmpragg <- agg(dm=dmpr,cores=16)
+str(dmpragg)
+head(dmpragg$gme_res_df)
+dim(dmpr)
+dim(dmpragg$gme_res_df)
+mmpr <- dmpragg$gme_res_df[,"mean",drop=FALSE]
+mmprres <- mitch_calc(mmpr, genesets=gs_symbols, priority="effect",cores=32)
+mmprres_up <- subset(mmprres$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
+mmprres_dn <- subset(mmprres$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
+nrow(mmprres_up)
+nrow(mmprres_dn)
+head(mmprres_up,20)
+head(mmprres_dn,20)
 
-alsig_up <- rownames(subset(alsig,t_median>0))
-alsig_dn <- rownames(subset(alsig,t_median<0))
 
-v1 <- list("LA up"=lasig_up, "LA dn"=lasig_dn,
-  "RNA up"=msig_up,"RNA dn"=msig_dn)
-plot(euler(v1),quantities = TRUE)
+# ex-promoter
+dmx <- dm[grep("Promoter",dm$Regulatory_Feature_Group,invert=TRUE),]
+dmxagg <- agg(dm=dmx,cores=16)
+str(dmxagg)
+head(dmxagg$gme_res_df)
+dim(dmx)
+dim(dmxagg$gme_res_df)
+mmx <- dmxagg$gme_res_df[,"mean",drop=FALSE]
+mmxres <- mitch_calc(mmx, genesets=gs_symbols, priority="effect",cores=32)
+mmxres_up <- subset(mmxres$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
+mmxres_dn <- subset(mmxres$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
+nrow(mmxres_up)
+nrow(mmxres_dn)
+head(mmxres_up,20)
+head(mmxres_dn,20)
 
-v1 <- list("AL up"=alsig_up,"AL dn"=alsig_dn,
-  "RNA up"=msig_up,"RNA dn"=msig_dn)
-plot(euler(v1),quantities = TRUE)
+
+# combined methylation
+mmm <- merge(mmpr,mmx,by=0)
+rownames(mmm) <- mmm$Row.names
+mmm$Row.names = NULL
+colnames(mmm) <- c("pr","x")
+mmmres <- mitch_calc(mmm, genesets=gs_symbols, priority="effect",cores=32)
+mmmres_sig <- subset(mmmres$enrichment_result, p.adjustMANOVA < 0.05)
+head(mmmres_sig,20)
+table(sign(mmmres_sig$s.pr) == sign(mmmres_sig$s.x))
 
 ```
 
-## Load promoter methylation enrichment data and calculate overlap
+## RNA expression and methylation enrichment
 
+```{r,rnaoverlap2}
 
-```{r,overlap2}
+# three way
+mmrna <- merge(mmm,rna,by=0)
+rownames(mmrna) <- mmrna$Row.names
+mmrna$Row.names = NULL
+colnames(mmrna) <- c("pr","x","rna")
+mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=32)
+mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
+head(mmrnares_sig,20)
+table(sign(mmrnares_sig$s.pr) == sign(mmrnares_sig$s.x))
+table(sign(mmrnares_sig$s.pr) == sign(mmrnares_sig$s.rna))
+table(sign(mmrnares_sig$s.x) == sign(mmrnares_sig$s.rna))
+mtop <- head(mmrnares_sig,30)
+mtop <- mtop[,c("set","s.pr","s.x","s.rna")]
+rownames(mtop) <- gsub("REACTOME_","",mtop$set)
+rownames(mtop) <- gsub("_"," ",rownames(mtop))
+mtop$set=NULL
+colnames(mtop) <- c("promoter","non-promoter","RNA")
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.6, cexCol=1)
 
-head(alpres)
+# rna vs promoter
+mmrna <- merge(mmpr,rna,by=0)
+rownames(mmrna) <- mmrna$Row.names
+mmrna$Row.names = NULL
+colnames(mmrna) <- c("pr","rna")
+mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=32)
+mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
+head(mmrnares_sig,20)
+table(sign(mmrnares_sig$s.pr) == sign(mmrnares_sig$s.rna))
+mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
+mylm <- lm(mmrnares$enrichment_result$s.rna ~ mmrnares$enrichment_result$s.pr)
+summary(mylm)
+mylm2 <- lm(mmrnares_sig$s.rna ~ mmrnares_sig$s.pr)
+summary(mylm2)
+plot(mmrnares$enrichment_result$s.pr,mmrnares$enrichment_result$s.rna,xlab="promoter",ylab="RNA",main="S dist",col="gray",pch=19)
+abline(v=0,h=0,lty=2,lwd=2)
+points(mmrnares_sig$s.pr,mmrnares_sig$s.rna,col="black",pch=19,cex=1.01)
+abline(mylm,col="blue",lty=3,lwd=3)
+abline(mylm2,col="red",lty=3,lwd=3)
 
-head(lapres)
-
-lapsig_up <- rownames(subset(lapsig,t_median>0))
-lapsig_dn <- rownames(subset(lapsig,t_median<0))
-
-alpsig_up <- rownames(subset(alpsig,t_median>0))
-alpsig_dn <- rownames(subset(alpsig,t_median<0))
-
-v1 <- list("LAP up"=lapsig_up, "LAP dn"=lapsig_dn,
-  "RNA up"=msig_up,"RNA dn"=msig_dn)
-plot(euler(v1),quantities = TRUE)
-
-v1 <- list("ALP up"=alpsig_up,"ALP dn"=alpsig_dn,
-  "RNA up"=msig_up,"RNA dn"=msig_dn)
-plot(euler(v1),quantities = TRUE)
+# rna vs expromoter
+mmrna <- merge(mmx,rna,by=0)
+rownames(mmrna) <- mmrna$Row.names
+mmrna$Row.names = NULL
+colnames(mmrna) <- c("x","rna")
+mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=32)
+mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
+head(mmrnares_sig,20)
+table(sign(mmrnares_sig$s.x) == sign(mmrnares_sig$s.rna))
+mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
+mylm <- lm(mmrnares$enrichment_result$s.rna ~ mmrnares$enrichment_result$s.x)
+summary(mylm)
+mylm2 <- lm(mmrnares_sig$s.rna ~ mmrnares_sig$s.x)
+summary(mylm2)
+plot(mmrnares$enrichment_result$s.x,mmrnares$enrichment_result$s.rna,xlab="ex-promoter",ylab="RNA",main="S dist",col="gray",pch=19)
+abline(v=0,h=0,lty=2,lwd=2)
+points(mmrnares_sig$s.x,mmrnares_sig$s.rna,col="black",pch=19,cex=1.01)
+abline(mylm,col="blue",lty=3,lwd=3)
+abline(mylm2,col="red",lty=3,lwd=3)
 
 ```
+
+Now look at GSAmeth.
+
+```{r,rnagsa}
+
+# all meth
+sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
+sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+rownames(gsaup) <- paste(rownames(gsaup),"UP")
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+rownames(gsadn) <- paste(rownames(gsadn),"DN")
+gsig_up <- subset(gsaup,FDR<0.05)
+gsig_dn <- subset(gsadn,FDR<0.05)
+gsig <- rbind(gsig_up,gsig_dn)
+nrow(gsig)
+
+
+# all meth
+sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
+sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+rownames(gsaup) <- paste(rownames(gsaup),"UP")
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+rownames(gsadn) <- paste(rownames(gsadn),"DN")
+gsig_up <- subset(gsaup,FDR<0.05)
+gsig_dn <- subset(gsadn,FDR<0.05)
+gsig <- rbind(gsig_up,gsig_dn) 
+nrow(gsig)
+
+
+
+```
+
 
 ## Conclusion
 
