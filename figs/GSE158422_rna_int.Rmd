@@ -17,6 +17,8 @@ Let's take a look at how pathway methylation associates with gene expression.
 
 Partition methylation analysis between promoter and body.
 
+Will need to do this at the annotation level.
+
 Compare to GSAmeth.
 
 ```{r,packages}
@@ -44,9 +46,9 @@ CORES=12
 ```{r,annotation}
 
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+myann <- data.frame(anno[,c("GencodeCompV12_NAME","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"GencodeCompV12_NAME",drop=FALSE]
+gp2 <- strsplit(gp$GencodeCompV12_NAME,";")
 names(gp2) <- rownames(gp)
 sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
 summary(unlist(lapply(sets,length)))
@@ -179,11 +181,11 @@ methylated gene sets.
 
 # LAM aggregate
 agg <- function(dm,cores=1) {
-  dm <- dm[which(dm$UCSC_RefGene_Name!=""),]
-  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
-  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  dm <- dm[which(dm$GencodeCompV12_NAME!=""),]
+  gn <- unique(unlist(strsplit( dm$GencodeCompV12_NAME ,";")))
+  gnl <- strsplit( dm$GencodeCompV12_NAME ,";")
   gnl <- mclapply(gnl,unique,mc.cores=cores)
-  dm$UCSC_RefGene_Name <- gnl
+  dm$GencodeCompV12_NAME <- gnl
   l <- mclapply(1:nrow(dm), function(i) {
     a <- dm[i,]
     len <- length(a[[1]][[1]])

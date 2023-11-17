@@ -70,10 +70,10 @@ CORES=24
 ```{r,annotation}
 
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+myann <- data.frame(anno[,c("GencodeCompV12_NAME","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
 
-gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+gp <- myann[,"GencodeCompV12_NAME",drop=FALSE]
+gp2 <- strsplit(gp$GencodeCompV12_NAME,";")
 names(gp2) <- rownames(gp)
 sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
 
@@ -153,11 +153,11 @@ In this step, ~800k probe values are summarised to ~28k genes.
 
 # LAM aggregate
 agg <- function(dm,cores=1) {
-  dm <- dm[which(dm$UCSC_RefGene_Name!=""),]
-  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
-  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  dm <- dm[which(dm$GencodeCompV12_NAME!=""),]
+  gn <- unique(unlist(strsplit( dm$GencodeCompV12_NAME ,";")))
+  gnl <- strsplit( dm$GencodeCompV12_NAME ,";")
   gnl <- mclapply(gnl,unique,mc.cores=cores)
-  dm$UCSC_RefGene_Name <- gnl
+  dm$GencodeCompV12_NAME <- gnl
   l <- mclapply(1:nrow(dm), function(i) {
     a <- dm[i,]
     len <- length(a[[1]][[1]])
@@ -233,10 +233,10 @@ nrow(subset(dm,adj.P.Val<0.05 & logFC>0))
 nrow(subset(dm,adj.P.Val<0.05 & logFC<0))
 saveRDS(dm,"GSE158422_dm.rds")
 
-length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC>0)$UCSC_RefGene_Name,";"))))
-length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC<0)$UCSC_RefGene_Name,";"))))
+length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC>0)$GencodeCompV12_NAME,";"))))
+length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC<0)$GencodeCompV12_NAME,";"))))
 
-length(unique(unlist(strsplit(dm$UCSC_RefGene_Name,";"))))
+length(unique(unlist(strsplit(dm$GencodeCompV12_NAME,";"))))
 
 par(mfrow=c(3,1))
 
@@ -482,14 +482,14 @@ First calculate the background which is the detected genes with annotations.
 
 ```{r,GSAes}
 
-detgenes <- unique(unlist(strsplit(dm$UCSC_RefGene_Name,";")))
+detgenes <- unique(unlist(strsplit(dm$GencodeCompV12_NAME,";")))
 reactomegenes <- unique(unlist(gs_symbols))
 length(reactomegenes)
 BG=detgenes[(which(detgenes %in% reactomegenes))]
 BGSIZE=length(BG)
-FGUP <- unique(unlist(strsplit(subset(dm,logFC > 0 & adj.P.Val < 0.05)$UCSC_RefGene_Name,";")))
+FGUP <- unique(unlist(strsplit(subset(dm,logFC > 0 & adj.P.Val < 0.05)$GencodeCompV12_NAME,";")))
 FGUP <- FGUP[which(FGUP %in% reactomegenes)]
-FGDN <- unique(unlist(strsplit(subset(dm,logFC < 0 & adj.P.Val < 0.05)$UCSC_RefGene_Name,";")))
+FGDN <- unique(unlist(strsplit(subset(dm,logFC < 0 & adj.P.Val < 0.05)$GencodeCompV12_NAME,";")))
 FGDN <- FGDN[which(FGDN %in% reactomegenes)]
 
 myes <- lapply(1:nrow(gsig), function(i) {
@@ -544,10 +544,10 @@ gsres <- lapply(SAMPLESIZES,function(n) {
     if ( is.na(dm2$logFC[1]) ) {
       RES=c("TOT"=0,"TP"=0,"FP"=0,"FN"=length(rownames(gsig)) )
     } else {
-      sigup2 <- rownames(subset(dm2,adj.P.Val<0.05 & UCSC_RefGene_Name != "" & logFC>0))
-      if ( length(sigup2) < 250 ) { sigup2 <- head(rownames(subset(dm2,logFC>0 & UCSC_RefGene_Name != "" )),250) }
-      sigdn2 <- rownames(subset(dm2,adj.P.Val<0.05 & UCSC_RefGene_Name != "" & logFC<0))
-      if ( length(sigdn2) < 250 ) { sigdn2 <- head(rownames(subset(dm2,logFC<0 & UCSC_RefGene_Name != "" )),250) }
+      sigup2 <- rownames(subset(dm2,adj.P.Val<0.05 & GencodeCompV12_NAME != "" & logFC>0))
+      if ( length(sigup2) < 250 ) { sigup2 <- head(rownames(subset(dm2,logFC>0 & GencodeCompV12_NAME != "" )),250) }
+      sigdn2 <- rownames(subset(dm2,adj.P.Val<0.05 & GencodeCompV12_NAME != "" & logFC<0))
+      if ( length(sigdn2) < 250 ) { sigdn2 <- head(rownames(subset(dm2,logFC<0 & GencodeCompV12_NAME != "" )),250) }
       gsaup2 <- gsameth(sig.cpg=sigup2, all.cpg=rownames(dm2), collection=gs_entrez, array.type="EPIC")
       rownames(gsaup2) <- paste(rownames(gsaup2),"UP")
       gsadn2 <- gsameth(sig.cpg=sigdn2, all.cpg=rownames(dm2), collection=gs_entrez, array.type="EPIC")
@@ -690,7 +690,7 @@ Make a vector of genes.
 
 ```{r,sizes}
 
-detgenes <- unique(unlist(strsplit(dm$UCSC_RefGene_Name,";")))
+detgenes <- unique(unlist(strsplit(dm$GencodeCompV12_NAME,";")))
 
 gsigsets1 <- sapply(strsplit(gsigsets," "),'[[',1)
 gsigsets1set <- gs_symbols[names(gs_symbols) %in% gsigsets1]
