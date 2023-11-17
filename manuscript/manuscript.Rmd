@@ -255,7 +255,7 @@ At 100 genes per set, LAM achieved the highest F1 performance of 0.70 followed b
 GSA scored only 0.42.
 This result suggests that FCS methods perform better than ORA with gene set sizes >50.
 
-![Figure 1. Precision, recall and F1 for enrichment tests with simulated data.](../figs/fig1.png)
+![Figure 1. Precision, recall and F1 for enrichment tests with simulated data. Gene set sizes vary between 20 and 100 genes per set.](../figs/fig1.png)
 
 Performance results for GSA and LAM methods with 100 genes per set shows that precision was similar, with most simulations yielding
 >95% precision (*Figure 2*).
@@ -263,25 +263,61 @@ LAM recall was superior for most simulations, particularly with lower group size
 Taken together, this result suggests that LAM offers improved sensitivity over existing approaches when
 the gene sets are larger than 50 members.
 
-![Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests over a range of group sizes and delta values. One hundred genes per set.](../figs/fig2.png)
+![Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests with simulated data over a range of group sizes and delta values. One hundred genes per set.](../figs/fig2.png)
 
 ### Sensitivity of GSA and LAM methods with real cancer data
 
-Next, GSA and LAM methods were applied to compare paired normal and cancer methylation data.
+Next, GSA and LAM methods were applied to compare paired normal and cancer methylation data from 37 lung squamous cell carcinoma patients.
+From the 839,473 probes examined, 473,572 probes were considered significant at 5% FDR.
+Of these, 119,785 probes were significantly hypermethylated and 353,787 were significantly hypomethylated.
+These significantly hypermethylated probes mapped to 16,520 unique genes, while the hypomethylated probes mapped to 24,114 genes.
+These numbers are large, considering that there are 26,219 genes represented on this array.
 
-* Chart results with 37 pax.
+LAM resulted in 358 significant Reactome pathways at FDR<0.05 while there were just 21 with GSA (*Figure 3A*).
+The overlap of significant pathways was unexpectedly small, with just five common pathways.
 
-* Show sensitivity analysis with range of samples from 3 to 30.
+Given GSA found relatively few results
+
+Considering the number of significant probes was very large we were concerned that
 
 
-* LAM has better performance than GSAmeth
+We were curious about whether LAM method had a bias towards larger gene sets as the recall of this
+method is higher with larger gene sets.
+Unexpectedly, pathways identified by LAM were collectively smaller than GSA (*Figure 3B*).
+Although algorithmic accuracy cannot be inferred from the types of pathways identified in real data,
+top ranked results from LAM appeared to be more related to cell differentiation, identity and development (*Figure 3C*),
+as compared to GSA (*Figure 3D*).
 
-* Could be due to (1) filtering genes without annotations, and (2) FDR not applied for sets without members.
+![Figure 3. Pathway enrichment analysis comparing normal and cancer samples using LAM and GSA methods. (A) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from LAM and GSA results. (B) Sizes of significant gene sets found with LAM and GSA methods. (C) Significant LAM pathways with largest S distance, a proxy for effect size. (D) Top ranked significant GSA pathways ranked by fold enrichment.](../figs/fig3.png)
 
-* Can make changes to the GSAmeth codes to fix the problems.
+To compare the sensitivity of these methods, sample sizes were randomly downsampled, analysed
+as above and the significant pathways were compared to the results from the full
+group of 37 patients.
+This process was repeated 50 times and the results shown in (*Figure 4*).
+Pathways that were identified in the smaller and full group were termed "consistent",
+while pathays that were identified in the smaller but not in the full group were
+termed "inconsistent".
+LAM was able to detect 300 out of 358 consistent pathways with a sample size of 10,
+while GSA detected just 4 of 21 at this sample size.
+LAM identified more inconsistent pathways than GSA, but the proportion of
+inconsistent findings was lower across all sample sizes.
+At a sample size of 10, the proportion of inconsistent pathways was 10% for LAM and
+60% for GSA.
 
-### Comparision of AL method to existing pathway enrichment approaches
+![Figure 4. Sensitivity of LAM and GSA methods with real cancer array data.](../figs/fig4.png)
 
+This result suggests that LAM has superior sensitivity to detect differentially methylated
+pathways in real cancer data.
+
+## LAM and GSA integrative analysis with RNA expression
+
+* Separate promoter and gene body integration
+
+## Exploration of methylation pathways altered by ART
+
+## Exploration of methylation pathways altered by elevated homocysteine
+
+##
 
 ## Discussion
 

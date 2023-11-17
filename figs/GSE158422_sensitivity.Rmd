@@ -228,6 +228,15 @@ toc() ## mean(23.7 26.8 25.4)=23.7
 top <- head(dm,20)
 top <- top[order(top$logFC),]
 
+dim(dm)
+nrow(subset(dm,adj.P.Val<0.05 & logFC>0))
+nrow(subset(dm,adj.P.Val<0.05 & logFC<0))
+
+length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC>0)$UCSC_RefGene_Name,";"))))
+length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC<0)$UCSC_RefGene_Name,";"))))
+
+length(unique(unlist(strsplit(dm$UCSC_RefGene_Name,";"))))
+
 par(mfrow=c(3,1))
 
 sig <- head(subset(dm,adj.P.Val < 0.05 ),100)
@@ -409,28 +418,39 @@ nsigs <- lapply(sizes, function(z) {
   rownames(gsaup) <- paste(rownames(gsaup),"UP")
   gsadn <- gsameth(sig.cpg=dmsigdn, all.cpg=rownames(dm), collection=gs_entrez)
   rownames(gsadn) <- paste(rownames(gsadn),"DN")
-  nsig <- nrow(subset(rbind(gsaup,gsadn),FDR<0.05))
+  nsig <- rownames(subset(rbind(gsaup,gsadn),FDR<0.05))
   return(nsig)
 })
-nsigs <- unlist(nsigs)
+
 names(nsigs) <- sizes
+nsigs
+
 par( mar = c(5.1, 6.1, 4.1, 2.1) )
-barplot(nsigs,horiz=TRUE,las=1,xlab="no. significant sets")
+barplot(unlist(lapply(nsigs,length)),horiz=TRUE,las=1,xlab="no. significant sets") ; grid()
 mtext("no. probes selected", 2, 4)
 
+#
+FCLIM <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+ngsig <- lapply(FCLIM,function(F) {
+  sigup <- rownames(subset(dm,logFC > F & adj.P.Val < 0.05))
+  sigdn <- rownames(subset(dm,logFC < -F & adj.P.Val < 0.05))
+  gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsaup) <- paste(rownames(gsaup),"UP")
+  gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsadn) <- paste(rownames(gsadn),"DN")
+  ngsig <- rownames(subset(rbind(gsaup,gsadn),FDR<0.05))
+  return(ngsig)
+})
+
+names(ngsig) <- FCLIM
+ngsig
+
+par( mar = c(5.1, 6.1, 4.1, 2.1) )
+barplot(unlist(lapply(ngsig,length)),horiz=TRUE,las=1,xlab="no. significant sets",xlim=c(0,60)) ; grid()
+mtext("fold change threshold", 2, 4)
 
 sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
 sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
-
-length(sigup)
-length(sigdn)
-
-gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
-rownames(gsaup) <- paste(rownames(gsaup),"UP")
-gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
-rownames(gsadn) <- paste(rownames(gsadn),"DN")
-ngsig <- nrow(subset(rbind(gsaup,gsadn),FDR<0.05))
-
 tic()
 gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
 rownames(gsaup) <- paste(rownames(gsaup),"UP")
