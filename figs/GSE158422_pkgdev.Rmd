@@ -176,7 +176,7 @@ Make a html report and some charts.
 ```{r,report1}
 
 mitch_report(res=mres,outfile="GSE158422_pkgdev_mitchreport.html",overwrite=TRUE)
-mitch_plot2(res=mres,outfile="GSE158422_pkgdev_mitchcharts.pdf")
+mitch_plots(res=mres,outfile="GSE158422_pkgdev_mitchcharts.pdf")
 
 ```
 
