@@ -1,0 +1,251 @@
+---
+title: "GSE158422: Package Development"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we are looking at putting together the easiest possible workflow for the package.
+
+## Requirements
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("tictoc")
+  library("mitch")
+  library("kableExtra")
+  library("beeswarm")
+  library("missMethyl")
+  library("gridExtra")
+  library("png")
+})
+
+CORES=24
+
+```
+
+## Load data
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+```{r,load1}
+
+if (!file.exists("GSE158422_design.rds")) {
+  download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
+}
+design <- readRDS("GSE158422_design.rds")
+
+if (!file.exists("GSE158422_design.rds")) {
+ download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_mx.rds","GSE158422_mx.rds")
+}
+mval <- readRDS("GSE158422_mx.rds")
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+```
+
+## Curate the annotation
+
+Use all probes on the chip.
+
+```{r,anno1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("GencodeCompV12_NAME","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"GencodeCompV12_NAME",drop=FALSE]
+gp2 <- strsplit(gp$GencodeCompV12_NAME,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+toc() #9.0s
+
+```
+
+# AL GMEA: all probes
+
+Start with curating the sample info and design matrix.
+
+```{r,samplesheet}
+
+sex <- as.data.frame(design)$sex
+tumor <- as.data.frame(design)$tumor
+patient <- as.character(unlist(lapply(1:ncol(mval),function(i) {c(i,i)})))
+patient <- head(patient,ncol(mval))
+design <- model.matrix(~ patient + tumor )
+
+```
+
+## Prep limma
+
+```{r,limma1}
+
+tic()
+fit.reduced <- lmFit(mval,design)
+fit.reduced <- eBayes(fit.reduced)
+dm <- topTable(fit.reduced,coef=ncol(design), number = Inf)
+head(dm)
+toc() #25.53, 25.50, 25.51
+
+```
+
+## Merge gene name and aggregate
+
+This only works properly when mitch's mapGeneIds function uses `mean` to aggregate (line 69 of mitch.R).
+
+```{r,mg1}
+
+# mitch aggregate function needs to be changes to `mean`
+tic()
+m <- mitch_import(x=dm,DEtype="limma",geneTable=gt)
+toc() #9.58s, 9.71, 9.69
+head(m)
+
+```
+
+This is the alternative aggregation approach which is faster but more complicated.
+
+```{r,mg2,eval=FALSE}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("GencodeCompV12_NAME","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"GencodeCompV12_NAME",drop=FALSE]
+gp2 <- strsplit(gp$GencodeCompV12_NAME,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+toc() #2.44, 2.41, 2.41s
+
+```
+
+##  Run mitch analysis.
+
+```{r,mitch1}
+
+tic()
+mres <- mitch_calc(x=m,genesets=gs_symbols,minsetsize=5,cores=16, priority="effect")
+toc() #10.92, 10.733, 10.91
+
+mtable <- mres$enrichment_result
+up <- subset(mtable,s.dist>0 & p.adjustANOVA<0.05)
+dn <- subset(mtable,s.dist<0 & p.adjustANOVA<0.05)
+nrow(up)
+nrow(dn)
+head(up,10)
+head(dn,10)
+
+top <- rbind(up[1:10,],dn[1:10,])
+top <- top[order(top$s.dist),]
+
+barnames <- gsub("_"," ",gsub("REACTOME_","",top$set))
+cols <- as.character(((sign(top$s.dist)+1)/2)+1)
+cols <- gsub("1","blue",gsub("2","red",cols))
+
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+mtext("whole gene")
+grid()
+
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
+
+```
+
+Make a html report and some charts.
+
+```{r,report1}
+
+mitch_report(res=mres,outfile="GSE158422_pkgdev_mitchreport.html",overwrite=TRUE)
+mitch_plots(res=mres,outfile="GSE158422_pkgdev_mitchcharts.pdf")
+
+```
+
+## Promoter only analysis
+
+Now do the same but filter for promoters.
+Using the GencodeCompV12_NAME field of the annotation and using TSS probes only.
+
+```{r,promo}
+
+head(myann)
+table(anno$Regulatory_Feature_Group)
+table(unlist(strsplit(myann$GencodeCompV12_Group,";")))
+
+# promoter prep
+tic()
+keep=c("TSS200","TSS1500")
+annos <- strsplit(myann$GencodeCompV12_Group,";")
+genes <- strsplit(myann$GencodeCompV12_NAME,";")
+keeps <- lapply(1:nrow(myann), function(i) {
+  unique(genes[[i]][annos[[i]] %in% keep])
+})
+names(keeps) <- rownames(myann)
+#gt <- as.data.frame((unlist(gp2)))
+gt2 <- stack(gp2)
+colnames(gt2) <- c("gene","probe")
+toc() #20.37, 19.56, 21.23
+
+tic()
+m2 <- mitch_import(x=dm,DEtype="limma",geneTable=gt2)
+toc() #9.68, 9.78, 9.62
+head(m)
+dim(m)
+
+tic()
+mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=16, priority="effect")
+toc() #11.12, 10.99, 11.01
+
+mtable <- mres$enrichment_result
+up <- subset(mtable,s.dist>0 & p.adjustANOVA<0.05)
+dn <- subset(mtable,s.dist<0 & p.adjustANOVA<0.05)
+nrow(up)
+nrow(dn)
+head(up,10)
+head(dn,10)
+
+top <- rbind(up[1:10,],dn[1:10,])
+top<- top[order(top$s.dist),]
+
+barnames <- gsub("_"," ",gsub("REACTOME_","",top$set))
+cols <- as.character(((sign(top$s.dist)+1)/2)+1)
+cols <- gsub("1","blue",gsub("2","red",cols))
+
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+mtext("promoter only")
+grid()
+
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
+
+```
+
+## Session information
+
+```{r,save}
+
+save.image("GSE158422_pkgdev.Rdata")
+
+sessionInfo()
+
+```
