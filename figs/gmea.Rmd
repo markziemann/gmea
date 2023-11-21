@@ -50,12 +50,12 @@ source("meth_functions.R")
 ```{r,anno}
 
 ann450k <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
-myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","Regulatory_Feature_Group")])
+myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","UCSC_RefGene_Group")])
 gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
 gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
 names(gp2) <- rownames(gp)
 sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
-promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+promoters <- grep("Prom",myann$UCSC_RefGene_Group)
 
 ```
 

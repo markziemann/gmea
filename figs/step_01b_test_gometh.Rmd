@@ -112,8 +112,8 @@ Start with gathering the annotation set.
 ```{r,anno}
 
 ann450k <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
-myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","Regulatory_Feature_Group")])
-promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+myann <- data.frame(ann450k[,c("UCSC_RefGene_Name","UCSC_RefGene_Group")])
+promoters <- grep("Prom",myann$UCSC_RefGene_Group)
 
 ```
 

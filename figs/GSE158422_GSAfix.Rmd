@@ -1,0 +1,392 @@
+---
+title: "Can GSAmeth be fixed?"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+In the previous analysis, it was shown that sensitivity of GSAmeth was poor compared to LAM with real data.
+This was surprising as GSAmeth performed well with simulated data.
+
+Possible explanations to this:
+
+* GSAmeth filters out genes that do not have annotations.
+Ideally this filtering should be deactivated.
+
+* GSAmeth only performs FDR correction on gene sets where a minimum number of genes in the foreground.
+Ideally, FDR correction should be applied to genesets with a minimum number of genes in the background.
+
+Let's see if we can fix it.
+
+## Requirements
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("tictoc")
+  library("mitch")
+  library("kableExtra")
+  library("beeswarm")
+  library("missMethyl")
+  library("gridExtra")
+  library("png")
+  source("gsameth_fix.R")
+})
+
+CORES=24
+
+```
+
+## Load data
+
+* annotations
+
+* probe sets
+
+* gene sets
+
+* design matrix
+
+* mval matrix
+
+```{r,annotation}
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+
+summary(unlist(lapply(sets,length)))
+
+genesets <- gmt_import("https://ziemann-lab.net/public/gmea_prototype/ReactomePathways.gmt")
+
+if (!file.exists("GSE158422_design.rds")) {
+  download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
+}
+design <- readRDS("GSE158422_design.rds")
+
+if (!file.exists("GSE158422_design.rds")) {
+ download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_mx.rds","GSE158422_mx.rds")
+}
+mval <- readRDS("GSE158422_mx.rds")
+
+mval_means <- list("tumor"=matrix(colMeans(mval),ncol=2)[,1],"normal"=matrix(colMeans(mval),ncol=2)[,2])
+boxplot(mval_means, main="mean probe methylation mval",cex=0,col="white")
+beeswarm(mval_means,add=TRUE,pch=1,cex=1.5)
+lapply(mval_means,mean)
+
+```
+
+We will assume mean probe methylation is a proxy measure for global methylation.
+The boxplot appears to show higher values in tumour samples, based on median and quartiles.
+However the mean values are actually lower in tumour samples compared to normal.
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+```{r,gsdl}
+
+gs_entrez <- gmt_import("c2.cp.reactome.v2023.1.Hs.entrez.gmt")
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+```
+
+# AL GMEA: all probes
+
+Start with curating the sample info and design matrix.
+
+```{r,samplesheet}
+
+sex <- as.data.frame(design)$sex
+tumor <- as.data.frame(design)$tumor
+patient <- as.character(unlist(lapply(1:ncol(mval),function(i) {c(i,i)})))
+patient <- head(patient,ncol(mval))
+design <- model.matrix(~ patient + tumor )
+
+```
+
+## Functions
+
+limma-average-mitch (LAM).
+
+```{r,limmafunc}
+
+# limma
+runlimma <- function(mval,design,myann) {
+  fit.reduced <- lmFit(mval,design)
+  fit.reduced <- eBayes(fit.reduced)
+  dm <- topTable(fit.reduced,coef=ncol(design), number = Inf)
+  dm <- merge(myann,dm,by=0)
+  dm <- dm[order(dm$P.Value),]
+  rownames(dm) <- dm$Row.names
+  dm$Row.names=NULL
+  return(dm)
+}
+
+```
+
+The following function is key for the aggregation of probe t-statistic values by gene using the arithmetic mean.
+In this step, ~800k probe values are summarised to ~28k genes.
+
+```{r,lamfunction}
+
+# LAM aggregate
+agg <- function(dm,cores=1) {
+  dm <- dm[which(dm$UCSC_RefGene_Name!=""),]
+  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
+  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
+  gnl <- mclapply(gnl,unique,mc.cores=cores)
+  dm$UCSC_RefGene_Name <- gnl
+  l <- mclapply(1:nrow(dm), function(i) {
+    a <- dm[i,]
+    len <- length(a[[1]][[1]])
+    tvals <- as.numeric(rep(a["t"],len))
+    genes <- a[[1]][[1]]
+    data.frame(genes,tvals)
+  },mc.cores=cores)
+  df <- do.call(rbind,l)
+  keep <- names(which(table(df$genes)>1))
+  df <- df[df$genes %in% keep,]
+  gn <- unique(df$genes)
+  gme_res <- lapply( 1:length(gn), function(i) {
+    g <- gn[i]
+    tstats <- df[which(df$genes==g),"tvals"]
+    myn <- length(tstats)
+    mymean <- mean(tstats)
+    mymedian <- median(tstats)
+    top <- tstats[order(-abs(tstats))][1]
+    if ( length(tstats) > 2 ) {
+      ttest <- t.test(tstats)
+      pval <- ttest$p.value
+    } else {
+      pval = 1
+    }
+    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,
+      "median"=mymedian, "top"=top, "pval"=pval)
+  } )
+  gme_res_df <- do.call(rbind, gme_res)
+  rownames(gme_res_df) <- gme_res_df[,1]
+  gme_res_df <- gme_res_df[,-1]
+  tmp <- apply(gme_res_df,2,as.numeric)
+  rownames(tmp) <- rownames(gme_res_df)
+  gme_res_df <- as.data.frame(tmp)
+  gme_res_df$sig <- -log10(gme_res_df[,"pval"])
+  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
+  gme_res_df$fdr <- p.adjust(gme_res_df$pval)
+  out <- list("df"=df,"gme_res_df"=gme_res_df)
+  return(out)
+}
+
+```
+
+Function to run mitch analysis.
+
+```{r,mitchfunc}
+
+runmitch <- function(m,genesets,cores=1) {
+  suppressMessages({ mres <- mitch_calc(m,genesets,minsetsize=5,cores=cores, priority="effect") })
+  mres <- mres$enrichment_result
+  rownames(mres) <- mres$set
+  mres$set=NULL
+  return(mres)
+}
+
+```
+## Run limma
+
+Run limma and look at the absolute effect sizes.
+
+```{r,limma1}
+
+dim(mval)
+dim(design)
+
+tic()
+dm <- runlimma(mval=mval,design=design,myann=myann)
+toc() ## mean(23.7 26.8 25.4)=23.7
+top <- head(dm,20)
+top <- top[order(top$logFC),]
+
+dim(dm)
+nrow(subset(dm,adj.P.Val<0.05 & logFC>0))
+nrow(subset(dm,adj.P.Val<0.05 & logFC<0))
+
+length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC>0)$UCSC_RefGene_Name,";"))))
+length(unique(unlist(strsplit(subset(dm,adj.P.Val<0.05 & logFC<0)$UCSC_RefGene_Name,";"))))
+
+length(unique(unlist(strsplit(dm$UCSC_RefGene_Name,";"))))
+
+```
+
+# GSAMETH
+
+Run GSA meth on the full dataset.
+
+```{r,rungsameth1}
+
+dm <- runlimma(mval,design,myann)
+
+hist(dm$t,breaks=100,xlim=c(-10,10)) ; grid()
+
+head(dm, 10) %>% kbl(caption="Top 10 probes by p-value") %>% kable_paper("hover", full_width = F)
+
+# the number of DM probes impact the results drastically
+sizes=c(1000,5000,10000,20000,50000,100000,200000,300000,350000,400000,450000,500000)
+nsigs <- lapply(sizes, function(z) {
+  dmsig <- head(dm,z)
+  dmsigup <- rownames(subset(dmsig,logFC>0))
+  dmsigdn <- rownames(subset(dmsig,logFC<0))
+  gsaup <- gsameth(sig.cpg=dmsigup, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsaup) <- paste(rownames(gsaup),"UP")
+  gsadn <- gsameth(sig.cpg=dmsigdn, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsadn) <- paste(rownames(gsadn),"DN")
+  nsig <- rownames(subset(rbind(gsaup,gsadn),FDR<0.05))
+  return(nsig)
+})
+
+names(nsigs) <- sizes
+nsigs
+
+par( mar = c(5.1, 6.1, 4.1, 2.1) )
+barplot(unlist(lapply(nsigs,length)),horiz=TRUE,las=1,xlab="no. significant sets") ; grid()
+mtext("no. probes selected", 2, 4)
+
+# the fold change threshold also impacts the results
+FCLIM <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+ngsig <- lapply(FCLIM,function(F) {
+  sigup <- rownames(subset(dm,logFC > F & adj.P.Val < 0.05))
+  sigdn <- rownames(subset(dm,logFC < -F & adj.P.Val < 0.05))
+  gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsaup) <- paste(rownames(gsaup),"UP")
+  gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsadn) <- paste(rownames(gsadn),"DN")
+  ngsig <- rownames(subset(rbind(gsaup,gsadn),FDR<0.05))
+  return(ngsig)
+})
+
+names(ngsig) <- FCLIM
+ngsig
+
+par( mar = c(5.1, 6.1, 4.1, 2.1) )
+barplot(unlist(lapply(ngsig,length)),horiz=TRUE,las=1,xlab="no. significant sets",xlim=c(0,60)) ; grid()
+mtext("fold change threshold", 2, 4)
+
+sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
+sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
+
+tic()
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsaup) <- paste(rownames(gsaup),"UP")
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsadn) <- paste(rownames(gsadn),"DN")
+toc() # 12.9, 12.6, 11.5
+
+gsaup <- gsaup[order(gsaup$P.DE),]
+gsadn <- gsadn[order(gsadn$P.DE),]
+
+gsig_up <- subset(gsaup,FDR<0.05)
+head(gsig_up,20) %>% kbl(caption="Hypermethylated pathways") %>% kable_paper("hover", full_width = F)
+
+gsig_dn <- subset(gsadn,FDR<0.05)
+head(gsig_dn,20) %>% kbl(caption="Hypomethylated pathways") %>% kable_paper("hover", full_width = F)
+
+gsig <- rbind(gsig_up,gsig_dn)
+gsigsets <- rownames(gsig)
+
+```
+
+Unload missmethyl install new one with fix.
+
+```{r,gsafgix}
+
+detach("package:missMethyl", unload=TRUE)
+install.packages("../pkgs/missMethyl", repos = NULL, type = "source")
+library("missMethyl")
+
+gsafixup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsafixup) <- paste(rownames(gsafixup),"UP")
+gsafixdn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+rownames(gsafixdn) <- paste(rownames(gsafixdn),"DN")
+
+gsafixup <- gsafixup[order(gsafixup$P.DE),]
+gsafixdn <- gsafixdn[order(gsafixdn$P.DE),]
+
+gsigfix_up <- subset(gsafixup,FDR<0.05)
+head(gsigfix_up,20) %>% kbl(caption="Hypermethylated pathways (fix)") %>% kable_paper("hover", full_width = F)
+
+gsigfix_dn <- subset(gsafixdn,FDR<0.05)
+head(gsigfix_dn,20) %>% kbl(caption="Hypomethylated pathways (fix)") %>% kable_paper("hover", full_width = F)
+
+gsigfix <- rbind(gsigfix_up,gsigfix_dn)
+
+gsigfixsets <- rownames(gsigfix)
+
+
+# the number of DM probes impact the results drastically
+sizes=c(1000,5000,10000,20000,50000,100000,200000,300000,350000,400000,450000,500000)
+nsigs <- lapply(sizes, function(z) {
+  dmsig <- head(dm,z)
+  dmsigup <- rownames(subset(dmsig,logFC>0))
+  dmsigdn <- rownames(subset(dmsig,logFC<0))
+  gsaup <- gsameth(sig.cpg=dmsigup, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsaup) <- paste(rownames(gsaup),"UP")
+  gsadn <- gsameth(sig.cpg=dmsigdn, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsadn) <- paste(rownames(gsadn),"DN")
+  nsig <- rownames(subset(rbind(gsaup,gsadn),FDR<0.05))
+  return(nsig)
+})
+
+names(nsigs) <- sizes
+nsigs
+
+par( mar = c(5.1, 6.1, 4.1, 2.1) )
+barplot(unlist(lapply(nsigs,length)),horiz=TRUE,las=1,xlab="no. significant sets") ; grid()
+mtext("no. probes selected", 2, 4)
+
+# the fold change threshold also impacts the results
+FCLIM <- c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)
+ngsig <- lapply(FCLIM,function(F) {
+  sigup <- rownames(subset(dm,logFC > F & adj.P.Val < 0.05))
+  sigdn <- rownames(subset(dm,logFC < -F & adj.P.Val < 0.05))
+  gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsaup) <- paste(rownames(gsaup),"UP")
+  gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez)
+  rownames(gsadn) <- paste(rownames(gsadn),"DN")
+  ngsig <- rownames(subset(rbind(gsaup,gsadn),FDR<0.05))
+  return(ngsig)
+})
+
+names(ngsig) <- FCLIM
+ngsig
+
+par( mar = c(5.1, 6.1, 4.1, 2.1) )
+barplot(unlist(lapply(ngsig,length)),horiz=TRUE,las=1,xlab="no. significant sets",xlim=c(0,60)) ; grid()
+mtext("fold change threshold", 2, 4)
+
+```
+
+
+## Session information
+
+```{r,save}
+
+save.image("GSE158422_sensitivity.Rdata")
+
+sessionInfo()
+
+```

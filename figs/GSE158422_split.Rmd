@@ -48,7 +48,7 @@ CORES=6
 ```{r,annotation}
 
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
 
 gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
 gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
