@@ -65,9 +65,9 @@ Use all probes on the chip.
 
 tic()
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("GencodeCompV12_NAME","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"GencodeCompV12_NAME",drop=FALSE]
-gp2 <- strsplit(gp$GencodeCompV12_NAME,";")
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
 names(gp2) <- rownames(gp)
 gp2 <- lapply(gp2,unique)
 gt <- stack(gp2)
@@ -125,9 +125,9 @@ This is the alternative aggregation approach which is faster but more complicate
 
 tic()
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("GencodeCompV12_NAME","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"GencodeCompV12_NAME",drop=FALSE]
-gp2 <- strsplit(gp$GencodeCompV12_NAME,";")
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
 names(gp2) <- rownames(gp)
 gp2 <- lapply(gp2,unique)
 gt <- stack(gp2)
@@ -183,19 +183,19 @@ mitch_plots(res=mres,outfile="GSE158422_pkgdev_mitchcharts.pdf")
 ## Promoter only analysis
 
 Now do the same but filter for promoters.
-Using the GencodeCompV12_NAME field of the annotation and using TSS probes only.
+Using the UCSC_RefGene_Name field of the annotation and using TSS probes only.
 
 ```{r,promo}
 
 head(myann)
-table(anno$Regulatory_Feature_Group)
+table(anno$UCSC_RefGene_Group)
 table(unlist(strsplit(myann$GencodeCompV12_Group,";")))
 
 # promoter prep
 tic()
 keep=c("TSS200","TSS1500")
 annos <- strsplit(myann$GencodeCompV12_Group,";")
-genes <- strsplit(myann$GencodeCompV12_NAME,";")
+genes <- strsplit(myann$UCSC_RefGene_Name,";")
 keeps <- lapply(1:nrow(myann), function(i) {
   unique(genes[[i]][annos[[i]] %in% keep])
 })
