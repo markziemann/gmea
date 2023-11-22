@@ -79,8 +79,6 @@ sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
 
 summary(unlist(lapply(sets,length)))
 
-genesets <- gmt_import("https://ziemann-lab.net/public/gmea_prototype/ReactomePathways.gmt")
-
 if (!file.exists("GSE158422_design.rds")) {
   download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
 }

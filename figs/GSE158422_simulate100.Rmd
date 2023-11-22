@@ -77,8 +77,6 @@ sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
 
 summary(unlist(lapply(sets,length)))
 
-#genesets <- gmt_import("https://ziemann-lab.net/public/gmea_prototype/ReactomePathways.gmt")
-
 if (!file.exists("GSE158422_design.rds")) {
   download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
 }
@@ -89,9 +87,6 @@ if (!file.exists("GSE158422_design.rds")) {
   download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_mx.rds","GSE158422_mx.rds")
 }
 mval <- readRDS("GSE158422_mx.rds")
-
-boxplot(list("normal"=matrix(colMeans(mval),ncol=2)[,2],"tumor"=matrix(colMeans(mval),ncol=2)[,1]),
-  main="mean probe methylation mval")
 
 ```
 
@@ -105,17 +100,21 @@ For reference, Reactome sets have a mean of 48 and median of 15, while MSigDB ha
 
 Therefore, a reasonable analysis would include small (20), medium (50) and large (100) sets.
 
+To reflect coverage of Reactome and other pathway databases, only half the genes will be included in sets.
+
 ```{r,gset_prep}
 
 gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
 
+# set gene set size here
 lengths <- rep(100,1000)
 
 randomGeneSets <- function(gene_catalog, lengths, seed){
+  set.seed(seed) ; gene_catalog_half <- sample(gene_catalog,length(gene_catalog)/2)
   num_gsets <- length(lengths)
   set.seed(seed) ; seeds <- sample(1:1e6, num_gsets)
   gsets <- lapply(1:num_gsets,function(i) {
-    set.seed(seeds[i]) ; gs <- sample(gene_catalog,lengths[i])
+    set.seed(seeds[i]) ; gs <- sample(gene_catalog_half,lengths[i])
     return(gs)
   } )
   names(gsets)<-stri_rand_strings(length(gsets), 15, pattern = "[A-Za-z]")
@@ -123,33 +122,6 @@ randomGeneSets <- function(gene_catalog, lengths, seed){
 }
 
 gsets <- randomGeneSets(gene_catalog,lengths,seed=100)
-
-```
-
-Select nonoverlapping gene sets.
-
-Not in use now. Might delete later.
-
-```{r,gset_selection}
-
-gset_selection <- function(genesetdatabase,seed,gene_catalog) {
-  set.seed(seed)
-  gsets <- genesetdatabase[sample(1:length(genesetdatabase))]
-  genelist=NULL
-  genesets=NULL
-  for ( i in 1:length(gsets) ) {
-    gs <- gsets[i]
-    inx <- length(intersect(unlist(gs),genelist))
-    num <- length(intersect(unlist(gs),gene_catalog))
-    if ( inx == 0 & num >= 10 ) {
-      genesets <- c(genesets,gs)
-      genelist <- c(unname(unlist(gs)),genelist)
-    }
-  }
-  return(genesets)
-}
-
-gset_mod <- gset_selection(genesetdatabase=gsets,seed=100,gene_catalog=gene_catalog)
 
 ```
 
@@ -991,7 +963,7 @@ Set assumptions.
 ```{r,set}
 
 num_dm_sets=50
-sims=10
+sims=3
 
 groupsizes=c(3,5,8,12)
 deltas=c(0.1,0.2,0.3,0.4,0.5)
@@ -1001,6 +973,7 @@ deltas=c(0.1,0.2,0.3,0.4,0.5)
 params <- expand.grid("groupsizes"=groupsizes,"deltas"=deltas)
 
 params %>% kbl(caption="Parameters to test") %>% kable_paper("hover", full_width = F)
+
 
 ```
 
@@ -1075,6 +1048,7 @@ lacres3r %>% kbl(caption="LA parametric recall") %>% kable_paper("hover", full_w
 F1(lacres3p,lacres3r) %>% kbl(caption="LA parametric F1") %>% kable_paper("hover", full_width = F)
 
 ```
+
 
 ### parametric competitive with "top" aggregation
 
@@ -1151,6 +1125,7 @@ nlacres3r %>% kbl(caption="LA nonparametric recall") %>% kable_paper("hover", fu
 F1(nlacres3p,nlacres3r) %>% kbl(caption="LA nonparametric F1") %>% kable_paper("hover", full_width = F)
 
 ```
+
 
 ### LA competitive mitch
 
@@ -1329,7 +1304,7 @@ F1(aares3p,almres3r) %>% kbl(caption="AA F1") %>% kable_paper("hover", full_widt
 
 ```{r,save}
 
-save.image("GSE158422_simulate100.Rdata")
+save.image("GSE158422_simulate050.Rdata")
 
 sessionInfo()
 
