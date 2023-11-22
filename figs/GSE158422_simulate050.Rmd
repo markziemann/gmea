@@ -143,8 +143,8 @@ delta=1
 nsamples=10
 normal_mval <- mval[,(1:(ncol(mval)/2)*2)]
 
-incorp_dm <- function(genesets,myann,mval,seed,
-  frac_genes,frac_probes,groupsize,delta=1) {
+incorp_dm <- function(genesets,myann,mval,seed, frac_genes,frac_probes,
+  groupsize,delta=1,gene_catalog) {
 
   # divide gene sets between hyper and hypomethylated
   nset <- floor(length(genesets)/2)
@@ -152,6 +152,12 @@ incorp_dm <- function(genesets,myann,mval,seed,
   set.seed(seed) ; gtdn <- sample(setdiff(genesets,gtup),nset)
   gup <- unname(unlist(gtup))
   gdn <- unname(unlist(gtdn))
+  # add extra 10% DM genes
+  gnon <- setdiff(gene_catalog,c(gup,gdn))
+  gextra <- round(length(gnon)*0.1)
+  set.seed(seed) ; gup <- c(gup,sample(gnon,gextra))
+  gnon <- setdiff(gene_catalog,c(gup,gdn))
+  set.seed(seed) ; gdn <- c(gdn,sample(gnon,gextra))
   # make probe-gene vector
   probe2gene <- strsplit(myann$UCSC_RefGene_Name,";")
   names(probe2gene) <- rownames(myann)
@@ -164,6 +170,13 @@ incorp_dm <- function(genesets,myann,mval,seed,
   set.seed(seed) ; gdn2 <- sample(gdn,floor(length(gdn)*frac_genes))
   pdn <- names(probe2gene[which(probe2gene %in% gdn2)])
   set.seed(seed) ; pdn2 <- sample(pdn,floor(length(pdn)*frac_probes))
+  # add 10% DM probes as well
+  probes <- rownames(myann)
+  pnon <- setdiff(probes,c(pup,pdn))
+  pextra <- round(length(pnon)*0.1)
+  set.seed(seed) ; pup <- c(pup,sample(pnon,pextra))
+  pnon <- setdiff(probes,c(pup,pdn))
+  set.seed(seed) ; pdn <- c(pdn,sample(pnon,pextra))
   # divide samples between ctrl and case
   ncols <- ncol(mval)
   maxgroupsize=floor(ncols/2)
@@ -218,7 +231,8 @@ simgsa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -439,7 +453,8 @@ simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -483,7 +498,8 @@ simlactop <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probe
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -527,7 +543,8 @@ simlacgeo <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probe
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -571,7 +588,8 @@ simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -615,7 +633,8 @@ simlacm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -725,7 +744,8 @@ simalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -773,7 +793,8 @@ simnalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -837,7 +858,8 @@ simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
@@ -917,7 +939,8 @@ simaa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, g
   set.seed(seed) ; gset_mod <- sample(gsets,num_dm_sets)
   # incorporate select changes
   sim <- incorp_dm(genesets=gset_mod, myann=myann, mval=mval, seed=seed,
-    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta)
+    frac_genes=0.5,frac_probes=0.5,groupsize=groupsize,delta=delta,
+    gene_catalog=gene_catalog)
   # set up limma
   mval2 <- sim$mval
   ncols <- ncol(mval2)
