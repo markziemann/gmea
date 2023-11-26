@@ -108,9 +108,9 @@ l3 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
 
 x3 <- do.call(rbind,lapply(l3,summarise))
 
-x %>% kbl(caption="sim 100 res") %>% kable_paper("hover", full_width = F)
+x3 %>% kbl(caption="sim 100 res") %>% kable_paper("hover", full_width = F)
 
-barplot(t(x),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="100 genes per set")
+barplot(t(x3),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="100 genes per set")
 grid()
 
 ```
