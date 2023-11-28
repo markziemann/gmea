@@ -29,6 +29,7 @@ suppressPackageStartupMessages({
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
   library("tictoc")
+  library("limma")
   library("mitch")
   library("kableExtra")
   library("beeswarm")
@@ -46,7 +47,7 @@ CORES=12
 ```{r,annotation}
 
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
 gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
 gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
 names(gp2) <- rownames(gp)
@@ -55,7 +56,19 @@ summary(unlist(lapply(sets,length)))
 
 design <- readRDS("GSE158422_design.rds")
 mval <- readRDS("GSE158422_mx.rds")
-dm <- readRDS("GSE158422_dm.rds")
+
+runlimma <- function(mval,design,myann) {
+  fit.reduced <- lmFit(mval,design)
+  fit.reduced <- eBayes(fit.reduced)
+  dm <- topTable(fit.reduced,coef=ncol(design), number = Inf)
+  dm <- merge(myann,dm,by=0)
+  dm <- dm[order(dm$P.Value),]
+  rownames(dm) <- dm$Row.names
+  dm$Row.names=NULL
+  return(dm)
+}
+
+dm <- runlimma(mval=mval,design=design,myann=myann)
 
 ```
 
@@ -177,62 +190,68 @@ Use Euler diagrams to find the similarity.
 As medians are normally distributed about the zero, one would expect equal numbers of up and down-
 methylated gene sets.
 
-```{r,lamfunc}
 
-# LAM aggregate
-agg <- function(dm,cores=1) {
-  dm <- dm[which(dm$UCSC_RefGene_Name!=""),]
-  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
-  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
-  gnl <- mclapply(gnl,unique,mc.cores=cores)
-  dm$UCSC_RefGene_Name <- gnl
-  l <- mclapply(1:nrow(dm), function(i) {
-    a <- dm[i,]
-    len <- length(a[[1]][[1]])
-    tvals <- as.numeric(rep(a["t"],len))
-    genes <- a[[1]][[1]]
-    data.frame(genes,tvals)
-  },mc.cores=cores)
-  df <- do.call(rbind,l)
-  keep <- names(which(table(df$genes)>1))
-  df <- df[df$genes %in% keep,]
-  gn <- unique(df$genes)
-  gme_res <- lapply( 1:length(gn), function(i) {
-    g <- gn[i]
-    tstats <- df[which(df$genes==g),"tvals"]
-    myn <- length(tstats)
-    mymean <- mean(tstats)
-    mymedian <- median(tstats)
-    top <- tstats[order(-abs(tstats))][1]
-    if ( length(tstats) > 2 ) {
-      ttest <- t.test(tstats)
-      pval <- ttest$p.value
-    } else {
-      pval = 1
-    }
-    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,
-      "median"=mymedian, "top"=top, "pval"=pval)
-  } )
-  gme_res_df <- do.call(rbind, gme_res)
-  rownames(gme_res_df) <- gme_res_df[,1]
-  gme_res_df <- gme_res_df[,-1]
-  tmp <- apply(gme_res_df,2,as.numeric)
-  rownames(tmp) <- rownames(gme_res_df)
-  gme_res_df <- as.data.frame(tmp)
-  gme_res_df$sig <- -log10(gme_res_df[,"pval"])
-  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
-  gme_res_df$fdr <- p.adjust(gme_res_df$pval)
-  out <- list("df"=df,"gme_res_df"=gme_res_df)
-  return(out)
-}
+## Curate the annotation
+
+Use all probes on the chip.
+
+```{r,anno1}
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+gt$probe <- as.character(gt$probe)
+dim(gt)
+str(gt)
 
 ```
 
 Here we will look at parallel analysis of gene body and promoter.
 
+The approach here is to generate two mapping tables of probes to genes based on the annotation which is split
+into gene body and promoter (TSS).
+
+gene body=gb
+
+gene promoter (TSS) = gp
+
 ```{r,promoterbody}
 
-table(dm$UCSC_RefGene_Group)
+# partition body and promoter data(probes)
+dmg <- strsplit(dm$UCSC_RefGene_Name,";")
+
+body <- lapply(1:nrow(dm),function(i) {
+  a <- dm[i,"UCSC_RefGene_Group"]
+  a <- unlist(strsplit(a,";"))
+  dmg[[i]][a=="Body"]
+})
+names(body) <- rownames(dm)
+body <- lapply(body,unique)
+gb <- stack(body)
+colnames(gb) <- c("gene","probe")
+gb$probe <- as.character(gb$probe)
+dim(gb)
+str(gb)
+
+tss <- lapply(1:nrow(dm),function(i) {
+  a <- dm[i,"UCSC_RefGene_Group"]
+  a <- unlist(strsplit(a,";"))
+  dmg[[i]][grep("TSS",a)]
+})
+names(tss) <- rownames(dm)
+tss <- lapply(tss,unique)
+gp <- stack(tss)
+colnames(gp) <- c("gene","probe")
+gp$probe <- as.character(gp$probe)
+dim(gp)
+str(gp)
+
+# HERENOW
 
 # all gene
 dmagg <- agg(dm=dm,cores=16)
