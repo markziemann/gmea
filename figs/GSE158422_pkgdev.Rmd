@@ -65,16 +65,26 @@ Use all probes on the chip.
 
 tic()
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
 gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
 gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
 names(gp2) <- rownames(gp)
 gp2 <- lapply(gp2,unique)
 gt <- stack(gp2)
 colnames(gt) <- c("gene","probe")
+gt$probe <- as.character(gt$probe)
 dim(gt)
 str(gt)
 toc() #9.0s
+
+```
+
+Now try for efficient method to incorporate into the package.
+
+```{r,anno2}
+
+library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+
 
 ```
 
