@@ -38,7 +38,7 @@ suppressPackageStartupMessages({
   library("gplots")
 })
 
-CORES=12
+CORES=16
 
 ```
 
@@ -169,7 +169,7 @@ RNA expression pathway enrichment with mitch.
 
 rna <- mitch_import(dge, DEtype="deseq2")
 
-res <- mitch_calc(rna, genesets=gs_symbols, priority="effect",cores=32)
+res <- mitch_calc(rna, genesets=gs_symbols, priority="effect",cores=16)
 
 mres <- res$enrichment_result
 msig <- subset(mres,p.adjustANOVA<0.05)
@@ -251,66 +251,47 @@ gp$probe <- as.character(gp$probe)
 dim(gp)
 str(gp)
 
-# HERENOW
+# import for promoters
+dmp <- dm[which(rownames(dm) %in%  gp$probe),]
+mp <- mitch_import(x=dmp,DEtype="limma",geneTable=gp)
+dim(dmp)
+dim(mp)
 
-# all gene
-dmagg <- agg(dm=dm,cores=16)
-str(dmagg)
-head(dmagg$gme_res_df)
-dim(dm)
-dim(dmagg$gme_res_df)
-mm <- dmagg$gme_res_df[,"mean",drop=FALSE]
-mmres <- mitch_calc(mm, genesets=gs_symbols, priority="effect",cores=32)
-mmres_up <- subset(mmres$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
-mmres_dn <- subset(mmres$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
-nrow(mmres_up)
-nrow(mmres_dn)
-head(mmres_up,20)
-head(mmres_dn,20)
+# import bodies
+dmb <- dm[which(rownames(dm) %in%  gb$probe),]
+mb <- mitch_import(x=dmb,DEtype="limma",geneTable=gb)
+dim(dmb)
+dim(mb)
 
 # promoter
-dmpr <- dm[grep("Promoter",dm$UCSC_RefGene_Group),]
-dmpragg <- agg(dm=dmpr,cores=16)
-str(dmpragg)
-head(dmpragg$gme_res_df)
-dim(dmpr)
-dim(dmpragg$gme_res_df)
-mmpr <- dmpragg$gme_res_df[,"mean",drop=FALSE]
-mmprres <- mitch_calc(mmpr, genesets=gs_symbols, priority="effect",cores=32)
-mmprres_up <- subset(mmprres$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
-mmprres_dn <- subset(mmprres$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
-nrow(mmprres_up)
-nrow(mmprres_dn)
-head(mmprres_up,20)
-head(mmprres_dn,20)
+dmp_res <- mitch_calc(mp, genesets=gs_symbols, priority="effect",cores=16)
+dmp_res_up <- subset(dmp_res$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
+dmp_res_dn <- subset(dmp_res$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
+nrow(dmp_res_up)
+nrow(dmp_res_dn)
+head(dmp_res_up,20)
+head(dmp_res_dn,20)
 
-
-# ex-promoter
-dmx <- dm[grep("Promoter",dm$UCSC_RefGene_Group,invert=TRUE),]
-dmxagg <- agg(dm=dmx,cores=16)
-str(dmxagg)
-head(dmxagg$gme_res_df)
-dim(dmx)
-dim(dmxagg$gme_res_df)
-mmx <- dmxagg$gme_res_df[,"mean",drop=FALSE]
-mmxres <- mitch_calc(mmx, genesets=gs_symbols, priority="effect",cores=32)
-mmxres_up <- subset(mmxres$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
-mmxres_dn <- subset(mmxres$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
-nrow(mmxres_up)
-nrow(mmxres_dn)
-head(mmxres_up,20)
-head(mmxres_dn,20)
-
+# body
+dmb_res <- mitch_calc(mb, genesets=gs_symbols, priority="effect",cores=16)
+dmb_res_up <- subset(dmb_res$enrichment_result,s.dist>0 & p.adjustANOVA < 0.05)
+dmb_res_dn <- subset(dmb_res$enrichment_result,s.dist<0 & p.adjustANOVA < 0.05)
+nrow(dmb_res_up)
+nrow(dmb_res_dn)
+head(dmb_res_up,20)
+head(dmb_res_dn,20)
 
 # combined methylation
-mmm <- merge(mmpr,mmx,by=0)
-rownames(mmm) <- mmm$Row.names
-mmm$Row.names = NULL
-colnames(mmm) <- c("pr","x")
-mmmres <- mitch_calc(mmm, genesets=gs_symbols, priority="effect",cores=32)
-mmmres_sig <- subset(mmmres$enrichment_result, p.adjustMANOVA < 0.05)
-head(mmmres_sig,20)
-table(sign(mmmres_sig$s.pr) == sign(mmmres_sig$s.x))
+mm <- merge(mp,mb,by=0)
+rownames(mm) <- mm$Row.names
+mm$Row.names=NULL
+colnames(mm) <- c("prom","body")
+mm_res <- mitch_calc(mm, genesets=gs_symbols, priority="effect",cores=16)
+mm_res_sig <- subset(mm_res$enrichment_result,p.adjustMANOVA < 0.01)
+nrow(mm_res_sig)
+head(mm_res_sig,20)
+table(sign(mm_res_sig$s.prom) == sign(mm_res_sig$s.body) )
+mm_res_sig[sign(mm_res_sig$s.prom) != sign(mm_res_sig$s.body),]
 
 ```
 
@@ -319,62 +300,64 @@ table(sign(mmmres_sig$s.pr) == sign(mmmres_sig$s.x))
 ```{r,rnaoverlap2}
 
 # three way
-mmrna <- merge(mmm,rna,by=0)
+mmrna <- merge(mm,rna,by=0)
 rownames(mmrna) <- mmrna$Row.names
 mmrna$Row.names = NULL
-colnames(mmrna) <- c("pr","x","rna")
-mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=32)
+colnames(mmrna) <- c("prom","body","rna")
+mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=16)
 mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
 head(mmrnares_sig,20)
-table(sign(mmrnares_sig$s.pr) == sign(mmrnares_sig$s.x))
-table(sign(mmrnares_sig$s.pr) == sign(mmrnares_sig$s.rna))
-table(sign(mmrnares_sig$s.x) == sign(mmrnares_sig$s.rna))
+table(sign(mmrnares_sig$s.prom) == sign(mmrnares_sig$s.body))
+table(sign(mmrnares_sig$s.prom) == sign(mmrnares_sig$s.rna))
+table(sign(mmrnares_sig$s.body) == sign(mmrnares_sig$s.rna))
 mtop <- head(mmrnares_sig,30)
-mtop <- mtop[,c("set","s.pr","s.x","s.rna")]
+mtop <- mtop[,c("set","s.prom","s.body","s.rna")]
 rownames(mtop) <- gsub("REACTOME_","",mtop$set)
 rownames(mtop) <- gsub("_"," ",rownames(mtop))
 mtop$set=NULL
-colnames(mtop) <- c("promoter","non-promoter","RNA")
+colnames(mtop) <- c("promoter","body","RNA")
 colfunc <- colorRampPalette(c("blue", "white", "red"))
 heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.6, cexCol=1)
 
 # rna vs promoter
-mmrna <- merge(mmpr,rna,by=0)
-rownames(mmrna) <- mmrna$Row.names
-mmrna$Row.names = NULL
-colnames(mmrna) <- c("pr","rna")
-mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=32)
-mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
-head(mmrnares_sig,20)
-table(sign(mmrnares_sig$s.pr) == sign(mmrnares_sig$s.rna))
-mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
-mylm <- lm(mmrnares$enrichment_result$s.rna ~ mmrnares$enrichment_result$s.pr)
+mprna <- merge(mp,rna,by=0)
+rownames(mprna) <- mprna$Row.names
+mprna$Row.names = NULL
+colnames(mprna) <- c("prom","rna")
+mprnares <- mitch_calc(mprna, genesets=gs_symbols, priority="effect",cores=16)
+mprnares_sig <- subset(mprnares$enrichment_result, p.adjustMANOVA < 0.05)
+head(mprnares_sig,20)
+table(sign(mprnares_sig$s.prom) == sign(mmrnares_sig$s.rna))
+mprnares_sig <- subset(mprnares$enrichment_result, p.adjustMANOVA < 0.05)
+mylm <- lm(mprnares$enrichment_result$s.rna ~ mprnares$enrichment_result$s.prom)
 summary(mylm)
-mylm2 <- lm(mmrnares_sig$s.rna ~ mmrnares_sig$s.pr)
+mylm2 <- lm(mprnares_sig$s.rna ~ mprnares_sig$s.pr)
 summary(mylm2)
-plot(mmrnares$enrichment_result$s.pr,mmrnares$enrichment_result$s.rna,xlab="promoter",ylab="RNA",main="S dist",col="gray",pch=19)
+plot(mprnares$enrichment_result$s.prom,mprnares$enrichment_result$s.rna,xlab="promoter",
+  ylab="RNA", main="S dist",col="gray",pch=19)
 abline(v=0,h=0,lty=2,lwd=2)
-points(mmrnares_sig$s.pr,mmrnares_sig$s.rna,col="black",pch=19,cex=1.01)
+points(mprnares_sig$s.pr,mprnares_sig$s.rna,col="black",pch=19,cex=1.01)
 abline(mylm,col="blue",lty=3,lwd=3)
 abline(mylm2,col="red",lty=3,lwd=3)
 
-# rna vs expromoter
-mmrna <- merge(mmx,rna,by=0)
-rownames(mmrna) <- mmrna$Row.names
-mmrna$Row.names = NULL
-colnames(mmrna) <- c("x","rna")
-mmrnares <- mitch_calc(mmrna, genesets=gs_symbols, priority="effect",cores=32)
-mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
-head(mmrnares_sig,20)
-table(sign(mmrnares_sig$s.x) == sign(mmrnares_sig$s.rna))
-mmrnares_sig <- subset(mmrnares$enrichment_result, p.adjustMANOVA < 0.05)
-mylm <- lm(mmrnares$enrichment_result$s.rna ~ mmrnares$enrichment_result$s.x)
+# rna vs body
+mbrna <- merge(mb,rna,by=0)
+rownames(mbrna) <- mbrna$Row.names
+mbrna$Row.names = NULL
+colnames(mbrna) <- c("body","rna")
+mbrnares <- mitch_calc(mbrna, genesets=gs_symbols, priority="effect",cores=16)
+mbrnares_sig <- subset(mbrnares$enrichment_result, p.adjustMANOVA < 0.05)
+head(mbrnares_sig,20)
+table(sign(mbrnares_sig$s.body) == sign(mbrnares_sig$s.rna))
+mbrnares_sig <- subset(mbrnares$enrichment_result, p.adjustMANOVA < 0.05)
+mylm <- lm(mbrnares$enrichment_result$s.rna ~ mbrnares$enrichment_result$s.body)
 summary(mylm)
-mylm2 <- lm(mmrnares_sig$s.rna ~ mmrnares_sig$s.x)
+mylm2 <- lm(mbrnares_sig$s.rna ~ mbrnares_sig$s.body)
 summary(mylm2)
-plot(mmrnares$enrichment_result$s.x,mmrnares$enrichment_result$s.rna,xlab="ex-promoter",ylab="RNA",main="S dist",col="gray",pch=19)
+plot(mbrnares$enrichment_result$s.body,mbrnares$enrichment_result$s.rna,xlab="ex-promoter",
+  ylab="RNA",main="S dist",col="gray",pch=19)
 abline(v=0,h=0,lty=2,lwd=2)
-points(mmrnares_sig$s.x,mmrnares_sig$s.rna,col="black",pch=19,cex=1.01)
+points(mbrnares_sig$s.body,mbrnares_sig$s.rna,col="black",pch=19,cex=1.01)
 abline(mylm,col="blue",lty=3,lwd=3)
 abline(mylm2,col="red",lty=3,lwd=3)
 
@@ -384,32 +367,77 @@ Now look at GSAmeth.
 
 ```{r,rnagsa}
 
-# all meth
+# body
 sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
 sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
-gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez,
+  array.type="EPIC", genomic.features = "Body")
 rownames(gsaup) <- paste(rownames(gsaup),"UP")
-gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez,
+  array.type="EPIC", genomic.features = "Body")
 rownames(gsadn) <- paste(rownames(gsadn),"DN")
 gsig_up <- subset(gsaup,FDR<0.05)
 gsig_dn <- subset(gsadn,FDR<0.05)
 gsig <- rbind(gsig_up,gsig_dn)
 nrow(gsig)
+gsig_body <- gsig
+gsig_body_up <- gsig_up
+gsig_body_dn <- gsig_dn
 
-
-# all meth
-sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
-sigdn <- rownames(subset(dm,logFC < 0 & adj.P.Val < 0.05))
-gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+# promoter
+TSS = c("TSS200", "TSS1500")
+gsaup <- gsameth(sig.cpg=sigup, all.cpg=rownames(dm), collection=gs_entrez,
+  array.type="EPIC", genomic.features = TSS)
 rownames(gsaup) <- paste(rownames(gsaup),"UP")
-gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez, array.type="EPIC")
+gsadn <- gsameth(sig.cpg=sigdn, all.cpg=rownames(dm), collection=gs_entrez,
+  array.type="EPIC", genomic.features = TSS)
 rownames(gsadn) <- paste(rownames(gsadn),"DN")
 gsig_up <- subset(gsaup,FDR<0.05)
 gsig_dn <- subset(gsadn,FDR<0.05)
-gsig <- rbind(gsig_up,gsig_dn) 
+gsig <- rbind(gsig_up,gsig_dn)
 nrow(gsig)
+gsig_promoter <- gsig
+gsig_promoter_up <- gsig_up
+gsig_promoter_dn <- gsig_dn
 
+```
 
+Now make a Euler plot for GSA meth-RNA comparison.
+
+```{r,compare_rna_gsa}
+
+rna_up <- subset(msig,s.dist>0)$set
+rna_dn <- subset(msig,s.dist<0)$set
+
+gsig_body_up <- rownames(gsig_body_up)
+gsig_body_dn <- rownames(gsig_body_dn)
+
+gsig_promoter_up <- rownames(gsig_promoter_up)
+gsig_promoter_dn <- rownames(gsig_promoter_dn)
+
+vg <- list("RNA up"=rna_up,"RNA dn"=rna_dn,
+  "GSA body up"=gsig_body_up, "GSA body dn"=gsig_body_dn,
+  "GSA promoter up"=gsig_promoter_up, "GSA prom dn"=gsig_promoter_dn)
+
+plot(euler(vg),quantities=TRUE)
+
+```
+
+Now make a Euler plot for LAM-RNA comparison.
+
+```{r,compare_rna_mitch}
+
+dmp_res_up <- dmp_res_up$set
+dmp_res_dn <- dmp_res_dn$set
+
+dmb_res_up <- dmb_res_up$set
+dmb_res_dn <- dmb_res_dn$set
+
+vm <- list("RNA up"=rna_up,"RNA dn"=rna_dn,
+  "LAM body up"=dmb_res_up, "LAM body dn"=dmb_res_dn,
+  "LAM promoter up"=dmp_res_up, "LAM prom dn"=dmp_res_dn)
+
+plot(euler(vm),quantities=TRUE)
 
 ```
 
