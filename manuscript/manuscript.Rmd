@@ -167,72 +167,54 @@ were selected.
 
 To assess these methods, we adopted a simulated data approach.
 EPIC Infinium array data derived from non-cancerous lung tissue of 37 cancer patients was used for our
-evaluations.
+evaluations (GSE158422).
+We downloaded raw intensity EPIC IDAT files from GEO for study GSE158422 which consists of
+lung tumour and normal adjacent tissues from 37 patients.
+Probe annotations were obtained from the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19" Bioconductor
+package.
 We randomly sampled datasets to serve as control and cases (no replacement), with group sizes varying between
 3 and 12.
 One thousand random gene sets were created with sizes varying between 20 and 100 members.
 Random gene sets were used to avoid problems caused by the large overlap among real gene sets.
 Throughout our evaluations, 50 gene sets were selected to be differentially methylated, 25 with increased and 25
 with decreased methylation.
-From these gene sets, half of the members were selected.
+From these gene sets, half of the member genes were selected.
 For those selected genes, half of the annotated probes were selected.
 We adjusted the m-values in the case group by a specified amount, which we call the "delta", which we varied
 between 0.1 and 0.4.
 Following the incorporation of methylation changes to selected probes in the case group, the data underwent
-enrichment analysis using `GSAmeth` approach, or one of the seven FCS methods outlined above.
+limma differential methylation analysis, followed by enrichment analysis using `GSAmeth` approach, or one of
+the seven FCS methods outlined above.
 Enrichment results were then filtered for FDR<0.05 and correct direction of methylation change.
 Differentially methylated gene sets observed were compared to gene sets selected to be the ground truth, so that
 the number of true positives (TP), false positives (FP) and false negatives (FN) could be determined.
-At each setting for group size, delta and gene set size, 20 replications were conducted each with a set seed
+At each setting for group size, delta and gene set size, 50 replications were conducted each with a set seed
 to ensure reproducibility.
 Mean TP, FP and FN values were determined, and then precision, recall and F1 scores were calculated.
 
-
-
-
-
-
-
-
-
-As there are no established methods for benchmarking Infinium array based pathway regulation using
-known ground truth synthetic data, we used a split-and-analyse approach with a real dataset to
-evaluate the three approaches outlined above.
-We downloaded raw intensity EPIC IDAT files from GEO for study GSE158422 which consists of
-lung tumour and normal adjacent tissues from 37 patients.
-Probe annotations were obtained from the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19" Bioconductor
-package.
-Reactome gene sets were downloaded from the MSigDB website.
-From this set of samples, 18 patients were randomly selected into analysis A, where control and tumour
-samples were compared.
-From the remaining 19 samples, 18 were randomly selected into analysis B, where control and tumour
-samples were compared as above to act as an independent validation of analysis A.
-Analyses A and B were conducted using one of the three enrichment approaches outlined above, and the
-gene sets meeting a 5% FDR threshold in the hyper- and hypo-methylated directions were saved.
-Gene sets identified to be common in A and B analyses (FDR<0.05 and direction) were considered validated,
-gene sets identified in only one method were not considered validated, and gene sets that gave discordant
-direction (hyper- vs hypo-methylation) between A and B were classed as contradictory.
-This process was repeated 50 times to rigourously evaluate method performance.
-
 ### Sensitivity analysis
 
-The same dataset including all 37 patients underwent analysis using the LA method, gsameth and ebGSEA.
-The effect size (enrichment score) of significantly differentially methylated pathways (FDR<0.05) was
-recorded.
+The same dataset including all 37 patients underwent pathway enrichment analysis using the GSAmeth and LAM methods
+with Reactome pathways downloaded from MSigDB website (version 2023.1).
+Euler diagrams were created with the `eulerr` R package.
 Then, a random subset of n patients was selected followed by pathway enrichment analysis with the
-respective method.
+respective method, with n varied between 2 and 30.
 The subset results were compared to the full n=37 results to test the sensitivity of these enrichment
-methods at differenent effect size levels.
+methods at differenent effect size levels, and whether findings at a smaller sample size were consistent with the full group.
 This process was repeated 50 times.
 
 ### Association of methylation with gene expression
 
-As methylation at promoters and gene bodies is considered to have differing association with gene
-expression, we conducted LA analysis at gene promoters, gene bodies and whole gene separately and
-examined the relationship with RNA-seq based pathway regulation.
-RNA-seq counts were downloaded from the GEO database (Accession: GSE158420).
+RNA-seq based gene counts for the same set of lung cancer patients were downloaded from GEO [GSE158420](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420).
 HGNChelper was used to repair transmogrified gene names, followed by DESeq2 based differential analysis.
-Enrichment analysis of RNA-seq data was conducted using the mitch package with REACTOME gene sets.
+This underwent filtering to remove genes with expression below 10 reads per sample on average across the dataset.
+Then DESeq2 was used to compare normal and cancerous tissue gene expression taking into consideration sample pairing.
+The differential expression results underwent enrichment analysis using the mitch package with default settings for DESeq2 data tables.
+CpG sites annotated as promoters were considered separately from those located at gene bodies in mitch analysis.
+For comparison, GSAmeth was used to separately examine pathways using separate analyses of promoter and gene body CpGs.
+For this analysis, Reactome gene sets were used.
+Subsequently, to generate the mitch heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
+promoter and gene body methylation together, prioritising the results by s-distance, a surrogate measure of effect size.
 
 ### Pathway-level differential methylation in assisted reproductive technology
 (i) the effect of assisted reproductive technology DNA methylation
@@ -275,11 +257,6 @@ These numbers are large, considering that there are 26,219 genes represented on 
 
 LAM resulted in 358 significant Reactome pathways at FDR<0.05 while there were just 21 with GSA (*Figure 3A*).
 The overlap of significant pathways was unexpectedly small, with just five common pathways.
-
-Given GSA found relatively few results
-
-Considering the number of significant probes was very large we were concerned that
-
 
 We were curious about whether LAM method had a bias towards larger gene sets as the recall of this
 method is higher with larger gene sets.
