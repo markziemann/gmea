@@ -290,6 +290,10 @@ pathways in real cancer data.
 
 * Separate promoter and gene body integration
 
+
+
+![Figure 5. Integration of gene expression data with methylation pathways. (A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A) and LAM (B) results. (C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch. Top 20 gene sets shown with largest s distance after FDR siltering at 0.05.](../figs/fig5.png)
+
 ## Exploration of methylation pathways altered by ART
 
 ## Exploration of methylation pathways altered by elevated homocysteine
