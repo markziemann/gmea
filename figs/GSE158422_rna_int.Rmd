@@ -36,6 +36,8 @@ suppressPackageStartupMessages({
   library("missMethyl")
   library("HGNChelper")
   library("gplots")
+  library("ggplot2")
+
 })
 
 CORES=16
@@ -319,6 +321,8 @@ colnames(mtop) <- c("promoter","body","RNA")
 colfunc <- colorRampPalette(c("blue", "white", "red"))
 heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.6, cexCol=1)
 
+p3 <- heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.6, cexCol=1)
+
 # rna vs promoter
 mprna <- merge(mp,rna,by=0)
 rownames(mprna) <- mprna$Row.names
@@ -421,6 +425,8 @@ vg <- list("RNA up"=rna_up,"RNA dn"=rna_dn,
 
 plot(euler(vg),quantities=TRUE)
 
+p1 <- plot(euler(vg),quantities=TRUE)
+
 ```
 
 Now make a Euler plot for LAM-RNA comparison.
@@ -439,13 +445,25 @@ vm <- list("RNA up"=rna_up,"RNA dn"=rna_dn,
 
 plot(euler(vm),quantities=TRUE)
 
-```
+p2 <- plot(euler(vm),quantities=TRUE)
 
+```
 
 ## Conclusion
 
 Although there were some differentially methylated pathways analysed with different methods,
 they were not concordant with differential expression.
+
+## Assemble figure
+
+Grid arrange function.
+
+```{r,gridarrange}
+
+plot5 <- grid.arrange(arrangeGrob(p1, p2, ncol=1), p3,
+  ncol=2, widths=c(1,1))
+
+```
 
 ## Session information
 
