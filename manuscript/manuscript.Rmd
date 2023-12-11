@@ -315,9 +315,11 @@ These results demonstrate that LAM can illuminate the complicated relationship b
 
 ## Exploration of methylation pathways altered by ART
 
-## Exploration of methylation pathways altered by elevated homocysteine
+Two way analysis.
 
-##
+## Exploration of methylation pathways altered by elevated homocysteine or smoking
+
+Two way analysis.
 
 ## Discussion
 
