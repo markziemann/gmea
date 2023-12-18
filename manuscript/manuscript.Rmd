@@ -333,13 +333,9 @@ For example the complement pathway is associated with aging and in this analysis
 (B) Mitch pathway enrichment scores (S distances) in discovery and replication studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
 (C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates increasing methylation and blue shows lower methylation.
 (D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes in both discovery and replication studies.
-](../figs/fig5.png)
+](../figs/fig6.png)
 
 ## Exploration of methylation pathways altered by ART
-
-Two way analysis.
-
-## Exploration of methylation pathways altered by elevated homocysteine or smoking
 
 Two way analysis.
 
