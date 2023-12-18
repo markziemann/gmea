@@ -338,7 +338,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 
 top_nat_vs_fh_inc <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval,name="top_nat_vs_fh_inc",
-    myann=myann ,beta= beta)
+    myann=anno ,beta= beta)
 
 head(top_nat_vs_fh_inc$dma)
 head(top_nat_vs_fh_inc$dmr)
@@ -359,7 +359,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 
 top_nat_vs_fh <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_fh",
-    myann=myann, beta=beta_flt)
+    myann=anno, beta=beta_flt)
 
 head(top_nat_vs_fh$dma)
  head(top_nat_vs_fh$dmr)
@@ -384,7 +384,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 
 top_nat_vs_fz <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_fz",
-    myann=myann, beta=beta_flt)
+    myann=anno, beta=beta_flt)
 
 head(top_nat_vs_fz$dma)
 head(top_nat_vs_fz$dmr)
@@ -408,7 +408,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 table(groups)
 top_nat_vs_iui <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_iui",
-    myann=myann, beta=beta_flt)
+    myann=anno, beta=beta_flt)
 
 head(top_nat_vs_iui$dma)
 head(top_nat_vs_iui$dmr)
@@ -433,7 +433,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 table(groups)
 top_fh_vs_fz <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval_flt,name="top_fh_vs_fz",
-    myann=myann, beta=beta_flt)
+    myann=anno, beta=beta_flt)
 
 head(top_fh_vs_fz$dma)
 head(top_fh_vs_fz$dmr)
@@ -461,7 +461,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 table(groups)
 top_nat_vs_fx <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_fx",
-    myann=myann, beta=beta_flt)
+    myann=anno, beta=beta_flt)
 
 head(top_nat_vs_fx$dma)
 head(top_nat_vs_fx$dmr)
@@ -493,7 +493,7 @@ sex <- factor(samplesheet$sex,levels=c("Male","Female"))
 table(groups)
 top_iui_vs_fx <- dm_analysis(samplesheet=samplesheet,
     sex=sex,groups=groups,mx=Mval_flt,name="top_iui_vs_fx",
-    myann=myann, beta=beta_flt)
+    myann=anno, beta=beta_flt)
 
 head(top_iui_vs_fx$dma)
 head(top_iui_vs_fx$dmr)
