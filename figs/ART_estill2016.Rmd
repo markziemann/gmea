@@ -70,32 +70,13 @@ eventually be shoved into another Rscript or package but can stay here for now.
 source("meth_functions.R")
 
 # Annotation
-anno <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
-anno <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group",
+annofull <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+anno <- data.frame(annofull[,c("UCSC_RefGene_Name","Regulatory_Feature_Group",
   "Islands_Name","Relation_to_Island")])
-promoters <- grep("Prom",myann$Regulatory_Feature_Group)
-
-```
-
-## Probe sets
-
-For each gene, extract out the probes.
-
-```{r,probesets}
-
-promoters <- grep("Prom",anno$Regulatory_Feature_Group)
-promoters <- anno[promoters,]
-gp <- anno[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
-names(gp2) <- rownames(gp)
-sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
-summary(unlist(lapply(sets,length)))
 
 ```
 
 ## Data import
-
-TODO- add explanation
 
 ```{r,data}
 
@@ -105,6 +86,7 @@ ARRAY_SAMPLESHEET="GSE79257/GSE79257_Illumina_samplesheet.csv"
 # only download it if it is not present on the system
 if ( !file.exists(ARRAY_SAMPLESHEET ) ) {
     DLFILE=paste(ARRAY_SAMPLESHEET,".gz",sep="")
+    options(timeout=1000000)
     download.file("https://ftp.ncbi.nlm.nih.gov/geo/series/GSE79nnn/GSE79257/suppl/GSE79257_Illumina_samplesheet.csv.gz",
         destfile = DLFILE)
     gunzip(DLFILE, overwrite = TRUE )
@@ -159,7 +141,7 @@ dim(mSetSw_nosnp)
 mSetSw <- mSetSw_nosnp
 
 # exclude sex chromosomes
-keep <- !(featureNames(mSetSw) %in% ann450k$Name[ann450k$chr %in% c("chrX","chrY")])
+keep <- !(featureNames(mSetSw) %in% annofull$Name[annofull$chr %in% c("chrX","chrY")])
 mSetFlt <- mSetSw[keep,]
 head(mSetFlt)
 dim(mSetFlt)
@@ -383,7 +365,8 @@ head(top_nat_vs_fh$dma)
  head(top_nat_vs_fh$dmr)
 top_nat_vs_fh$comp
 top_nat_vs_fh$cgi
-write.table(top_nat_vs_fh$dma,file="estill_nat_vs_fh.tsv",sep="\t",quote=FALSE)
+
+saveRDS(top_nat_vs_fh,file="estill_nat_vs_fh.rds")
 
 ```
 
@@ -406,7 +389,8 @@ top_nat_vs_fz <- dm_analysis(samplesheet=samplesheet,
 head(top_nat_vs_fz$dma)
 head(top_nat_vs_fz$dmr)
 top_nat_vs_fz$comp
-write.table(top_nat_vs_fz$dma,file="estill_nat_vs_fz.tsv",sep="\t",quote=FALSE)
+
+saveRDS(top_nat_vs_fz,file="estill_nat_vs_fz.rds")
 
 ```
 
@@ -431,6 +415,8 @@ head(top_nat_vs_iui$dmr)
 top_nat_vs_iui$comp
 write.table(top_nat_vs_iui$dma,file="estill_nat_vs_iui.tsv",sep="\t",quote=FALSE)
 
+saveRDS(top_nat_vs_iui,file="estill_nat_vs_iui.rds")
+
 ```
 
 ### FH vs FZ
@@ -452,7 +438,8 @@ top_fh_vs_fz <- dm_analysis(samplesheet=samplesheet,
 head(top_fh_vs_fz$dma)
 head(top_fh_vs_fz$dmr)
 top_fh_vs_fz$comp
-write.table(top_fh_vs_fz$dma,file="estill_fh_vs_fz.tsv",sep="\t",quote=FALSE)
+
+saveRDS(top_fh_vs_fz,file="estill_fh_vs_fz.rds")
 
 ```
 
@@ -479,7 +466,8 @@ top_nat_vs_fx <- dm_analysis(samplesheet=samplesheet,
 head(top_nat_vs_fx$dma)
 head(top_nat_vs_fx$dmr)
 top_nat_vs_fx$comp
-write.table(top_nat_vs_fx$dma,file="estill_nat_vs_fx.tsv",sep="\t",quote=FALSE)
+
+saveRDS(top_nat_vs_fx,file="estill_nat_vs_fx.rds")
 
 ```
 
@@ -510,69 +498,8 @@ top_iui_vs_fx <- dm_analysis(samplesheet=samplesheet,
 head(top_iui_vs_fx$dma)
 head(top_iui_vs_fx$dmr)
 top_iui_vs_fx$comp
-write.table(top_iui_vs_fx$dma,file="estill_iui_vs_fx.tsv",sep="\t",quote=FALSE)
 
-```
-
-## Venn diagrams of the differential methylated probes for each contrast
-
-First, we look at the similarity of DMPs altered by fresh and frozen procedures. The overlap is very large.
-This indicates a high degree of similarity between the profiles.
-
-```{r,venn1,fig.cap="Comparison of probes altered by fresh and frozen IVF procedures", fig.width = 8 ,fig.height = 8}
-
-v1 <- list("FH up" = top_nat_vs_fh$dm_up , 
-           "FZ up" = top_nat_vs_fz$dm_up ,
-           "FH dn" = top_nat_vs_fh$dm_dn ,
-           "FZ dn" = top_nat_vs_fz$dm_dn )
-plot(euler(v1, shape = "ellipse"), quantities = TRUE)
-
-```
-
-Now to take a look at whether IUI is similar to IVF fresh and frozen. The overlap is just a large as 
-FH vs FZ.
-
-```{r,venn2,fig.cap="Comparison of probes altered by IUI, fresh and frozen IVF procedures", fig.width = 8 ,fig.height = 8}
-
-v2 <- list("FH up" = top_nat_vs_fh$dm_up , 
-           "FH dn" = top_nat_vs_fh$dm_dn ,
-           "IUI up" = top_nat_vs_iui$dm_up ,
-           "IUI dn" = top_nat_vs_iui$dm_dn )
-plot(euler(v2, shape = "ellipse"), quantities = TRUE)
-
-v3 <- list("FZ up" = top_nat_vs_fz$dm_up , 
-           "FZ dn" = top_nat_vs_fz$dm_dn ,
-           "IUI up" = top_nat_vs_iui$dm_up ,
-           "IUI dn" = top_nat_vs_iui$dm_dn )
-plot(euler(v3, shape = "ellipse"), quantities = FALSE)
-
-```
-
-## Spearman correlations of each contrast
-
-While the above Venn diagrams are suggestive of similarity between contrasts, the best 
-way to assess this is with correlation analysis. I have chosen Spearman as based on
-the directional p-value ranking metric.
-
-```{r,spearman, fig.width = 8 ,fig.height = 8}
-
-mycontrasts <- list("top_nat_vs_fh"=top_nat_vs_fh, "top_nat_vs_fz"=top_nat_vs_fz, "top_nat_vs_fx"=top_nat_vs_fx ,
-  "top_nat_vs_iui"=top_nat_vs_iui, "top_fh_vs_fz"=top_fh_vs_fz, "top_iui_vs_fx"=top_iui_vs_fx)
-
-myrnks <- lapply(X = mycontrasts, FUN = myranks)
-df <- join_all(myrnks,by="rn")
-rownames(df) <- df$rn
-df$rn=NULL
-colnames(df) <- names(mycontrasts)
-head(df)
-
-mycors <- cor(df,method = "spearman")
-
-my_palette <- colorRampPalette(c("darkred","red", "orange", "yellow","white"))(n = 25)
-heatmap.2(mycors,scale="none",margin=c(10, 10),cexRow=0.8,trace="none",cexCol=0.8,
-    col=my_palette,main="Spearman correlations")
-
-mycors
+saveRDS(top_iui_vs_fx,file="estill_iui_vs_fx.rds")
 
 ```
 
