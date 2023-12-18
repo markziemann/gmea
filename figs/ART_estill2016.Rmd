@@ -1,0 +1,610 @@
+---
+title: "Estill 2016 reanalysis"
+author: "The methylation in ART meta-analysis group"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+In this report, I will take you through a re-analysis methylation data first described by 
+[Estill et al (2016)](https://www.ncbi.nlm.nih.gov/pubmed/27288894).
+
+In their study, they analysed the DNA methylation patterns of 137 neonatal blood spots
+conceived naturally (NAT), through through insemination (IUI), or through ICSI using fresh or
+cryopreserved (frozen) embryo transfer (FH and FZ respectively).
+
+The platform used in the study is the Illumina Infinium HumanMethylation450k BeadChip assay.
+The authors used a pipeline based on ChAMP 
+([Tian et al, 2017](https://www.ncbi.nlm.nih.gov/pubmed/28961746)), together with Adjacent
+Site Clustering ([Sofer et al, 2013](https://www.ncbi.nlm.nih.gov/pubmed/23990415)).
+
+The methylation data have been deposited to NCBI GEO repository accession number 
+[GSE79257](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE79257).
+
+The main conclusions from the original study were:
+
+* The methylation profiles of assisted reproductive technology and IUI newborns were dramatically
+different from those of naturally (in vivo) conceived newborns.
+
+* Profiles of ICSI-frozen (FET) and IUI infants were strikingly similar, suggesting that
+cryopreservation may temper some of the epigenetic aberrations induced by IVF or ICSI.
+
+*  The DNA methylation changes associated with IVF/ICSI culture conditions and/or parental
+infertility were detected at metastable epialleles, suggesting a lasting impact on a child's
+epigenome.
+
+* Both infertility and ICSI alter DNA methylation at specific genomic loci, an effect that 
+is mitigated to some extent by FET (freezing).
+
+The aim of this work is to;
+
+1. develop the analytical pipelines required for efficient re-analysis of 450K array data,
+
+2. to confirm that we are able to obtain differential methylation results that are similar
+to those obtained in the original study, and
+
+3. to critically evaluate the conclusions made in the original study.
+
+In this report I will be using the missMethyl vignette as a guide to analyse this dataset 
+([Phipson et al, 2015](https://www.ncbi.nlm.nih.gov/pubmed/26424855)).
+
+Previously I curated a list of good and bad probes using the script "filter_probes.Rmd".
+
+
+## Loading packages and functions
+
+These packackes will help us to perform vital steps such as normalisation, filtering, 
+differential analysis, etc, and provide information about the array probe annotaions.
+
+These functions provide shortcuts to help with charts and other analysis. They will
+eventually be shoved into another Rscript or package but can stay here for now.
+
+```{r,packages}
+
+source("meth_functions.R")
+
+# Annotation
+anno <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+anno <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group",
+  "Islands_Name","Relation_to_Island")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+## Probe sets
+
+For each gene, extract out the probes.
+
+```{r,probesets}
+
+promoters <- grep("Prom",anno$Regulatory_Feature_Group)
+promoters <- anno[promoters,]
+gp <- anno[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+sets <- split(rep(names(gp2), lengths(gp2)), unlist(gp2))
+summary(unlist(lapply(sets,length)))
+
+```
+
+## Data import
+
+TODO- add explanation
+
+```{r,data}
+
+dir.create("GSE79257")
+
+ARRAY_SAMPLESHEET="GSE79257/GSE79257_Illumina_samplesheet.csv"
+# only download it if it is not present on the system
+if ( !file.exists(ARRAY_SAMPLESHEET ) ) {
+    DLFILE=paste(ARRAY_SAMPLESHEET,".gz",sep="")
+    download.file("https://ftp.ncbi.nlm.nih.gov/geo/series/GSE79nnn/GSE79257/suppl/GSE79257_Illumina_samplesheet.csv.gz",
+        destfile = DLFILE)
+    gunzip(DLFILE, overwrite = TRUE )
+}
+
+ARRAY_DATA="GSE79257/GSE79257_RAW.tar"
+# only download it if it is not present on the system
+if ( !dir.exists("GSE79257/IDAT") ) {
+  dir.create("GSE79257/IDAT")
+  if ( !file.exists(ARRAY_DATA)  ) {
+    system('wget -O idats.tar.gz "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE79257&format=file"')
+    file.rename("idats.tar.gz",ARRAY_DATA)
+    untar(exdir = "GSE79257/IDAT", tarfile = ARRAY_DATA)
+  }
+}
+
+baseDir <- "GSE79257"
+targets <- read.metharray.sheet(baseDir)
+head(targets)
+rgSet <- read.metharray.exp(targets = targets)
+
+```
+
+## Normalisation
+
+```{r,norm,fig.cap="Figure 1. Normalisation of bead-array data with SWAN."}
+
+mSet <- preprocessRaw(rgSet)
+mSetSw <- SWAN(mSet,verbose=FALSE)
+par(mfrow=c(1,2), cex=0.8)
+densityByProbeType(mSet[,1], main = "Raw")
+densityByProbeType(mSetSw[,1], main = "SWAN")
+
+```
+
+## Filter probes
+
+Here we are running parallel analyses, both including and excluding sex chromosomes.
+
+```{r,filterprobes}
+
+# include sex chromosomes
+detP <- detectionP(rgSet)
+keep <- rowSums(detP < 0.01) == ncol(rgSet)
+mSetSw <- mSetSw[keep,]
+
+# exclude SNP probes
+mSetSw <- mapToGenome(mSetSw)
+mSetSw_nosnp <- dropLociWithSnps(mSetSw)
+dim(mSetSw)
+dim(mSetSw_nosnp)
+mSetSw <- mSetSw_nosnp
+
+# exclude sex chromosomes
+keep <- !(featureNames(mSetSw) %in% ann450k$Name[ann450k$chr %in% c("chrX","chrY")])
+mSetFlt <- mSetSw[keep,]
+head(mSetFlt)
+dim(mSetFlt)
+
+```
+
+## Extracting Beta and M-values
+
+```{r,beta_m_vals}
+
+# include sex chromosomes
+meth <- getMeth(mSetSw)
+unmeth <- getUnmeth(mSetSw)
+Mval <- log2((meth + 100)/(unmeth + 100))
+beta <- getBeta(mSetSw)
+
+# exclude sex chromosomes
+meth <- getMeth(mSetFlt)
+unmeth <- getUnmeth(mSetFlt)
+Mval_flt <- log2((meth + 100)/(unmeth + 100))
+beta_flt <- getBeta(mSetFlt)
+
+```
+
+## MDS analysis
+
+[Multidimensional scaling(https://en.wikipedia.org/wiki/Multidimensional_scaling)  plot is a method used
+to identify the major sources of variation in a dataset. In the MDS plots below, I will be plotting the 
+first two dimensions (principal components [PCs]), with each sample label coloured either by ART 
+classification, sex, ART and sex, and then array chip and then sample plate. 
+
+We wil begin with MDS analysis including the sex chromosomes and then exclude them.
+
+First, let's quantify the contribution of the major principal components. with a scree plot, we can see 
+whether most of the variation is captured in the first two PCs or whether it is spread over more PCs.
+As we can see in Figure 2, the main source of variation is what is shown in PC1, and a much lesser
+extent on the other dimensions. Interestingly, excluding sex chromosomes does not seem to change the 
+relative contributions of PCs very much.
+
+```{r,scree,fig.cap="Figure 2. Screeplot shows contribution of top principal components to the overall variation in the experiment."}
+
+par(mfrow=c(2,1))
+myscree(Mval,main="incl sex chr")
+myscree(Mval_flt,main="excl sex chr")
+
+```
+
+Here is the MDS plot by ART classification (Figure 3). You can see that there are four clusters 
+of samples when MDS is projected this way. Natural birth infants (NAT) are mostly seen in the 
+two clusters at the bottom of the chart and the IVF frozen, IVF fresh and in intrauterine 
+insemination (IUI) appear mostly as two clusters at the top of the chart. IUI seem to have a
+few samples that appear as intermediate between the upper and lower clusters.
+
+When excluding sex chromosomes, the samples tend to form two clusters with the NAT samples on
+the left of the chart and others on the right of the chart. IUI and FH have some samples which
+have intermediate methylation, which points to a slight effect of freezing.
+
+```{r,mds1,fig.width = 8 ,fig.height = 8,fig.cap="Figure 3. MDS plot coloured by ART classification."}
+
+targets$sex <- factor(sapply(strsplit(targets$Sample_Group,"_"),"[[",2))
+targets$art <- factor(sapply(strsplit(targets$Sample_Group,"_"),"[[",1))
+sample_groups <- factor(targets$art)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$art))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by ART type")
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+mydist <- plotMDS(Mval, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
+mydist_flt <- plotMDS(Mval_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+
+```
+
+Next, we created an MDS plot by sex (Figure 4). The female samples appear in the two cluster on the 
+right hand side of the chart and the male sample on the left. This could be simply due to the
+chromosomal makeup of the male and female samples or could also be due to autosomes. To check this,
+the MDS plot needs to be repeated with autosomes excluded.
+
+When excluding the sex chromosomes, there is no clear clustering of the samples by sex. It appears 
+that ART classification is the dominant source of variation.
+
+```{r,mds2,fig.width = 8 ,fig.height = 8, fig.cap="Figure 4. MDS plot coloured by sex."}
+
+sample_groups <- factor(targets$sex)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$sex))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by sex")
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+plotMDS(mydist, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
+plotMDS(mydist_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+
+```
+
+For completeness, we show the MDS by ART and sex (Figure 5). It confirms the trends seen above where the 
+samples are split on the x axis by sex and on the y axis by ART classification.
+
+When sex chromosomes are removed, it is clear that ART classification is the dominant source of variance.
+
+```{r,mds3,fig.width = 8 ,fig.height = 8, fig.cap="Figure 5. MDS plot coloured by ART classification and sex."}
+
+sample_groups <- factor(targets$Sample_Group)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$Sample_Group))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by ART and sex")
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+plotMDS(mydist, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
+plotMDS(mydist_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+
+```
+
+To acertain whether technical factors like batch effects account for variance on the two main PCs, we
+create an MDS by array chip (Figure 6). There appears to be no relationship between array chip number
+and the top two PCs in the two MDS plots shown below.
+
+```{r,mds4,fig.width = 8 ,fig.height = 8, fig.cap="Figure 6. MDS plot coloured by array chip."}
+
+sample_groups <- factor(targets$Array)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$Array))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by array chip")
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+plotMDS(mydist, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
+plotMDS(mydist_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+
+```
+
+This was also performed for sample plate (Figure 7). It appears that the laboratory did not randomise
+samples over plates 1 and 2. For example the samples on plate 2 appear to be mostly NAT. This does
+not appear to be a major concern because NAT samples from plate 2 seem to cluster with NAT samples on
+plate 1 in both MDS plots.
+
+```{r,mds5,fig.width = 8 ,fig.height = 8, fig.cap="Figure 7. MDS plot coloured by sample plate."}
+
+sample_groups <- factor(targets$Sample_Plate)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$Sample_Plate))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by sample plate")
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+plotMDS(mydist, labels=targets$Sample_Name,col=colours,main="sex chromosomes included")
+plotMDS(mydist_flt, labels=targets$Sample_Name,col=colours,main="sex chromosomes excluded")
+
+```
+
+## Differential analysis
+
+There are several differential contrasts that would be of interest to us in this study:
+
+* __NAT (43) vs FH (38)__: to see what probes are affected by IVF where the embryos are not frozen.
+
+* __NAT (43) vs FZ (38)__: to see what probes are affected by IVF where the embryos are frozen.
+
+* __NAT (43) vs IUI (18)__: It will be interesting to see if the probes affected by IVF are also sensitive to
+IUI, a process that involves in utero injection of sperm.
+
+* __FH (38) vs FZ (38)__: to see whether freezing results in differential methylation.
+
+* __NAT (43) vs FH+FZ (76)__: if freezing results in only a small effect, then these groups can be 
+lumped together and provide more power to determine subtle effects of IVF.
+
+* __IUI (18) vs FH+FZ (76)__: It will be interesting to see whether the process of extracting eggs, culturing
+and fertilising in vitro has an effect that is separate to IUI.
+
+The differential analysis is centred around limma to identify differentially methylated probes. 
+TopConfects was also run to obtain the probes with the largest confident effect (topconfect).
+There are five outputs below:
+
+1. Volcano plot (limma result).
+
+2. Beeswarm plot (top probes by limma p-value).
+
+3. Heatmap (top probes by limma p-value).
+
+4. Beeswarm plot (top probes by topconfect ranking).
+
+5. Heatmap (top probes by topconfect ranking). (TODO)
+
+### NAT vs FH
+
+In this first analysis I will look at the effect of natural conception versus IVF (fresh).
+I have conducted the differential analysis in parallel, both includng and excluding sex
+chromosomes. Even when excluding autosomes, there are ~2000 probes on the autosomes that 
+show differential methylation between sexes. Based on this data and MDS analysis, we will
+now exclude sex chromosomes from downstream analysis.
+
+In the comparison of NAT and FH samples there were ~150k probes with differential methylation
+(FDR<0.05), with ~120k loss of methylation and ~30k with increased methylation.
+
+
+```{r,nat_vs_fh_incl, fig.width = 8 ,fig.height = 8 }
+
+# include sex chromosomes
+samplesheet <- subset(targets,art=="NAT" | art=="FH")
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+groups <- factor(samplesheet$art,levels=c("NAT","FH"))
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+
+top_nat_vs_fh_inc <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval,name="top_nat_vs_fh_inc",
+    myann=myann ,beta= beta)
+
+head(top_nat_vs_fh_inc$dma)
+head(top_nat_vs_fh_inc$dmr)
+top_nat_vs_fh_inc$comp
+top_nat_vs_fh_inc$cgi
+names(top_nat_vs_fh_inc)
+head(top_nat_vs_fh_inc$confects$table$name)
+
+```
+
+```{r,nat_vs_fh_excl, fig.width = 8 ,fig.height = 8}
+
+# exclude sex chromosomes
+samplesheet <- subset(targets,art=="NAT" | art=="FH")
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+groups <- factor(samplesheet$art,levels=c("NAT","FH"))
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+
+top_nat_vs_fh <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_fh",
+    myann=myann, beta=beta_flt)
+
+head(top_nat_vs_fh$dma)
+ head(top_nat_vs_fh$dmr)
+top_nat_vs_fh$comp
+top_nat_vs_fh$cgi
+write.table(top_nat_vs_fh$dma,file="estill_nat_vs_fh.tsv",sep="\t",quote=FALSE)
+
+```
+
+### NAT vs FZ
+
+In the comparison of NAT and FZ samples, there were ~130k probes with lower methylation
+and ~37k with higher methylation.
+
+```{r,nat_vs_fz, fig.width = 8 ,fig.height = 8}
+
+samplesheet <- subset(targets,art=="NAT" | art=="FZ")
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+groups <- factor(samplesheet$art,levels=c("NAT","FZ"))
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+
+top_nat_vs_fz <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_fz",
+    myann=myann, beta=beta_flt)
+
+head(top_nat_vs_fz$dma)
+head(top_nat_vs_fz$dmr)
+top_nat_vs_fz$comp
+write.table(top_nat_vs_fz$dma,file="estill_nat_vs_fz.tsv",sep="\t",quote=FALSE)
+
+```
+
+### NAT vs IUI
+
+In the comparison of NAT and IUI samples there were ~114k probes with reduced methylation
+and ~36k with higher methylation.
+
+```{r,nat_vs_iui, fig.width = 8 ,fig.height = 8}
+
+samplesheet <- subset(targets,art=="NAT" | art=="IUI")
+groups <- factor(samplesheet$art,levels=c("NAT","IUI"))
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+table(groups)
+top_nat_vs_iui <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_iui",
+    myann=myann, beta=beta_flt)
+
+head(top_nat_vs_iui$dma)
+head(top_nat_vs_iui$dmr)
+top_nat_vs_iui$comp
+write.table(top_nat_vs_iui$dma,file="estill_nat_vs_iui.tsv",sep="\t",quote=FALSE)
+
+```
+
+### FH vs FZ
+
+In the comparison of FH and FZ, only ~13k probes were differentially methylated with roughly
+half lower and higher. This suggests that freezing has only a small effect on methylation.
+
+```{r,fh_vs_fz, fig.width = 8 ,fig.height = 8}
+
+samplesheet <- subset(targets,art=="FH" | art=="FZ")
+groups <- factor(samplesheet$art,levels=c("FH","FZ"))
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+table(groups)
+top_fh_vs_fz <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval_flt,name="top_fh_vs_fz",
+    myann=myann, beta=beta_flt)
+
+head(top_fh_vs_fz$dma)
+head(top_fh_vs_fz$dmr)
+top_fh_vs_fz$comp
+write.table(top_fh_vs_fz$dma,file="estill_fh_vs_fz.tsv",sep="\t",quote=FALSE)
+
+```
+
+### NAT vs FH/FZ
+
+Because the effect of embryo freezing was found to be very small, we compared the NAT samples
+to all IVF samples (union of FH and FZ). There were ~200k probes with altered methylation
+~157k with lower methylation and ~50k higher. This result points to a major effect of IVF on
+infant genome methylation.
+
+```{r,nat_vs_fhfz, fig.width = 8 ,fig.height = 8}
+
+samplesheet <- subset(targets,art=="NAT" | art=="FH" | art=="FZ")
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+samplesheet$art <- gsub("FH","FX",samplesheet$art)
+samplesheet$art <- gsub("FZ","FX",samplesheet$art)
+groups <- factor(samplesheet$art,levels=c("NAT","FX"))
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+table(groups)
+top_nat_vs_fx <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval_flt,name="top_nat_vs_fx",
+    myann=myann, beta=beta_flt)
+
+head(top_nat_vs_fx$dma)
+head(top_nat_vs_fx$dmr)
+top_nat_vs_fx$comp
+write.table(top_nat_vs_fx$dma,file="estill_nat_vs_fx.tsv",sep="\t",quote=FALSE)
+
+```
+
+### IUI vs FH/FZ
+
+We know that IVF conceived infants have a major shift in genome methylation, but we don't know
+exactly whether it is caused by the IVF process itself. To eliminate whether it might be potentially
+caused by subfertility we looked at whether the differences between IUI and FH+FZ were large.
+
+We observe only ~1500 differentiallymethylated probes which is drastically smaller than the NAT vs
+FH/FZ comparison which suggests that the process of IVF accounts for only a small fraction (1%) of the 
+variance in methylation. The difference in methylomes could be due to other factors such as subfertility
+or even the effect of hormone therapy.
+
+```{r,iui_vs_fhfz, fig.width = 8 ,fig.height = 8}
+
+samplesheet <- subset(targets,art=="IUI" | art=="FH" | art=="FZ")
+samplesheet$Basename <- sapply(strsplit(samplesheet$Basename, "/"), "[[", 3)
+samplesheet$art <- gsub("FH","FX",samplesheet$art)
+samplesheet$art <- gsub("FZ","FX",samplesheet$art)
+groups <- factor(samplesheet$art,levels=c("IUI","FX"))
+sex <- factor(samplesheet$sex,levels=c("Male","Female"))
+table(groups)
+top_iui_vs_fx <- dm_analysis(samplesheet=samplesheet,
+    sex=sex,groups=groups,mx=Mval_flt,name="top_iui_vs_fx",
+    myann=myann, beta=beta_flt)
+
+head(top_iui_vs_fx$dma)
+head(top_iui_vs_fx$dmr)
+top_iui_vs_fx$comp
+write.table(top_iui_vs_fx$dma,file="estill_iui_vs_fx.tsv",sep="\t",quote=FALSE)
+
+```
+
+## Venn diagrams of the differential methylated probes for each contrast
+
+First, we look at the similarity of DMPs altered by fresh and frozen procedures. The overlap is very large.
+This indicates a high degree of similarity between the profiles.
+
+```{r,venn1,fig.cap="Comparison of probes altered by fresh and frozen IVF procedures", fig.width = 8 ,fig.height = 8}
+
+v1 <- list("FH up" = top_nat_vs_fh$dm_up , 
+           "FZ up" = top_nat_vs_fz$dm_up ,
+           "FH dn" = top_nat_vs_fh$dm_dn ,
+           "FZ dn" = top_nat_vs_fz$dm_dn )
+plot(euler(v1, shape = "ellipse"), quantities = TRUE)
+
+```
+
+Now to take a look at whether IUI is similar to IVF fresh and frozen. The overlap is just a large as 
+FH vs FZ.
+
+```{r,venn2,fig.cap="Comparison of probes altered by IUI, fresh and frozen IVF procedures", fig.width = 8 ,fig.height = 8}
+
+v2 <- list("FH up" = top_nat_vs_fh$dm_up , 
+           "FH dn" = top_nat_vs_fh$dm_dn ,
+           "IUI up" = top_nat_vs_iui$dm_up ,
+           "IUI dn" = top_nat_vs_iui$dm_dn )
+plot(euler(v2, shape = "ellipse"), quantities = TRUE)
+
+v3 <- list("FZ up" = top_nat_vs_fz$dm_up , 
+           "FZ dn" = top_nat_vs_fz$dm_dn ,
+           "IUI up" = top_nat_vs_iui$dm_up ,
+           "IUI dn" = top_nat_vs_iui$dm_dn )
+plot(euler(v3, shape = "ellipse"), quantities = FALSE)
+
+```
+
+## Spearman correlations of each contrast
+
+While the above Venn diagrams are suggestive of similarity between contrasts, the best 
+way to assess this is with correlation analysis. I have chosen Spearman as based on
+the directional p-value ranking metric.
+
+```{r,spearman, fig.width = 8 ,fig.height = 8}
+
+mycontrasts <- list("top_nat_vs_fh"=top_nat_vs_fh, "top_nat_vs_fz"=top_nat_vs_fz, "top_nat_vs_fx"=top_nat_vs_fx ,
+  "top_nat_vs_iui"=top_nat_vs_iui, "top_fh_vs_fz"=top_fh_vs_fz, "top_iui_vs_fx"=top_iui_vs_fx)
+
+myrnks <- lapply(X = mycontrasts, FUN = myranks)
+df <- join_all(myrnks,by="rn")
+rownames(df) <- df$rn
+df$rn=NULL
+colnames(df) <- names(mycontrasts)
+head(df)
+
+mycors <- cor(df,method = "spearman")
+
+my_palette <- colorRampPalette(c("darkred","red", "orange", "yellow","white"))(n = 25)
+heatmap.2(mycors,scale="none",margin=c(10, 10),cexRow=0.8,trace="none",cexCol=0.8,
+    col=my_palette,main="Spearman correlations")
+
+mycors
+
+```
+
+## References
+
+Estill MS, Bolnick JM, Waterland RA, Bolnick AD, Diamond MP, Krawetz SA.
+Assisted reproductive technology alters deoxyribonucleic acid methylation
+profiles in bloodspots of newborn infants. Fertil Steril. 2016 Sep
+1;106(3):629-639.e10. doi: 10.1016/j.fertnstert.2016.05.006. Epub 2016 Jun 8.
+PubMed PMID: 27288894.
+
+Phipson B, Maksimovic J, Oshlack A. missMethyl: an R package for analyzing
+data from Illumina's HumanMethylation450 platform. Bioinformatics. 2016 Jan
+15;32(2):286-8. doi: 10.1093/bioinformatics/btv560. Epub 2015 Sep 30. PubMed
+PMID: 26424855.
+
+Sofer T, Schifano ED, Hoppin JA, Hou L, Baccarelli AA. A-clustering: a novel
+method for the detection of co-regulated methylation regions, and regions
+associated with exposure. Bioinformatics. 2013 Nov 15;29(22):2884-91. doi:
+10.1093/bioinformatics/btt498. Epub 2013 Aug 29. PubMed PMID: 23990415; PubMed
+Central PMCID: PMC3810849.
+
+Tian Y, Morris TJ, Webster AP, Yang Z, Beck S, Feber A, Teschendorff AE.
+ChAMP: updated methylation analysis pipeline for Illumina BeadChips.
+Bioinformatics. 2017 Dec 15;33(24):3982-3984. doi: 10.1093/bioinformatics/btx513.
+PubMed PMID: 28961746; PubMed Central PMCID: PMC5860089.
+
+## Session info
+
+```{r,sessioninfo}
+
+sessionInfo()
+
+```
+END OF REPORT
