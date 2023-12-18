@@ -413,7 +413,6 @@ top_nat_vs_iui <- dm_analysis(samplesheet=samplesheet,
 head(top_nat_vs_iui$dma)
 head(top_nat_vs_iui$dmr)
 top_nat_vs_iui$comp
-write.table(top_nat_vs_iui$dma,file="estill_nat_vs_iui.tsv",sep="\t",quote=FALSE)
 
 saveRDS(top_nat_vs_iui,file="estill_nat_vs_iui.rds")
 

@@ -319,8 +319,6 @@ top_GIFT_vs_FX$cgi
 names(top_GIFT_vs_FX)
 head(top_GIFT_vs_FX$confects$table$name)
 
-write.table(top_GIFT_vs_FX$dma,file="novakovic_top_GIFT_vs_FX.tsv",sep="\t",quote=FALSE)
-
 saveRDS(top_GIFT_vs_FX,file="novakovic_GIFT_vs_FX.rds")
 
 ```
@@ -344,8 +342,6 @@ top_nat_vs_ART$comp
 top_nat_vs_ART$cgi
 names(top_nat_vs_ART)
 head(top_nat_vs_ART$confects$table$name)
-
-write.table(top_nat_vs_ART$dma,file="novakovic_top_nat_vs_ART.tsv",sep="\t",quote=FALSE)
 
 saveRDS(top_nat_vs_ART,file="novakovic_nat_vs_ART.rds")
 
