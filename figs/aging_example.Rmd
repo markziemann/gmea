@@ -1,0 +1,243 @@
+---
+title: "Aging and DNA meth (https://doi.org/10.1186/s13073-019-0693-z)"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we are looking at putting together the easiest possible workflow for the package.
+
+## Requirements
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("tictoc")
+  library("mitch")
+  library("gplots")
+  library("kableExtra")
+  library("beeswarm")
+  library("missMethyl")
+  library("gridExtra")
+  library("png")
+})
+
+CORES=16
+
+```
+
+## Load data
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+We'll also score the probes by the signed -log pvalue
+
+```{r,load1}
+
+if(!file.exists("aging_TableS1.csv")){
+  options(timeout=1000000)
+  download.file("https://datashare.ed.ac.uk/bitstream/handle/10283/3507/Supplementary_Table1_Limma_Age_EWAS_w1w3_Autosomes.csv?sequence=10&isAllowed=y",
+    destfile="aging_TableS1.csv")
+}
+
+x <- read.csv("aging_TableS1.csv",header=TRUE)
+head(x)
+y1 <- x[,"Discovery.t",drop=FALSE]
+rownames(y1) <- x$ProbeID
+y2 <- x[,"Replication.t",drop=FALSE]
+rownames(y2) <- x$ProbeID
+head(y1)
+head(y2)
+l <- list("Discovery"=y1,"Replication"=y2)
+str(l)
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+
+```
+
+## Curate the annotation
+
+Use all probes on the chip.
+
+```{r,anno1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+gt$probe <- as.character(gt$probe)
+dim(gt)
+str(gt)
+toc() #9.0s
+
+```
+
+## Merge gene name and aggregate
+
+This only works properly when mitch's mapGeneIds function uses `mean` to aggregate (line 69 of mitch.R).
+
+```{r,mg1}
+
+# mitch aggregate function needs to be changes to `mean`
+tic()
+m <- mitch_import(x=l,DEtype="prescored",geneTable=gt)
+toc() #9.0s
+head(m)
+
+```
+
+```{r,mitch1}
+
+tic()
+mres <- mitch_calc(x=m,genesets=gs_symbols,minsetsize=5,cores=16, priority="effect")
+toc() #11.45s
+
+mtable <- mres$enrichment_result
+head(mtable,20)
+
+```
+
+
+Rank-rank
+
+
+```{r,rankrank}
+
+mrank <- mres$ranked_profile
+
+palette <- colorRampPalette(c("white", "yellow", "orange", "red", "darkred", "black"))
+k <- MASS::kde2d(mrank[,1], mrank[,2])
+X_AXIS = "Discovery"
+Y_AXIS = "Replication"
+
+filled.contour(k, color.palette = palette, plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "rank-rank plot", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+
+
+pdf("fig6a.pdf")
+palette <- colorRampPalette(c("white", "yellow", "orange", "red", "darkred", "black"))
+k <- MASS::kde2d(mrank[,1], mrank[,2])
+X_AXIS = "Discovery"
+Y_AXIS = "Replication"
+
+filled.contour(k, color.palette = palette, plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "rank-rank plot", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+dev.off()
+
+```
+
+
+PW Scatter
+
+```{r,pwscatter}
+
+head(mtable)
+
+sig <- subset(mtable,p.adjustMANOVA<0.05)
+plot(mtable$s.Discovery,mtable$s.Replication,pch=19,col="gray",
+  xlab="Discovery",ylab="Replication",main="pathway enrichment score")
+points(sig$s.Discovery,sig$s.Replication,pch=19,col="red")
+abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+
+pdf("fig6b.pdf")
+plot(mtable$s.Discovery,mtable$s.Replication,pch=19,col="gray",
+  xlab="Discovery",ylab="Replication",main="pathway enrichment score")
+points(sig$s.Discovery,sig$s.Replication,pch=19,col="red")
+abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+dev.off()
+
+```
+
+Heatmap
+
+```{r,mheat}
+
+mt <- head(mtable,30)
+rownames(mt) <- mt$set
+mt <- mt[,c("s.Discovery","s.Replication")]
+rownames(mt) <- gsub("REACTOME_","",rownames(mt))
+rownames(mt) <- gsub("_"," ",rownames(mt))
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+heatmap.2(as.matrix(mt),scale="none",trace="none",margins=c(6,25),col=colfunc(25),cexRow=0.6,cexCol=1)
+
+pdf("fig6c.pdf")
+heatmap.2(as.matrix(mt),scale="none",trace="none",margins=c(6,25),col=colfunc(25),cexRow=0.6,cexCol=1)
+dev.off()
+
+```
+
+Example 2d
+
+```{r,example}
+
+det <- mres$detailed_sets$REACTOME_CREATION_OF_C4_AND_C2_ACTIVATORS
+
+k <- MASS::kde2d(det[,1], det[,2])
+X_AXIS = "Discovery"
+Y_AXIS = "Replication"
+
+XMAX=max(mrank[,1])
+XMIN=min(mrank[,1])
+YMAX=max(mrank[,2])
+YMIN=min(mrank[,2])
+
+filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
+      plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "Creation of C4 and C2 Activators", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+
+pdf("fig6d.pdf")
+filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
+      plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "Creation of C4 and C2 Activators", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+dev.off()
+
+```
+
+Make a html report and some charts.
+
+```{r,report1}
+
+mitch_report(res=mres,outfile="aging_mitchreport.html",overwrite=TRUE)
+mitch_plots(res=mres,outfile="aging_mitchcharts.pdf")
+
+```
+
+## Session information
+
+```{r,save}
+
+save.image("aging_example.Rdata")
+
+sessionInfo()
+
+```
