@@ -85,7 +85,6 @@ Now try for efficient method to incorporate into the package.
 
 library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 
-
 ```
 
 # AL GMEA: all probes
@@ -128,27 +127,6 @@ toc() #9.58s, 9.71, 9.69
 head(m)
 
 ```
-
-This is the alternative aggregation approach which is faster but more complicated.
-
-```{r,mg2,eval=FALSE}
-
-tic()
-anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","GencodeCompV12_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
-names(gp2) <- rownames(gp)
-gp2 <- lapply(gp2,unique)
-gt <- stack(gp2)
-colnames(gt) <- c("gene","probe")
-dim(gt)
-str(gt)
-toc() #2.44, 2.41, 2.41s
-
-```
-
-##  Run mitch analysis.
 
 ```{r,mitch1}
 
@@ -199,21 +177,20 @@ Using the UCSC_RefGene_Name field of the annotation and using TSS probes only.
 
 head(myann)
 table(anno$UCSC_RefGene_Group)
-table(unlist(strsplit(myann$GencodeCompV12_Group,";")))
+table(unlist(strsplit(myann$UCSC_RefGene_Group,";")))
 
 # promoter prep
 tic()
 keep=c("TSS200","TSS1500")
-annos <- strsplit(myann$GencodeCompV12_Group,";")
+annos <- strsplit(myann$UCSC_RefGene_Group,";")
 genes <- strsplit(myann$UCSC_RefGene_Name,";")
 keeps <- lapply(1:nrow(myann), function(i) {
   unique(genes[[i]][annos[[i]] %in% keep])
 })
 names(keeps) <- rownames(myann)
-#gt <- as.data.frame((unlist(gp2)))
 gt2 <- stack(gp2)
 colnames(gt2) <- c("gene","probe")
-toc() #20.37, 19.56, 21.23
+toc() #15.4 16.2 20.3
 
 tic()
 m2 <- mitch_import(x=dm,DEtype="limma",geneTable=gt2)
