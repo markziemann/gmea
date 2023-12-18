@@ -204,49 +204,13 @@ dim(betas)
 
 top_nat_vs_fh <- dm_analysis(samplesheet=samplesheet,
   sex=sex,groups=groups,mx=Mvals,name="top_nat_vs_fh",
-  myann=myann ,beta= betas) 
+  myann=myann ,beta= betas)
 head(top_nat_vs_fh$dma,10)
 head(top_nat_vs_fh$dmr,10)
 top_nat_vs_fh$comp
 top_nat_vs_fh$cgi
 names(top_nat_vs_fh)
 head(top_nat_vs_fh$confects$table$name)
-
-# Allele
-top_nat_vs_fh$dma$unmeth <- "T"
-top_nat_vs_fh$dma$meth <- "C"
-top_nat_vs_fh$fit$SE <- sqrt(top_nat_vs_fh$fit$s2.post) * top_nat_vs_fh$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_nat_vs_fh_metal <-top_nat_vs_fh$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_nat_vs_fh_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_nat_vs_fh$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_nat_vs_fh$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_nat_vs_fh_metal <- merge(top_nat_vs_fh_metal, fitCE)
-top_nat_vs_fh_metal <- merge(top_nat_vs_fh_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_nat_vs_fh_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_nat_vs_fh_metal, file="novakovic_top_nat_vs_fh_metal.tsv",
-  sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_nat_vs_fh$dma)
-head(top_nat_vs_fh$dmr)
-head(top_nat_vs_fh_metal)
 
 saveRDS(top_nat_vs_fh,file="novakovic_nat_vs_fh.rds")
 
@@ -274,42 +238,6 @@ top_nat_vs_fz$cgi
 names(top_nat_vs_fz)
 head(top_nat_vs_fz$confects$table$name)
 
-# Allele
-top_nat_vs_fz$dma$unmeth <- "T"
-top_nat_vs_fz$dma$meth <- "C"
-top_nat_vs_fz$fit$SE <- sqrt(top_nat_vs_fz$fit$s2.post) * top_nat_vs_fz$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_nat_vs_fz_metal <-top_nat_vs_fz$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_nat_vs_fz_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_nat_vs_fz$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_nat_vs_fz$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_nat_vs_fz_metal <- merge(top_nat_vs_fz_metal, fitCE)
-top_nat_vs_fz_metal <- merge(top_nat_vs_fz_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_nat_vs_fz_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_nat_vs_fz_metal, file="novakovic_top_nat_vs_fz_metal.tsv",
-  sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_nat_vs_fz$dma)
-head(top_nat_vs_fz$dmr)
-head(top_nat_vs_fz_metal)
-
 saveRDS(top_nat_vs_fz,file="novakovic_nat_vs_fz.rds")
 
 ```
@@ -335,42 +263,6 @@ top_nat_vs_GIFT$comp
 top_nat_vs_GIFT$cgi
 names(top_nat_vs_GIFT)
 head(top_nat_vs_GIFT$confects$table$name)
-
-# Allele
-top_nat_vs_GIFT$dma$unmeth <- "T"
-top_nat_vs_GIFT$dma$meth <- "C"
-top_nat_vs_GIFT$fit$SE <- sqrt(top_nat_vs_GIFT$fit$s2.post) * top_nat_vs_GIFT$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_nat_vs_GIFT_metal <-top_nat_vs_GIFT$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_nat_vs_GIFT_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_nat_vs_GIFT$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_nat_vs_GIFT$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_nat_vs_GIFT_metal <- merge(top_nat_vs_GIFT_metal, fitCE)
-top_nat_vs_GIFT_metal <- merge(top_nat_vs_GIFT_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_nat_vs_GIFT_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_nat_vs_GIFT_metal, file="novakovic_top_nat_vs_GIFT_metal.tsv",
-  sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_nat_vs_GIFT$dma)
-head(top_nat_vs_GIFT$dmr)
-head(top_nat_vs_GIFT_metal)
 
 saveRDS(top_nat_vs_GIFT,file="novakovic_nat_vs_GIFT.rds")
 
@@ -401,41 +293,6 @@ top_nat_vs_FX$cgi
 names(top_nat_vs_FX)
 head(top_nat_vs_FX$confects$table$name)
 
-# Allele
-top_nat_vs_FX$dma$unmeth <- "T"
-top_nat_vs_FX$dma$meth <- "C"
-top_nat_vs_FX$fit$SE <- sqrt(top_nat_vs_FX$fit$s2.post) * top_nat_vs_FX$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_nat_vs_FX_metal <-top_nat_vs_FX$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_nat_vs_FX_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_nat_vs_FX$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_nat_vs_FX$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_nat_vs_FX_metal <- merge(top_nat_vs_FX_metal, fitCE)
-top_nat_vs_FX_metal <- merge(top_nat_vs_FX_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_nat_vs_FX_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_nat_vs_FX_metal, file="novakovic_top_nat_vs_FX_metal.tsv",sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_nat_vs_FX$dma)
-head(top_nat_vs_FX$dmr)
-head(top_nat_vs_FX_metal)
-
 saveRDS(top_nat_vs_FX,file="novakovic_nat_vs_FX.rds")
 
 ```
@@ -464,41 +321,6 @@ head(top_GIFT_vs_FX$confects$table$name)
 
 write.table(top_GIFT_vs_FX$dma,file="novakovic_top_GIFT_vs_FX.tsv",sep="\t",quote=FALSE)
 
-# Allele
-top_GIFT_vs_FX$dma$unmeth <- "T"
-top_GIFT_vs_FX$dma$meth <- "C"
-top_GIFT_vs_FX$fit$SE <- sqrt(top_GIFT_vs_FX$fit$s2.post) * top_GIFT_vs_FX$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_GIFT_vs_FX_metal <-top_GIFT_vs_FX$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_GIFT_vs_FX_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_GIFT_vs_FX$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_GIFT_vs_FX$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_GIFT_vs_FX_metal <- merge(top_GIFT_vs_FX_metal, fitCE)
-top_GIFT_vs_FX_metal <- merge(top_GIFT_vs_FX_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_GIFT_vs_FX_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_GIFT_vs_FX_metal, file="novakovic_top_GIFT_vs_FX_metal.tsv",sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_GIFT_vs_FX$dma)
-head(top_GIFT_vs_FX$dmr)
-head(top_GIFT_vs_FX_metal)
-
 saveRDS(top_GIFT_vs_FX,file="novakovic_GIFT_vs_FX.rds")
 
 ```
@@ -525,41 +347,6 @@ head(top_nat_vs_ART$confects$table$name)
 
 write.table(top_nat_vs_ART$dma,file="novakovic_top_nat_vs_ART.tsv",sep="\t",quote=FALSE)
 
-# Allele
-top_nat_vs_ART$dma$unmeth <- "T"
-top_nat_vs_ART$dma$meth <- "C"
-top_nat_vs_ART$fit$SE <- sqrt(top_nat_vs_ART$fit$s2.post) * top_nat_vs_ART$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_nat_vs_ART_metal <-top_nat_vs_ART$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_nat_vs_ART_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_nat_vs_ART$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_nat_vs_ART$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_nat_vs_ART_metal <- merge(top_nat_vs_ART_metal, fitCE)
-top_nat_vs_ART_metal <- merge(top_nat_vs_ART_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_nat_vs_ART_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_nat_vs_ART_metal, file="novakovic_top_nat_vs_ART_metal.tsv",sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_nat_vs_ART$dma)
-head(top_nat_vs_ART$dmr)
-head(top_nat_vs_ART_metal)
-
 saveRDS(top_nat_vs_ART,file="novakovic_nat_vs_ART.rds")
 
 ```
@@ -585,90 +372,7 @@ top_fh_vs_fz$cgi
 names(top_fh_vs_fz)
 head(top_fh_vs_fz$confects$table$name)
 
-# Allele
-top_fh_vs_fz$dma$unmeth <- "T"
-top_fh_vs_fz$dma$meth <- "C"
-top_fh_vs_fz$fit$SE <- sqrt(top_fh_vs_fz$fit$s2.post) * top_fh_vs_fz$fit$stdev.unscaled
-
-# Extract required columns from dma
-top_fh_vs_fz_metal <-top_fh_vs_fz$dma[,c("Row.names", "meth", "unmeth", "AveExpr", "P.Value")]
-head(top_fh_vs_fz_metal)
-
-# Convert fit outputs to dataframes
-fitCE <- as.data.frame(top_fh_vs_fz$fit$coefficients)
-fitCE$Row.names <- row.names(fitCE)
-fitCE <- fitCE[,c(4,3)]
-names(fitCE)[2]<- "coefficient"
-
-fitSE <- as.data.frame(top_fh_vs_fz$fit$SE)
-fitSE$Row.names <- row.names(fitSE)
-fitSE <- fitSE[,c(4,3)]
-names(fitSE)[2]<- "SE"
-
-# Merge Datasets
-top_fh_vs_fz_metal <- merge(top_fh_vs_fz_metal, fitCE)
-top_fh_vs_fz_metal <- merge(top_fh_vs_fz_metal, fitSE)
-
-# Number of effective participants
-Neff = 4/sum(1/table(groups))
-top_fh_vs_fz_metal$N <- Neff
-
-# Output for Meta-analysis
-write.table(top_fh_vs_fz_metal, file="novakovic_top_fh_vs_fz_metal.tsv",sep="\t",quote=FALSE, row.names = FALSE)
-
-head(top_fh_vs_fz$dma)
-head(top_fh_vs_fz$dmr)
-head(top_fh_vs_fz_metal)
-
 saveRDS(top_fh_vs_fz,file="novakovic_fh_vs_fz.rds")
-
-```
-
-## Venn diagrams of the differential methylated probes for each contrast
-
-```{r,venn1,fig.cap="Comparison of probes altered by fresh and frozen IVF procedures"}
-
-v1 <- list("FH up" = top_nat_vs_fh$dm_up , 
-           "FZ up" = top_nat_vs_fz$dm_up ,
-           "FH dn" = top_nat_vs_fh$dm_dn ,
-           "FZ dn" = top_nat_vs_fz$dm_dn )
-plot(euler(v1, shape = "ellipse"), quantities = TRUE)
-
-```
-
-```{r,venn2,fig.cap="Comparison of probes altered by GIFT, fresh and frozen IVF procedures"}
-
-v2 <- list("FH up" = top_nat_vs_fh$dm_up , 
-           "FH dn" = top_nat_vs_fh$dm_dn ,
-           "GIFT up" = top_nat_vs_GIFT$dm_up ,
-           "GIFT dn" = top_nat_vs_GIFT$dm_dn )
-plot(euler(v2, shape = "ellipse"), quantities = TRUE)
-
-v3 <- list("FZ up" = top_nat_vs_fz$dm_up , 
-           "FZ dn" = top_nat_vs_fz$dm_dn ,
-           "GIFT up" = top_nat_vs_GIFT$dm_up ,
-           "GIFT dn" = top_nat_vs_GIFT$dm_dn )
-plot(euler(v3, shape = "ellipse"), quantities = FALSE)
-
-```
-
-## Spearman correlations of each contrast
-
-```{r,spearman}
-
-mycontrasts <- list("top_nat_vs_fh"=top_nat_vs_fh, "top_nat_vs_fz"=top_nat_vs_fz, "top_nat_vs_FX"=top_nat_vs_FX ,
-  "top_nat_vs_GIFT"=top_nat_vs_GIFT, "top_fh_vs_fz"=top_fh_vs_fz, "top_GIFT_vs_FX"=top_GIFT_vs_FX, "top_nat_vs_ART"=top_nat_vs_ART)
-myrnks <- lapply(X = mycontrasts, FUN = myranks)
-df <- join_all(myrnks,by="rn")
-rownames(df) <- df$rn
-df$rn=NULL
-colnames(df) <- names(mycontrasts)
-head(df)
-mycors <- cor(df,method = "spearman")
-my_palette <- colorRampPalette(c("darkred","red", "orange", "yellow","white"))(n = 25)
-heatmap.2(mycors,scale="none",margin=c(10, 10),cexRow=0.8,trace="none",cexCol=0.8,
-    col=my_palette,main="Spearman correlations")
-mycors
 
 ```
 
