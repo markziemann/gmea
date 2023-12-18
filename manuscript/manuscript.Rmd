@@ -289,15 +289,15 @@ pathways in real cancer data.
 ## LAM and GSA integrative analysis with RNA expression
 
 Associations of epigenetic marks with gene expression are of great interest for understanding disease processes.
-Matching RNA-seq datasets were analysed and we conducted enrichment analysis of gene expression together with
+Matching tumour-normal RNA-seq datasets were analysed and we conducted enrichment analysis of gene expression together with
 DNA methylation.
-There were 12,386 differentially expressed genes, with 7,418 and 4,968 up- and down-regulated in the tumour group respectively.
-At the pathway level there were 318 and 193 up- and down-regulated Reactome pathways.
+There were 12,386 differentially expressed genes (FDR<0.05), with 7,418 and 4,968 up- and down-regulated in the tumour group respectively.
+At the pathway level there were 318 and 193 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
 As the context of gene methylation is important in influencing gene expression, promoter and gene body methylation
 were considered separately.
 In promoters, GSA identified 15 and 8 pathways with higher and lower methylation respectively, while at gene bodies, there were were 17 and 67
-pathways with higher and lower methylation respectively.
-Using LAM, there were 133 and 12 pathways identified with higher and lower promoter methylation respectively, while there were 236 and 35 with higher and lower gene body methylation respectively.
+pathways with higher and lower methylation respectively (FDR<0.05).
+Using LAM, there were 133 and 12 pathways identified with higher and lower promoter methylation respectively, while there were 236 and 35 with higher and lower gene body methylation respectively (FDR<0.05).
 The relative overlap between promoter and gene body results was larger for LAM pathway sets as compared to GSA (*Figure 5A,B*).
 There was no observed overlap between GSA methylation-based pathways and gene expression pathways (*Figure 5A*), but there were some
 overlaps between pathways identified with LAM based promoter and gene body methylation and gene expression (*Figure 5B*).
