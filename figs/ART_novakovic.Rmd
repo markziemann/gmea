@@ -672,45 +672,6 @@ mycors
 
 ```
 
-## Mitch analysis
-
-```{r,mitch1d}
-
-library (mitch) 
-
-if (! file.exists("ReactomePathways.gmt") ) {
-  download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", 
-  destfile="ReactomePathways.gmt.zip")
-  unzip("ReactomePathways.gmt.zip",overwrite = TRUE)
-}
-
-genesets <- gmt_import("ReactomePathways.gmt") 
-
-top_nat_vs_fh_mitch  <- run_mitch_1d(dma=top_nat_vs_fh$dma,name="nat_vs_fh") 
-head(top_nat_vs_fh_mitch,20)
-
-top_nat_vs_fz_mitch  <- run_mitch_1d(dma=top_nat_vs_fz$dma,name="nat_vs_fz")
-head(top_nat_vs_fz_mitch,20)
-
-top_nat_vs_GIFT_mitch  <- run_mitch_1d(dma=top_nat_vs_GIFT$dma,name="nat_vs_GIFT")
-head(top_nat_vs_GIFT_mitch,20)
-
-top_nat_vs_FX_mitch  <- run_mitch_1d(dma=top_nat_vs_FX$dma,name="nat_vs_FX")
-head(top_nat_vs_FX_mitch,20)
-
-top_GIFT_vs_FX_mitch  <- run_mitch_1d(dma=top_GIFT_vs_FX$dma,name="GIFT_vs_FX")
-head(top_GIFT_vs_FX_mitch,20)
-
-top_nat_vs_ART_mitch  <- run_mitch_1d(dma=top_nat_vs_ART$dma,name="nat_vs_ART")
-head(top_nat_vs_ART_mitch,20)
-
-top_fh_vs_fz_mitch  <- run_mitch_1d(dma=top_fh_vs_fz$dma,name="fh_vs_fz")
-head(top_fh_vs_fz_mitch,20)
-
-```
-
-
-
 ## SessionInfo
 
 ```{r,session}
