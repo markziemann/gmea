@@ -194,15 +194,15 @@ PW Scatter
 head(mtable)
 
 sig <- subset(mtable,p.adjustMANOVA<0.05)
-plot(mtable$s.Discovery,mtable$s.Replication,pch=19,col="gray",
+plot(mtable$s.Estill,mtable$s.Novakovic,pch=19,col="gray",
   xlab="Estill 450k",ylab="Novakovic EPIC",main="pathway enrichment score")
-points(sig$s.Discovery,sig$s.Replication,pch=19,col="red")
+points(sig$s.Estill,sig$s.Novakovic,pch=19,col="red")
 abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
 
 pdf("fig7b.pdf")
-plot(mtable$s.Discovery,mtable$s.Replication,pch=19,col="gray",
+plot(mtable$s.Estill,mtable$s.Novakovic,pch=19,col="gray",
   xlab="Estill 450k",ylab="Novakovic EPIC",main="pathway enrichment score")
-points(sig$s.Discovery,sig$s.Replication,pch=19,col="red")
+points(sig$s.Estill,sig$s.Novakovic,pch=19,col="red")
 abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
 dev.off()
 
@@ -233,8 +233,8 @@ Example 2d
 det <- mres$detailed_sets$REACTOME_SENSORY_PERCEPTION
 
 k <- MASS::kde2d(det[,1], det[,2])
-X_AXIS = "Discovery"
-Y_AXIS = "Replication"
+X_AXIS = "Estill 450k"
+Y_AXIS = "Novakovic EPIC"
 
 XMAX=max(mrank[,1])
 XMIN=min(mrank[,1])
@@ -244,7 +244,7 @@ YMIN=min(mrank[,2])
 filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
       plot.title = {
         abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
-        title(main = "Creation of C4 and C2 Activators", xlab = X_AXIS,
+        title(main = "Reactome sensory perception", xlab = X_AXIS,
         ylab = Y_AXIS)
     })
 
@@ -252,7 +252,7 @@ pdf("fig7d.pdf")
 filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
       plot.title = {
         abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
-        title(main = "Creation of C4 and C2 Activators", xlab = X_AXIS,
+        title(main = "Reactome sensory perception", xlab = X_AXIS,
         ylab = Y_AXIS)
     })
 dev.off()
@@ -263,8 +263,8 @@ Make a html report and some charts.
 
 ```{r,report1}
 
-mitch_report(res=mres,outfile="aging_mitchreport.html",overwrite=TRUE)
-mitch_plots(res=mres,outfile="aging_mitchcharts.pdf")
+mitch_report(res=mres,outfile="art_mitchreport.html",overwrite=TRUE)
+mitch_plots(res=mres,outfile="art_mitchcharts.pdf")
 
 ```
 
@@ -272,7 +272,7 @@ mitch_plots(res=mres,outfile="aging_mitchcharts.pdf")
 
 ```{r,save}
 
-save.image("aging_example.Rdata")
+save.image("art_example.Rdata")
 
 sessionInfo()
 
