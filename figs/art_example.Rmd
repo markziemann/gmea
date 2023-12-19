@@ -214,7 +214,7 @@ Heatmap
 
 mt <- head(mtable,30)
 rownames(mt) <- mt$set
-mt <- mt[,c("Estill 450k","Novakovic EPIC")]
+mt <- mt[,c("s.Estill","s.Novakovic")]
 rownames(mt) <- gsub("REACTOME_","",rownames(mt))
 rownames(mt) <- gsub("_"," ",rownames(mt))
 colfunc <- colorRampPalette(c("blue", "white", "red"))
