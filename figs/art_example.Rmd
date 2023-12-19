@@ -1,0 +1,279 @@
+---
+title: "DNA meth and IVF"
+author: "The GMEA team and ART epigenetics team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we are looking at putting together the easiest possible workflow for the package.
+
+We will analyze methylation data for IVF conceived infants compared to naturally conceived.
+
+Data from:
+
+1. Estill MS, Bolnick JM, Waterland RA, Bolnick AD, Diamond MP, Krawetz SA. Assisted reproductive technology alters deoxyribonucleic acid methylation profiles in bloodspots of newborn infants. Fertil Steril. 2016 Sep 1;106(3):629-639.e10. doi: 10.1016/j.fertnstert.2016.05.006. Epub 2016 Jun 8. PMID: 27288894.
+
+2. Novakovic B, Lewis S, Halliday J, Kennedy J, Burgner DP, Czajko A, Kim B, Sexton-Oates A, Juonala M, Hammarberg K, Amor DJ, Doyle LW, Ranganathan S, Welsh L, Cheung M, McBain J, McLachlan R, Saffery R. Assisted reproductive technologies are associated with limited epigenetic variation at birth that largely resolves by adulthood. Nat Commun. 2019 Sep 2;10(1):3922. doi: 10.1038/s41467-019-11929-9. PMID: 31477727; PMCID: PMC6718382.
+
+## Requirements
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("tictoc")
+  library("mitch")
+  library("gplots")
+  library("kableExtra")
+  library("beeswarm")
+  library("missMethyl")
+  library("gridExtra")
+  library("png")
+})
+
+CORES=16
+
+```
+
+## Load data
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+We'll also score the probes by the signed -log pvalue
+
+```{r,load1}
+
+# estill 2016 450k
+art1 <- readRDS("estill_nat_vs_fh.rds")
+art1 <- art1[[1]]
+rownames(art1) <- art1$Row.names
+str(art1)
+
+# novakovic 2019 EPIC
+art2 <- readRDS("novakovic_nat_vs_fh.rds")
+art2 <-art2[[1]]
+rownames(art2) <- art2$Row.names
+str(art2)
+
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+
+```
+
+## Curate the annotation
+
+Use all probes on the chip. Start with 450k chip.
+
+```{r,anno1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt1 <- stack(gp2)
+colnames(gt1) <- c("gene","probe")
+gt1$probe <- as.character(gt1$probe)
+dim(gt1)
+str(gt1)
+length(unique(gt1$gene))
+toc() #6.3s
+
+```
+
+Now EPIC chip.
+
+```{r,anno2}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt2 <- stack(gp2)
+colnames(gt2) <- c("gene","probe")
+gt2$probe <- as.character(gt2$probe)
+dim(gt2)
+str(gt2)
+length(unique(gt2$gene))
+toc() #10.6s
+
+```
+
+## Import for mitch
+
+```{r,import1}
+
+m1 <- mitch_import(x=art1,DEtype="limma",geneTable=gt1)
+dim(m1)
+head(m1)
+
+m2 <- mitch_import(x=art2,DEtype="limma",geneTable=gt2)
+dim(m2)
+head(m2)
+
+m <- merge(m1,m2,by=0)
+rownames(m) <- m[,1]
+m[,1]=NULL
+colnames(m) <- c("Estill","Novakovic")
+dim(m)
+head(m)
+
+```
+
+## Run mitch
+
+```{r,mitch1}
+
+tic()
+mres <- mitch_calc(x=m,genesets=gs_symbols,minsetsize=5,cores=16, priority="effect")
+toc() #11.45s
+
+mtable <- mres$enrichment_result
+sig <- subset(mtable,p.adjustMANOVA<0.05)
+head(sig,20)
+
+```
+
+
+Rank-rank
+
+
+```{r,rankrank}
+
+mrank <- mres$ranked_profile
+
+palette <- colorRampPalette(c("white", "yellow", "orange", "red", "darkred", "black"))
+k <- MASS::kde2d(mrank[,1], mrank[,2])
+X_AXIS = "Estill 450k"
+Y_AXIS = "Novakovic EPIC"
+
+filled.contour(k, color.palette = palette, plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "rank-rank plot", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+
+
+pdf("fig7a.pdf")
+palette <- colorRampPalette(c("white", "yellow", "orange", "red", "darkred", "black"))
+k <- MASS::kde2d(mrank[,1], mrank[,2])
+X_AXIS = "Estill 450k"
+Y_AXIS = "Novakovic EPIC"
+
+filled.contour(k, color.palette = palette, plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "rank-rank plot", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+dev.off()
+
+```
+
+
+PW Scatter
+
+```{r,pwscatter}
+
+head(mtable)
+
+sig <- subset(mtable,p.adjustMANOVA<0.05)
+plot(mtable$s.Discovery,mtable$s.Replication,pch=19,col="gray",
+  xlab="Estill 450k",ylab="Novakovic EPIC",main="pathway enrichment score")
+points(sig$s.Discovery,sig$s.Replication,pch=19,col="red")
+abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+
+pdf("fig7b.pdf")
+plot(mtable$s.Discovery,mtable$s.Replication,pch=19,col="gray",
+  xlab="Estill 450k",ylab="Novakovic EPIC",main="pathway enrichment score")
+points(sig$s.Discovery,sig$s.Replication,pch=19,col="red")
+abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+dev.off()
+
+```
+
+Heatmap
+
+```{r,mheat}
+
+mt <- head(mtable,30)
+rownames(mt) <- mt$set
+mt <- mt[,c("Estill 450k","Novakovic EPIC")]
+rownames(mt) <- gsub("REACTOME_","",rownames(mt))
+rownames(mt) <- gsub("_"," ",rownames(mt))
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+heatmap.2(as.matrix(mt),scale="none",trace="none",margins=c(6,25),col=colfunc(25),cexRow=0.6,cexCol=1)
+
+pdf("fig7c.pdf")
+heatmap.2(as.matrix(mt),scale="none",trace="none",margins=c(6,25),col=colfunc(25),cexRow=0.6,cexCol=1)
+dev.off()
+
+```
+
+Example 2d
+
+```{r,example}
+
+det <- mres$detailed_sets$REACTOME_SENSORY_PERCEPTION
+
+k <- MASS::kde2d(det[,1], det[,2])
+X_AXIS = "Discovery"
+Y_AXIS = "Replication"
+
+XMAX=max(mrank[,1])
+XMIN=min(mrank[,1])
+YMAX=max(mrank[,2])
+YMIN=min(mrank[,2])
+
+filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
+      plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "Creation of C4 and C2 Activators", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+
+pdf("fig7d.pdf")
+filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
+      plot.title = {
+        abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
+        title(main = "Creation of C4 and C2 Activators", xlab = X_AXIS,
+        ylab = Y_AXIS)
+    })
+dev.off()
+
+```
+
+Make a html report and some charts.
+
+```{r,report1}
+
+mitch_report(res=mres,outfile="aging_mitchreport.html",overwrite=TRUE)
+mitch_plots(res=mres,outfile="aging_mitchcharts.pdf")
+
+```
+
+## Session information
+
+```{r,save}
+
+save.image("aging_example.Rdata")
+
+sessionInfo()
+
+```
