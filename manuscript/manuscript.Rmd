@@ -335,9 +335,39 @@ For example the complement pathway is associated with aging and in this analysis
 (D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes in both discovery and replication studies.
 ](../figs/fig6.png)
 
-## Exploration of methylation pathways altered by ART
+## Exploration of methylation pathways altered by IVF
 
-Two way analysis.
+Another application for this method is the joint pathway enrichment analysis of studies conducted with different
+array systems.
+Epigenetic differences between infants conceived naturally and with assisted reproductive technologies have been the subject of studies since 20XX (eg: REFS).
+Two of the highest powered studies are Estill 2016 which used the 450K array and Novakovic 2019 study which used
+the EPIC array.
+Joint enrichment analysis can uncover pathways that are common or different between these studies and illuminate
+the biological differences between conception groups.
+For this example we focused on comparing naturally conceived infants to those conceived with in vitro fertilisation with fresh embryo transfer.
+The Estill dataset on 450k had 418,833 probes that met the quality criteria (Natural n=43; IVF n=38).
+Of these, 149,552 probes showed statistical significant differential methylation (FDR<0.05), of which 28,637 and 120,885 exhibited higher or lower methylation in the IVF group respectively.
+The Novakovic dataset on EPIC array had 810,518 probes that met the filtering criteria (n=133).
+Of these, 5,491 were statistically significant (FDR<0.05) with 1,326 and 4,165 exhibited higher or lower methylation in the IVF group respectively.
+After summarisation to the gene level, the Estill dataset on 450k array describes 19,951 genes, while the
+Novakovic dataset on EPIC array describes 26,150 genes.
+There were 19,942 genes common to both platforms.
+The rank-rank plot indicates a high degree of overlap overall, and interestingly shows a trend of more genes having lower methylation level in the IVF group (**Figure 7A**).
+A scatterplot of pathway enrichment scores indicates a high degree of agreement between these studies at the level of pathways despite they being conducted years apart and analysed with different array systems (**Figure 7B**).
+The heatmap shows a high degree of agreement with pathways with a higher level of methylation in the IVF groups,
+while pathways with overall lower methylation in the IVF group showed some variability in enrichment scores
+between studies (**Figure 7C**).
+We were interested in which pathways had consistently lower methylation in the IVF group and identified the Reactome pathway "Nuclear kinase and transcription factor activation events" which had enrichment scores of -0.26 in both contrasts and a MANOVA FDR value of 0.002 (**Figure 7D**).
+Top ranked genes from this pathway include *FOSL1*, *JUNB*, *ASCL1* and *ID1*.
+A loss of methylation of these genes could contribute to disorders of development.
+Taken together, this analysis shows that LAM method can be used to compare enrichment of independent studies
+conducted with 450k and EPIC arrays.
+
+![Figure 7. Pathway level DNA methylation differences in natural and IVF conceived infants. (A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (450k) and Novakovic (EPIC) studies.
+(B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates higher methylation and blue shows lower methylation.
+(D) An example of a pathway identified with this joint enrichment analysis method, "Nuclear kinase and transcription factor activation" shows lower methylation of member genes in both Estill and Novakovic studies.
+](../figs/fig7.png)
 
 ## Discussion
 
