@@ -230,7 +230,15 @@ Example 2d
 
 ```{r,example}
 
-det <- mres$detailed_sets$REACTOME_SENSORY_PERCEPTION
+tic()
+mres <- mitch_calc(x=m,genesets=gs_symbols,minsetsize=5,cores=16, priority="effect")
+toc() #11.45s
+
+mtable <- mres$enrichment_result
+sig <- subset(mtable,p.adjustMANOVA<0.05)
+head(sig,20)
+
+det <- mres$detailed_sets$REACTOME_NGF_STIMULATED_TRANSCRIPTION
 
 k <- MASS::kde2d(det[,1], det[,2])
 X_AXIS = "Estill 450k"
@@ -244,7 +252,7 @@ YMIN=min(mrank[,2])
 filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
       plot.title = {
         abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
-        title(main = "Reactome sensory perception", xlab = X_AXIS,
+        title(main = "Reactome NGF-stimulated transcription", xlab = X_AXIS,
         ylab = Y_AXIS)
     })
 
@@ -252,7 +260,7 @@ pdf("fig7d.pdf")
 filled.contour(k, color.palette = palette, xlim=c(XMIN,XMAX), ylim=c(YMIN,YMAX),
       plot.title = {
         abline(v = 0, h = 0, lty = 2, lwd = 2, col = "blue")
-        title(main = "Reactome sensory perception", xlab = X_AXIS,
+        title(main = "Reactome NGF-stimulated transcription", xlab = X_AXIS,
         ylab = Y_AXIS)
     })
 dev.off()
