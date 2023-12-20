@@ -74,30 +74,59 @@ epigenetics.
 ## Introduction
 
 * DNA methylation is the most widely studied epigenetic mark, for its role in development and
-disease.
+disease [@Robertson2005-tu].
 
 * Many hundreds of epigenome-wide association studies (EWASs) are conducted each year to understand DNA
-methylation patterns in disease and other contexts.
+methylation patterns in disease and other contexts [@Li2019-og].
+
 
 * Infinium arrays remain the preferred platform for EWASs due to low cost and analytical simplicity
-as compared to high throughput methylation sequencing.
+as compared to high throughput methylation sequencing [@Wei2021-qj].
 
 * Infinium arrays typically have multiple probes per gene in different locations including promoters,
-CpG islands, gene bodies and enhancers, which complicates downstream functional enrichment analysis,
+CpG islands, gene bodies and enhancers [@Pidsley2016-ix], which complicates downstream functional enrichment analysis,
 otherwise known as pathway analysis or gene set enrichment analysis.
 
 * Enrichment analysis comes in two popular types; over-representation analysis (ORA) and functional
-class scoring (FCS).
+class scoring (FCS) [@Khatri2012-qy].
+A third type of enrichment analysis called pathway topology improves upon other methods with more sophisticated
+modelling of gene network activations, but these are yet to be adopted widely [@Xie2021-py].
 
 In ORA, genes with probes that meet an arbitrary significance threshold are selected and compared
 to a background list consisting of genes measured in the assay.
 The test seeks to identify sets of genes (eg: ontologies, pathways) that are over-represented in the
-gene list of interest relative to the background.
+gene list of interest relative to the background [@Tavazoie1999-ng].
 
-Functional class scoring takes a different approach by ranking all detected genes by a differential
+FCS takes a different approach by ranking all detected genes by a differential
 regulation score (eg: fold change, confident effect size) followed by a test to assess whether each
-set of genes has distribution of scores that is different to the null.
-Currently there are no specialised approaches for the application of FCS to Infinium array data.
+set of genes has distribution of scores that is different to the null [@Subramanian2005-ar].
+
+The `gsameth()` function of the `missMethyl` package is the state-of-the-art methods for ORA of infinium methylation array
+data as it addresses issues related to probes belonging to more than one gene and the fact that genes can have multiple
+probes [@Maksimovic2021-ur].
+As gsameth is an ORA method, results dependent strongly on the significance threshold used [@Ren2019-mr], and also
+on the proportion of probes that meet this threshold.
+
+FCS methods `ebGSEA` and `methylGSA` have been applied to EWAS data and are suggested to have better sensitivity to
+determine subtle associations between pathways and differential methylation [@Dong2019-np;@Ren2019-mr].
+The ebGSEA tool uses an empirical Bayes modeling approach followed by a one-tailed nonparametric test for gene set
+enrichment [@Dong2019-np].
+The `methylGSA` package implements two different approaches.
+Firstly, the `methylRRA` function which uses robust rank aggregation for detecting differentially methylated genes taking
+into consideration the variable number of probes followed by an FCS test based on z-scores [@Ren2019-mr].
+Secondly, `methylglm` uses a logistic regression approach to model differential methylation for genes inside and outside eachgene set [@Ren2019-mr].
+These methods are indeed more sensitive than ORA approaches, but as they are based on one-tailed tests irrespective of
+direction of methylation change, it limits the utility for downstream interpretation of the importance of methylation
+changes on genomic regulation.
+Neither gsameth, ebGSEA nor methylGSA report computed enrichment scores, which hinders downstream interpretation, as the
+enrichment score is a useful surrogate for effect size.
+Without an enrichment score, users are limited to using statistical significance values to prioritise results, which
+biases towards large gene sets that have non-specific biological functions.
+This can lead to end users over-looking smaller pathways with more specific biological functions that have larger effect
+sizes, as those p-values are relatively larger.
+
+Here we aim to develop and evaluate methods for two-tailed FCS of Infinium methylation array data that reports enrichment
+scores.
 
 * Here, we systematically evaluate different approaches to apply FCS to Infinium array.
 
@@ -216,11 +245,14 @@ For this analysis, Reactome gene sets were used.
 Subsequently, to generate the mitch heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
 promoter and gene body methylation together, prioritising the results by s-distance, a surrogate measure of effect size.
 
+
+### Pathway-level differential methylation in aging
+In order to deminstrate the utility of the LAM method for 
+(2) the association of elevated plasma homocysteine with methylation patterns.
+
+
 ### Pathway-level differential methylation in assisted reproductive technology
 (i) the effect of assisted reproductive technology DNA methylation
-
-### Pathway-level differential methylation in hyperhomocysteinemia
-(2) the association of elevated plasma homocysteine with methylation patterns.
 
 ## Results
 
@@ -272,8 +304,8 @@ To compare the sensitivity of these methods with real data, sample sizes were ra
 as above and the significant pathways were compared to the results from the full
 group of 37 patients.
 This process was repeated 50 times and the results shown in (**Figure 4**).
-Pathways that were identified in the smaller and full group were termed "consistent",
-while pathays that were identified in the smaller but not in the full group were
+Pathways that were identified as statistically significant (FDR<0.05) in the smaller and full group were
+termed "consistent", while pathways that were identified in the smaller but not in the full group were
 termed "inconsistent".
 LAM was able to detect 300 out of 358 consistent pathways with a sample size of 10,
 while GSA detected just 4 of 21 at this sample size.
@@ -284,7 +316,15 @@ At a sample size of 10, the proportion of inconsistent pathways was 10% for LAM 
 This result suggests that LAM has superior sensitivity to detect differentially methylated
 pathways in real cancer data.
 
-![Figure 4. Sensitivity of LAM and GSA methods with real cancer array data.](../figs/fig4.png)
+![Figure 4. Sensitivity of LAM and GSA methods with real cancer array data.
+Upper panels show the number of significant pathways identified in the smaller sample that were consistent
+with the full group for LAM (left) and GSA (right).
+Middle panels show the number of significant pathways identified in the smaller sample that were inconsistent
+with the full group.
+Lower panels show the proportion of significant pathways identified that were inconsistent with the full
+group.
+Left panels correspond to LAM, and right panels to GSA methods.
+](../figs/fig4.png)
 
 ## LAM and GSA integrative analysis with RNA expression
 
