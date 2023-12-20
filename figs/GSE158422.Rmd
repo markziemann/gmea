@@ -42,7 +42,7 @@ suppressPackageStartupMessages({
   library("ENmix")
 })
 
-source("../meth_functions.R")
+source("meth_functions.R")
 
 ```
 
