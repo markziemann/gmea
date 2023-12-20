@@ -572,9 +572,9 @@ simlrm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   rownames(mma) <- mma$gene
   mma$gene = NULL
   colnames(mma) <- "meanrank"
-  lrmres <- runmitch(m=mma,genesets=gs_symbols,cores=16)
-  gsig_up3 <- rownames( subset( lrmres1, p.adjustANOVA < 0.05 & s.dist > 0 ) )
-  gsig_dn3 <- rownames( subset( lrmres1, p.adjustANOVA < 0.05 & s.dist < 0 ) )
+  lrmres <- runmitch(m=mma,genesets=gsets,cores=4)
+  gsig_up3 <- rownames( subset( lrmres, p.adjustANOVA < 0.05 & s.dist > 0 ) )
+  gsig_dn3 <- rownames( subset( lrmres, p.adjustANOVA < 0.05 & s.dist < 0 ) )
   gtup <- names(sim[[6]])
   gtdn <- names(sim[[7]])
   UPTP=length(intersect(gsig_up3 ,gtup))
@@ -586,7 +586,7 @@ simlrm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   TP=UPTP+DNTP
   FP=UPFP+DNFP
   FN=UPFN+DNFN
-  TN=nrow(lamres1)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
+  TN=nrow(lrmres)-DNTP-DNFP-DNFN-UPTP-UPFP-UPFN
   PREC=TP/(TP+FP)
   REC=TP/(TP+FN)
   F1=TP/(TP+(0.5*(FP+FN)))
@@ -946,7 +946,7 @@ lacres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlac(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -983,7 +983,7 @@ lactopres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlactop(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1017,7 +1017,7 @@ nlacres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simnlac(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1051,7 +1051,7 @@ lacmres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlacm(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1085,7 +1085,7 @@ lrmres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simlrm(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1121,7 +1121,7 @@ alcres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simalc(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1155,7 +1155,7 @@ nalcres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simnalc(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1189,7 +1189,7 @@ almres <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simalm(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
@@ -1223,7 +1223,7 @@ aares <- lapply(1:nrow(params) , function(j) {
   res <- mclapply(1:sims,function(i) {
     simaa(genesetdatabase=gsets, myann=myann, mval=normal_mval, seed=i*100, frac_genes=0.5, frac_probes=0.5,
       groupsize=groupsize, delta=delta, num_dm_sets=num_dm_sets)
-  },mc.cores=4)
+  },mc.cores=6)
   res <- do.call(rbind,res)
   return(res)
 })
