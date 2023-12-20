@@ -884,7 +884,7 @@ Set assumptions.
 ```{r,set}
 
 num_dm_sets=50
-sims=5
+sims=50
 
 groupsizes=c(3,5,8,12)
 deltas=c(0.1,0.2,0.3,0.4,0.5)
