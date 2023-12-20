@@ -18,11 +18,11 @@ Here we evaluate the performance of different FCS methods for Infinium methylati
 
 ```{r,fig12}
 
-GSE158422.Rmd
-GSE158422_simulate020.Rmd
-GSE158422_simulate050.Rmd
-GSE158422_simulate100.Rmd
-GSE158422_simulate_summary.Rmd
+rmarkdown::render("GSE158422.Rmd")
+rmarkdown::render("GSE158422_simulate020.Rmd")
+rmarkdown::render("GSE158422_simulate050.Rmd")
+rmarkdown::render("GSE158422_simulate100.Rmd")
+rmarkdown::render("GSE158422_simulate_summary.Rmd")
 
 ```
 
@@ -31,7 +31,7 @@ GSE158422_simulate_summary.Rmd
 
 ```{r,fig34}
 
-GSE158422_sensitivity.Rmd
+rmarkdown::render("GSE158422_sensitivity.Rmd")
 
 ```
 
@@ -39,7 +39,7 @@ GSE158422_sensitivity.Rmd
 
 ```{r,fig5}
 
-GSE158422_rna_int.Rmd
+rmarkdown::render("GSE158422_rna_int.Rmd")
 
 ```
 
@@ -47,7 +47,7 @@ GSE158422_rna_int.Rmd
 
 ```{r,fig6}
 
-aging_example.Rmd
+rmarkdown::render("aging_example.Rmd")
 
 ```
 
@@ -55,9 +55,9 @@ aging_example.Rmd
 
 ```{r,fig7}
 
-ART_estill2016.Rmd
-ART_novakovic.Rmd
-art_example.Rmd
+rmarkdown::render("ART_estill2016.Rmd")
+rmarkdown::render("ART_novakovic.Rmd")
+rmarkdown::render("art_example.Rmd")
 
 ```
 
