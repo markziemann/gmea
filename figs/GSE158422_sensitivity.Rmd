@@ -51,7 +51,7 @@ suppressPackageStartupMessages({
   library("png")
 })
 
-CORES=24
+CORES=16
 
 ```
 
@@ -211,6 +211,7 @@ runmitch <- function(m,genesets,cores=1) {
 }
 
 ```
+
 ## Run limma
 
 Run limma and look at the absolute effect sizes.
@@ -280,6 +281,60 @@ par(mfrow=c(1,1))
 
 ```
 
+## LRM - limma rank mean mitch
+
+```{r,lmrm1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+toc() #8.735s
+
+dm$rank <-  rank(dm$t) - nrow(subset(dm,t<0))
+mm <- merge(dm,gt,by.x=0,by.y="probe")
+head(mm)
+mma <-aggregate(mm$rank ~ gene,mm,mean)
+rownames(mma) <- mma$gene
+mma$gene = NULL
+colnames(mma) <- "meanrank"
+lrmres <- runmitch(m=mma,genesets=gs_symbols,cores=16)
+
+lrmsig <- subset(lrmres,p.adjustANOVA<0.05)
+
+top <- head(lrmsig,20)
+top <- top[order(top$s.dist),]
+
+top %>%
+  kbl(caption="Top gene sets (biggest effect size with FDR<0.05)") %>%
+  kable_paper("hover", full_width = F)
+
+barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
+cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
+
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.65,
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+grid()
+
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
+
+hist(lrmsig$s.dist)
+
+# distinguish up (TRUE) and down (FALSE)
+lrmsigsets <- paste(rownames(lrmsig),as.character(lrmsig$s.dist > 0))
+lrmsigsets2 <- gsub(" TRUE"," UP",lrmsigsets)
+lrmsigsets2 <- gsub(" FALSE"," DN",lrmsigsets2)
+
+```
+
 ## Run LAM
 
 Run LAM method on tumour-normal methylation data.
@@ -288,9 +343,23 @@ Record timings.
 ```{r,rungmea}
 
 tic()
-dmagg <- agg(dm,cores=32)
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+toc() #8.735s
+
+
+tic()
+dmagg <- agg(dm,cores=16)
 m <- dmagg$gme_res_df[,"mean",drop=FALSE]
-lamres <- runmitch(m=m,genesets=gs_symbols,cores=32)
+lamres <- runmitch(m=m,genesets=gs_symbols,cores=16)
 toc()
 
 #tic()
@@ -338,6 +407,60 @@ lamsigsets2 <- gsub(" FALSE"," DN",lamsigsets2)
 
 ```
 
+## LMRM - limma mean rank mitch
+
+```{r,lmrm1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+toc() #8.735s
+
+dm$rank <-  rank(dm$t) - nrow(subset(dm,t<0))
+mm <- merge(dm,gt,by.x=0,by.y="probe")
+head(mm)
+mma <-aggregate(mm$rank ~ gene,mm,mean)
+rownames(mma) <- mma$gene
+mma$gene = NULL
+colnames(mma) <- "meanrank"
+lmrmres <- runmitch(m=mma,genesets=gs_symbols,cores=16)
+
+lmrmsig <- subset(lmrmres,p.adjustANOVA<0.05)
+
+top <- head(lmrmsig,20)
+top <- top[order(top$s.dist),]
+
+top %>%
+  kbl(caption="Top gene sets (biggest effect size with FDR<0.05)") %>%
+  kable_paper("hover", full_width = F)
+
+barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
+cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
+
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.65,
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+grid()
+
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
+
+hist(lmrmsig$s.dist)
+
+# distinguish up (TRUE) and down (FALSE)
+lmrmsigsets <- paste(rownames(lmrmsig),as.character(lmrmsig$s.dist > 0))
+lmrmsigsets2 <- gsub(" TRUE"," UP",lmrmsigsets)
+lmrmsigsets2 <- gsub(" FALSE"," DN",lmrmsigsets2)
+
+```
+
 ## Downsample LAM test
 
 This will run the LAM analysis at group sizes of 2, 3, 6, 10, 16, 22 and 30,
@@ -345,6 +468,7 @@ This will run the LAM analysis at group sizes of 2, 3, 6, 10, 16, 22 and 30,
 
 ```{r,al_down1,fig.height=10}
 
+blah()
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 ssres <- lapply(SAMPLESIZES,function(n) {
   SEEDS <- seq(100,5000,100)
