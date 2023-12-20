@@ -62,6 +62,8 @@ GSE158422 is the accession number for the array data.
 
 ```{r,arraydata}
 
+options(timeout=10000000000000)
+
 ARRAY_DATA="GSE158422_RAW.tar"
 if(!file.exists(ARRAY_DATA)){
   download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE158422&format=file",
