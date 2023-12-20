@@ -1,0 +1,70 @@
+---
+title: "Regenerate figures for the GMEA paper"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+theme: cosmo
+---
+
+## Introduction
+
+Here we evaluate the performance of different FCS methods for Infinium methylation analysis.
+
+# Workflow
+
+## Simulation: Figure 1 and 2
+
+```{r,fig12}
+
+GSE158422.Rmd
+GSE158422_simulate020.Rmd
+GSE158422_simulate050.Rmd
+GSE158422_simulate100.Rmd
+GSE158422_simulate_summary.Rmd
+
+```
+
+## Sensitivity: Figure 3 and 4
+
+
+```{r,fig34}
+
+GSE158422_sensitivity.Rmd
+
+```
+
+## Integration with RNA: Figure 5
+
+```{r,fig5}
+
+GSE158422_rna_int.Rmd
+
+```
+
+## Aging study
+
+```{r,fig6}
+
+aging_example.Rmd
+
+```
+
+## IVF example
+
+```{r,fig7}
+
+ART_estill2016.Rmd
+ART_novakovic.Rmd
+art_example.Rmd
+
+```
+
+# Session information
+
+```{r,session}
+
+sessionInfo()
+
+```

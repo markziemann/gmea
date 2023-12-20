@@ -1,0 +1,275 @@
+---
+title: "GSE158422: DNA methylation in Lung squamous cell carcinoma"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+theme: cosmo
+---
+
+## Introduction
+
+This work is to conduct the methylation data processing and differential analysis of GSE158422, which is matched
+lung squamous cell carcinoma (LUSC) and control tissue.
+
+The data is going to be saved as an Rdata file and then used for enrichment analysis in a subsequent Rmd script.
+
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("plyr")
+  library("R.utils")
+  library("missMethyl")
+  library("limma")
+  library("DMRcate")
+  library("DMRcatedata")
+  library("topconfects")
+  library("minfi")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("RColorBrewer")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("GEOquery")
+  library("eulerr")
+  library("plyr")
+  library("gplots")
+  library("reshape2")
+  library("forestplot")
+  library("beeswarm")
+  library("RCircos")
+  library("qqman")
+  library("ENmix")
+})
+
+source("../meth_functions.R")
+
+```
+
+## Obtaining array annotations
+
+```{r,annotation}
+
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","Regulatory_Feature_Group","Islands_Name","Relation_to_Island")])
+promoters <- grep("Prom",myann$Regulatory_Feature_Group)
+
+```
+
+## Obtain array data
+
+GSE158422 is the accession number for the array data.
+
+```{r,arraydata}
+
+ARRAY_DATA="GSE158422_RAW.tar"
+if(!file.exists(ARRAY_DATA)){
+  download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE158422&format=file",
+    destfile=ARRAY_DATA)
+  untar(tarfile = ARRAY_DATA)
+}
+
+SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
+if(!file.exists(SERIES_MATRIX)){
+download.file("https://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matrix/GSE158422_series_matrix.txt.gz",
+  destfile=SERIES_MATRIX)
+}
+gse <- getGEO(filename=SERIES_MATRIX)
+baseDir <- "IDAT"
+sample_metadata <- pData(phenoData(gse))
+sample_metadata$patient <- factor(sapply(strsplit(sample_metadata$title,"_"),"[[",1))
+
+targets <- sample_metadata
+mybase <- unique(gsub("_Red.idat.gz" ,"",  gsub("_Grn.idat.gz", "" ,list.files(".",pattern = "GSM",recursive = TRUE))))
+targets$Basename <- mybase
+head(targets)
+rgSet <- read.metharray.exp(targets = targets)
+rgSet
+
+targets$Basename <- gsub("IDAT/","",mybase)
+head(targets)
+
+
+```
+
+## Filtering and normalisation
+
+
+```{r,norm,fig.cap="Figure 1. Normalisation of bead-array data with SWAN."}
+
+mSet <- preprocessRaw(rgSet)
+mSetSw <- SWAN(mSet,verbose=FALSE)
+par(mfrow=c(1,2), cex=0.8)
+densityByProbeType(mSet[,1], main = "Raw")
+densityByProbeType(mSetSw[,1], main = "SWAN")
+
+```
+
+```{r,filterprobes}
+
+# include sex chromosomes
+detP <- detectionP(rgSet)
+keep <- rowSums(detP < 0.01) == ncol(rgSet)
+mSetSw <- mSetSw[keep,]
+
+# exclude SNP probes
+mSetSw <- mapToGenome(mSetSw)
+mSetSw_nosnp <- dropLociWithSnps(mSetSw)
+
+# exclude sex chromosomes
+xyprobes <- anno$Name[anno$chr %in% c("chrX","chrY")]
+mSetFlt <- mSetSw[which(!rownames(mSetSw) %in% xyprobes),]
+
+```
+
+```{r,beta_m_vals}
+
+# include sex chromosomes
+meth <- getMeth(mSetSw)
+unmeth <- getUnmeth(mSetSw)
+Mval <- log2((meth + 100)/(unmeth + 100))
+beta <- getBeta(mSetSw)
+dim(Mval)
+
+# exclude sex chromosomes
+meth <- getMeth(mSetFlt)
+unmeth <- getUnmeth(mSetFlt)
+Mval_flt <- log2((meth + 100)/(unmeth + 100))
+beta_flt <- getBeta(mSetFlt)
+dim(Mval_flt)
+
+```
+
+# Infer sex
+
+```{r,infersex}
+
+xprobes <- anno$Name[anno$chr %in% "chrX"]
+yprobes <- anno$Name[anno$chr %in% "chrY"]
+
+xdat <- Mval[which( rownames(Mval) %in% xprobes ),]
+ydat <- Mval[which( rownames(Mval) %in% yprobes ),]
+gsm <- sapply( strsplit(colnames(Mval),"_" ) , "[[" , 1)
+plot(colMeans(xdat) , colMeans(ydat), cex=1)
+text(colMeans(xdat) , colMeans(ydat),labels=gsm )
+grid()
+abline(v=-0.1,col="red",lty=2)
+
+which( colMeans(xdat)  > -0.1 )
+
+sex_female <- as.numeric(colMeans(xdat)  > -0.1)
+names(sex_female) <- colnames(xdat)
+
+```
+
+# MDS analysis
+
+```{r,scree,fig.cap="Figure 2. Screeplot shows contribution of top principal components to the overall variation in the experiment."}
+
+# scree plot shows the amount of variation in a dataset that is accounted
+# for by the first N principal components
+myscree <- function(mx,n=10,main="") {
+  pc <- princomp(mx)$sdev
+  pcp <- pc/sum(pc)*100
+  pcp <- pcp[1:10]
+  barplot(pcp,cex.names = 1,las=2,ylim=c(0,60),
+      ylab="percent (%) variance explained", main=main)
+  text((0.5:length(pcp)*1.2),pcp,label=signif(pcp,3),pos=3,cex=0.8)
+}
+
+par(mfrow=c(2,1))
+myscree(Mval,main="incl sex chr")
+myscree(Mval_flt,main="excl sex chr")
+par(mfrow=c(1,1))
+
+```
+
+MDS plot 1
+
+```{r,mds1,fig.width = 8 ,fig.height = 8,fig.cap="Figure 3. MDS plot coloured by ART classification."}
+
+colnames(targets) <- gsub(" ","_",colnames(targets))
+colnames(targets) <- gsub(":","_",colnames(targets))
+targets$sex<-factor(sex_female)
+targets$case<-factor(targets$`characteristics_ch1`)
+sample_groups <- factor(targets$case)
+colour_palette=brewer.pal(n = length(levels(sample_groups)), name = "Paired")
+colours <- colour_palette[as.integer(factor(targets$case))]
+plot(1,axes = FALSE,xlab="",ylab="",main="MDS by case/ctrl",cex=0)
+legend("center",legend=levels(sample_groups),pch=16,cex=1.2,col=colour_palette)
+mydist <- plotMDS(Mval, labels=gsm,col=colours,main="sex chromosomes included")
+mydist_flt <- plotMDS(Mval_flt, labels=gsm,col=colours,main="sex chromosomes excluded")
+
+```
+
+## Differential analysis
+
+Paired normal versus cancer tissue.
+
+
+```{r,dm}
+
+samplesheet <- targets
+
+patient <- factor(sapply(strsplit(samplesheet$title,"_"),"[[",1))
+
+tumor <- factor(samplesheet$`tumor:ch1`,levels=c("normal","tumor"))
+
+sex <- sex_female
+
+dim(Mval)
+dim(beta)
+
+design <- model.matrix(~ sex + patient + tumor )
+mx <- Mval_flt
+name="control vs tumor"
+
+mxs <- mx[,which( colnames(mx) %in% samplesheet$Basename )]
+fit.reduced <- lmFit(mxs,design)
+fit.reduced <- eBayes(fit.reduced)
+summary(decideTests(fit.reduced))
+dm <- topTable(fit.reduced,coef=ncol(design), number = Inf)
+dma <- merge(myann,dm,by=0)
+dma <- dma[order(dma$P.Value),]
+dm_up <- rownames(subset(dm,adj.P.Val<0.05 & logFC>0))
+dm_dn <- rownames(subset(dm,adj.P.Val<0.05 & logFC<0))
+sig <- min(length(dm_up),length(dm_dn))
+
+confects <- limma_confects(fit.reduced, coef=3, fdr=0.05)
+
+if (sig > 10) {
+  dmr <- run_dmrcate(mx=mxs,design=design)
+  head(dmr)
+  comp <- compartment_enrichment(dma)
+  comp
+  cgi <- cgi_enrichment(dma)
+  cgi
+} else {
+  dmr <- NULL
+  comp <- NULL
+  cgi <- NULL
+}
+#make_dm_plots(dm = dm ,name=name , mx=beta,mxs=mxs, groups = groups,
+  confects=confects,dmr = dmr, comp=comp, cgi=cgi)
+
+GSE158422 <- list("dma"=dma, "dm_up"=dm_up, "dm_dn"=dm_dn, "confects"=confects,
+  "dmr"= dmr, "comp"=comp, "cgi"=cgi, "fit"=fit.reduced)
+
+head(GSE158422$dma,10)
+head(GSE158422$dmr,10)
+
+saveRDS(GSE158422,file="GSE158422.rds")
+saveRDS(design,file="GSE158422_design.rds")
+saveRDS(mx,file="GSE158422_mx.rds")
+
+write.table(GSE158422$dma,file="GSE158422_limma.tsv",sep="\t",quote=FALSE)
+
+```
+
+## save data object
+
+```{r,save}
+
+save.image("GSE158422.Rdata")
+
+```
