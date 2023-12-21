@@ -210,7 +210,9 @@ gt2$gene <- fix$Suggested.Symbol
 toc()
 
 tic()
-m2 <- mitch_import(x=dm,DEtype="limma",geneTable=gt2)
+# need to remove probes not associated to promoters
+dm2 <- dm[(which(rownames(dm) %in% gt2$probe)),]
+m2 <- mitch_import(x=dm2,DEtype="limma",geneTable=gt2)
 toc() #9.68, 9.78, 9.62
 head(m)
 dim(m)
