@@ -115,7 +115,7 @@ To reflect coverage of Reactome and other pathway databases, only half the genes
 
 ```{r,gset_prep}
 
-gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+gene_catalog <- unique(gt$gene)
 
 # set gene set size here
 lengths <- rep(100,1000)
@@ -364,7 +364,7 @@ wtenrich <- function(m,genesets,cores=1,testtype="selfcontained") {
 # LA parametric competitive
 simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -411,7 +411,7 @@ simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
 # LA parametric competitive top
 simlactop <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -460,7 +460,7 @@ simlactop <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probe
 # LA nonparametric competitive
 simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -507,7 +507,7 @@ simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
 # LA competitive mitch
 simlacm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -554,7 +554,7 @@ simlacm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
 # LA rank competitive mitch
 simlrm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -613,7 +613,7 @@ Functions for aggregate-limma-enrich approach.
 # AL approach parametric competitive
 simalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -668,7 +668,7 @@ simalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
 # AL approach nonparametric competitive
 simnalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -739,7 +739,7 @@ runmitch <- function(m,genesets,cores=1) {
 
 simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
@@ -826,7 +826,7 @@ aal <- function(mval,myann,genesets,design,cores=1) {
 
 simaa <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, groupsize, delta=1, num_dm_sets=50) {
   # generate gene sets
-  gene_catalog <- unique(unlist(strsplit(myann$UCSC_RefGene_Name,";")))
+  gene_catalog <- unique(gt$gene)
   lengths <- unname(unlist(lapply(genesetdatabase,length)))
   gsets <- randomGeneSets(gene_catalog,lengths,seed=seed)
   # select gene sets to alter
