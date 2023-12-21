@@ -186,7 +186,6 @@ Using the UCSC_RefGene_Name field of the annotation and using TSS probes only.
 ```{r,promo}
 
 head(myann)
-table(anno$UCSC_RefGene_Group)
 table(unlist(strsplit(myann$UCSC_RefGene_Group,";")))
 
 # promoter prep
