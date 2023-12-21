@@ -12,6 +12,12 @@ theme: cosmo
 
 Here we evaluate the performance of different FCS methods for Infinium methylation analysis.
 
+```{bash,pull}
+
+git pull
+
+```
+
 # Workflow
 
 ## Simulation: Figure 1 and 2
