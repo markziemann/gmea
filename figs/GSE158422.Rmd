@@ -214,7 +214,7 @@ samplesheet <- targets
 
 patient <- factor(sapply(strsplit(samplesheet$title,"_"),"[[",1))
 
-tumor <- factor(samplesheet$`tumor:ch1`,levels=c("normal","tumor"))
+tumor <- factor(samplesheet$tumor,levels=c("normal","tumor"))
 
 sex <- sex_female
 
