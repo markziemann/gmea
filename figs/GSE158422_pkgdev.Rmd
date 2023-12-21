@@ -197,7 +197,7 @@ keeps <- lapply(1:nrow(myann), function(i) {
   unique(genes[[i]][annos[[i]] %in% keep])
 })
 names(keeps) <- rownames(myann)
-gt2 <- stack(gp2)
+gt2 <- stack(keeps)
 colnames(gt2) <- c("gene","probe")
 toc() #15.4 16.2 20.3
 
