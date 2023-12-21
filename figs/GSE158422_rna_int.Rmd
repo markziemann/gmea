@@ -111,7 +111,8 @@ There are some gene name errors, so I will use HGNChelper to repair them.
 ```{r,gene_name_fix}
 
 human=x$row.names
-fix <- checkGeneSymbols(human)
+new.hgnc.table <- readRDS("new.hgnc.table.rds")
+fix <- checkGeneSymbols(human,map=new.hgnc.table)
 x$gene <- fix$Suggested.Symbol
 x$row.names=NULL
 x <- aggregate(. ~ gene,x,sum)
@@ -212,7 +213,8 @@ gt$probe <- as.character(gt$probe)
 dim(gt)
 str(gt)
 
-new.hgnc.table <- getCurrentHumanMap()
+#new.hgnc.table <- getCurrentHumanMap()
+new.hgnc.table <- readRDS("new.hgnc.table.rds")
 fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
 fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))

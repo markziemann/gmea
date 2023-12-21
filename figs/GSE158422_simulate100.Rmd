@@ -81,7 +81,8 @@ dim(gt)
 str(gt)
 head(gt)
 
-new.hgnc.table <- getCurrentHumanMap()
+#new.hgnc.table <- getCurrentHumanMap()
+new.hgnc.table <- readRDS("new.hgnc.table.rds")
 fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
 fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))
