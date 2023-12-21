@@ -24,6 +24,7 @@ suppressPackageStartupMessages({
   library("eulerr")
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
   library("tictoc")
   library("mitch")
   library("gplots")
@@ -72,6 +73,8 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 Use all probes on the chip.
 
+Update old gene symbols.
+
 ```{r,anno1}
 
 tic()
@@ -87,6 +90,14 @@ gt$probe <- as.character(gt$probe)
 dim(gt)
 str(gt)
 toc() #9.0s
+
+tic()
+new.hgnc.table <- getCurrentHumanMap()
+fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt$gene <- fix$Suggested.Symbol
+toc()
 
 ```
 

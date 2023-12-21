@@ -28,6 +28,7 @@ suppressPackageStartupMessages({
   library("eulerr")
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
   library("tictoc")
   library("limma")
   library("mitch")
@@ -211,6 +212,12 @@ gt$probe <- as.character(gt$probe)
 dim(gt)
 str(gt)
 
+new.hgnc.table <- getCurrentHumanMap()
+fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt$gene <- fix$Suggested.Symbol
+
 ```
 
 Here we will look at parallel analysis of gene body and promoter.
@@ -240,6 +247,11 @@ gb$probe <- as.character(gb$probe)
 dim(gb)
 str(gb)
 
+fix <- checkGeneSymbols(gb$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gb$gene <- fix$Suggested.Symbol
+
 tss <- lapply(1:nrow(dm),function(i) {
   a <- dm[i,"UCSC_RefGene_Group"]
   a <- unlist(strsplit(a,";"))
@@ -252,6 +264,11 @@ colnames(gp) <- c("gene","probe")
 gp$probe <- as.character(gp$probe)
 dim(gp)
 str(gp)
+
+fix <- checkGeneSymbols(gp$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gp$gene <- fix$Suggested.Symbol
 
 # import for promoters
 dmp <- dm[which(rownames(dm) %in%  gp$probe),]

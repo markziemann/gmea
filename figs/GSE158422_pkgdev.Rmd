@@ -24,6 +24,7 @@ suppressPackageStartupMessages({
   library("eulerr")
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
   library("tictoc")
   library("mitch")
   library("kableExtra")
@@ -77,13 +78,13 @@ dim(gt)
 str(gt)
 toc() #9.0s
 
-```
-
-Now try for efficient method to incorporate into the package.
-
-```{r,anno2}
-
-library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+tic()
+new.hgnc.table <- getCurrentHumanMap()
+fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt$gene <- fix$Suggested.Symbol
+toc()
 
 ```
 
@@ -191,6 +192,14 @@ names(keeps) <- rownames(myann)
 gt2 <- stack(gp2)
 colnames(gt2) <- c("gene","probe")
 toc() #15.4 16.2 20.3
+
+# fix gene symbols
+tic()
+fix <- checkGeneSymbols(gt2$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt2$gene <- fix$Suggested.Symbol
+toc()
 
 tic()
 m2 <- mitch_import(x=dm,DEtype="limma",geneTable=gt2)

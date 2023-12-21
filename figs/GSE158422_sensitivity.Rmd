@@ -42,6 +42,7 @@ suppressPackageStartupMessages({
   library("eulerr")
   library("IlluminaHumanMethylation450kmanifest")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
   library("tictoc")
   library("mitch")
   library("kableExtra")
@@ -71,6 +72,21 @@ CORES=16
 
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
 myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+head(gt)
+
+new.hgnc.table <- getCurrentHumanMap()
+fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt$gene <- fix$Suggested.Symbol
 
 gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
 gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
@@ -285,19 +301,6 @@ par(mfrow=c(1,1))
 
 ```{r,lmrm1}
 
-tic()
-anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
-names(gp2) <- rownames(gp)
-gp2 <- lapply(gp2,unique)
-gt <- stack(gp2)
-colnames(gt) <- c("gene","probe")
-dim(gt)
-str(gt)
-toc() #8.735s
-
 dm$rank <-  rank(dm$t) - nrow(subset(dm,t<0))
 mm <- merge(dm,gt,by.x=0,by.y="probe")
 head(mm)
@@ -341,20 +344,6 @@ Run LAM method on tumour-normal methylation data.
 Record timings.
 
 ```{r,rungmea}
-
-tic()
-anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
-names(gp2) <- rownames(gp)
-gp2 <- lapply(gp2,unique)
-gt <- stack(gp2)
-colnames(gt) <- c("gene","probe")
-dim(gt)
-str(gt)
-toc() #8.735s
-
 
 tic()
 dmagg <- agg(dm,cores=16)
@@ -404,60 +393,6 @@ hist(lamsig$s.dist)
 lamsigsets <- paste(rownames(lamsig),as.character(lamsig$s.dist > 0))
 lamsigsets2 <- gsub(" TRUE"," UP",lamsigsets)
 lamsigsets2 <- gsub(" FALSE"," DN",lamsigsets2)
-
-```
-
-## LMRM - limma mean rank mitch
-
-```{r,lmrm1}
-
-tic()
-anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
-gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
-names(gp2) <- rownames(gp)
-gp2 <- lapply(gp2,unique)
-gt <- stack(gp2)
-colnames(gt) <- c("gene","probe")
-dim(gt)
-str(gt)
-toc() #8.735s
-
-dm$rank <-  rank(dm$t) - nrow(subset(dm,t<0))
-mm <- merge(dm,gt,by.x=0,by.y="probe")
-head(mm)
-mma <-aggregate(mm$rank ~ gene,mm,mean)
-rownames(mma) <- mma$gene
-mma$gene = NULL
-colnames(mma) <- "meanrank"
-lmrmres <- runmitch(m=mma,genesets=gs_symbols,cores=16)
-
-lmrmsig <- subset(lmrmres,p.adjustANOVA<0.05)
-
-top <- head(lmrmsig,20)
-top <- top[order(top$s.dist),]
-
-top %>%
-  kbl(caption="Top gene sets (biggest effect size with FDR<0.05)") %>%
-  kable_paper("hover", full_width = F)
-
-barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
-cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
-
-par(mar = c(5.1, 29.1, 4.1, 2.1))
-barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.65,
-  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
-grid()
-
-par( mar = c(5.1, 4.1, 4.1, 2.1) )
-
-hist(lmrmsig$s.dist)
-
-# distinguish up (TRUE) and down (FALSE)
-lmrmsigsets <- paste(rownames(lmrmsig),as.character(lmrmsig$s.dist > 0))
-lmrmsigsets2 <- gsub(" TRUE"," UP",lmrmsigsets)
-lmrmsigsets2 <- gsub(" FALSE"," DN",lmrmsigsets2)
 
 ```
 
