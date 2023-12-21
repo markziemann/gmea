@@ -119,7 +119,9 @@ tic()
 fit.reduced <- lmFit(mval,design)
 fit.reduced <- eBayes(fit.reduced)
 dm <- topTable(fit.reduced,coef=ncol(design), number = Inf)
-head(dm)
+head(dm) %>%
+  kbl(caption = "Top significant probes") %>%
+  kable_paper("hover", full_width = F)
 toc() #25.53, 25.50, 25.51
 
 ```
@@ -134,7 +136,10 @@ This only works properly when mitch's mapGeneIds function uses `mean` to aggrega
 tic()
 m <- mitch_import(x=dm,DEtype="limma",geneTable=gt)
 toc() #9.58s, 9.71, 9.69
-head(m)
+head(m) %>%
+  kbl(caption = "Example of differential gene methylation scores used for pathway analysis") %>%
+  kable_paper("hover", full_width = F)
+
 
 ```
 
@@ -149,8 +154,14 @@ up <- subset(mtable,s.dist>0 & p.adjustANOVA<0.05)
 dn <- subset(mtable,s.dist<0 & p.adjustANOVA<0.05)
 nrow(up)
 nrow(dn)
-head(up,10)
-head(dn,10)
+
+head(up,10) %>%
+  kbl(caption = "Top significant pathways with higher methylation") %>%
+  kable_paper("hover", full_width = F)
+
+head(dn,10) %>%
+  kbl(caption = "Top significant pathways with lower methylation") %>%
+  kable_paper("hover", full_width = F)
 
 top <- rbind(up[1:10,],dn[1:10,])
 top <- top[order(top$s.dist),]
@@ -185,7 +196,10 @@ Using the UCSC_RefGene_Name field of the annotation and using TSS probes only.
 
 ```{r,promo}
 
-head(myann)
+head(myann) %>%
+  kbl(caption = "This is what the annotation looks like") %>%
+  kable_paper("hover", full_width = F)
+
 table(unlist(strsplit(myann$UCSC_RefGene_Group,";")))
 
 # promoter prep
@@ -214,8 +228,11 @@ tic()
 dm2 <- dm[(which(rownames(dm) %in% gt2$probe)),]
 m2 <- mitch_import(x=dm2,DEtype="limma",geneTable=gt2)
 toc() #9.68, 9.78, 9.62
-head(m)
-dim(m)
+head(m2) %>%
+  kbl(caption = "This is what the differential methylation scores look like") %>%
+  kable_paper("hover", full_width = F)
+
+dim(m2)
 
 tic()
 mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=16, priority="effect")
@@ -226,8 +243,14 @@ up <- subset(mtable,s.dist>0 & p.adjustANOVA<0.05)
 dn <- subset(mtable,s.dist<0 & p.adjustANOVA<0.05)
 nrow(up)
 nrow(dn)
-head(up,10)
-head(dn,10)
+
+head(up,10) %>%
+  kbl(caption = "Top significant pathways with increased promoter methylation") %>%
+  kable_paper("hover", full_width = F)
+
+head(dn,10) %>%
+  kbl(caption = "Top significant pathways with lower promoter methylation") %>%
+  kable_paper("hover", full_width = F)
 
 top <- rbind(up[1:10,],dn[1:10,])
 top<- top[order(top$s.dist),]
