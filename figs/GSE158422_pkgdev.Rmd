@@ -15,7 +15,11 @@ theme: cosmo
 
 Here we are looking at putting together the easiest possible workflow for the package.
 
+Source code: https://github.com/markziemann/gmea/blob/main/figs/GSE158422_pkgdev.Rmd
+
 ## Requirements
+
+Load packages.
 
 ```{r,packages}
 
@@ -62,6 +66,8 @@ gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
 Use all probes on the chip.
 
+Updating gene names using the HGNC package because a lot of them have been updated over time.
+
 ```{r,anno1}
 
 tic()
@@ -104,6 +110,8 @@ design <- model.matrix(~ patient + tumor )
 ```
 
 ## Prep limma
+
+Here we conduct a differential analysis using limma.
 
 ```{r,limma1}
 
