@@ -16,6 +16,8 @@ Here we evaluate the performance of different FCS methods for Infinium methylati
 
 git pull
 
+mkdir -p ~/.cache/R/ExperimentHub
+
 ```
 
 # Workflow
