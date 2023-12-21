@@ -113,12 +113,14 @@ enrichment [@Dong2019-np].
 The `methylGSA` package implements two different approaches.
 Firstly, the `methylRRA` function which uses robust rank aggregation for detecting differentially methylated genes taking
 into consideration the variable number of probes followed by an FCS test based on z-scores [@Ren2019-mr].
-Secondly, `methylglm` uses a logistic regression approach to model differential methylation for genes inside and outside eachgene set [@Ren2019-mr].
+Secondly, `methylglm` uses a logistic regression approach to model differential methylation for genes inside and outside each gene set [@Ren2019-mr].
 These methods are indeed more sensitive than ORA approaches, but as they are based on one-tailed tests irrespective of
 direction of methylation change, it limits the utility for downstream interpretation of the importance of methylation
 changes on genomic regulation.
+Moreover, as pathways tend to be either upregulated or downregulated in omics assays, combining the two tends to dilute
+their signal and reduce sensitivity [@Hong2014-ab].
 Neither gsameth, ebGSEA nor methylGSA report computed enrichment scores, which hinders downstream interpretation, as the
-enrichment score is a useful surrogate for effect size.
+enrichment score is a useful surrogate for effect size (check this).
 Without an enrichment score, users are limited to using statistical significance values to prioritise results, which
 biases towards large gene sets that have non-specific biological functions.
 This can lead to end users over-looking smaller pathways with more specific biological functions that have larger effect
@@ -128,7 +130,7 @@ Here we aim to develop and evaluate methods for two-tailed FCS of Infinium methy
 limitations.
 Due to the fact that genes have a variable number of probes, there are many concevable ways that FCS could be applied
 to Infinium Methylation data.
-The first set of methods use differential probe methylation data as an input.
+The first set of methods use differential probe methylation data from `limma` [@Ritchie2015-zn] as an input.
 The differential methylation of probes beloning to each gene are scored and these gene scores
 undergo an enrichment test.
 The second set of methods first aggregate probe methylation values for each gene before differential
@@ -186,29 +188,31 @@ statistically significant probes (FDR<0.05) for ORA with the `GSAmeth()` functio
 modified hypergeometric test that accounts for multiple probe biases.
 In the case that fewer than 250 significant probes are identified, then 250 probes with the smallest p-values
 were selected.
+We conducted separate tests for increased and decreased probes, and we specified the background as all probes that
+passed quality control filtering.
 
-### Method validation
+### Method validation using simulations
 
-To assess these methods, we adopted a simulated data approach.
-EPIC Infinium array data derived from non-cancerous lung tissue of 37 cancer patients was used for our
-evaluations (GSE158422).
-We downloaded raw intensity EPIC IDAT files from GEO for study GSE158422 which consists of
-lung tumour and normal adjacent tissues from 37 patients.
+To assess these methods, we adopted a simulated data approach based on the selected modification of real methylation data.
+We downloaded raw intensity EPIC IDAT files from NCBI Gene Expression Omnibus (GEO) for study GSE158422 which consists of
+lung tumour and normal adjacent tissues from 37 patients [@Cho2022-yd].
+For the simulations, only non-cancerous datasets were used.
 Probe annotations were obtained from the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19" Bioconductor
 package.
 We randomly sampled datasets to serve as control and cases (no replacement), with group sizes varying between
 3 and 12.
-One thousand random gene sets were created with sizes varying between 20 and 100 members.
+One thousand random gene sets were created with sizes varying between 20 and 100 members, with member genes drawn from the
+annotation set.
 Random gene sets were used to avoid problems caused by the large overlap among real gene sets.
 Throughout our evaluations, 50 gene sets were selected to be differentially methylated, 25 with increased and 25
 with decreased methylation.
 From these gene sets, half of the member genes were selected.
 For those selected genes, half of the annotated probes were selected.
-We adjusted the m-values in the case group by a specified amount, which we call the "delta", which we varied
-between 0.1 and 0.4.
+We adjusted the M-values in the case group by a specified amount, which we call the "delta", which we varied
+between 0.1 and 0.5.
 Following the incorporation of methylation changes to selected probes in the case group, the data underwent
 limma differential methylation analysis, followed by enrichment analysis using `GSAmeth` approach, or one of
-the seven FCS methods outlined above.
+the eight FCS methods outlined above.
 Enrichment results were then filtered for FDR<0.05 and correct direction of methylation change.
 Differentially methylated gene sets observed were compared to gene sets selected to be the ground truth, so that
 the number of true positives (TP), false positives (FP) and false negatives (FN) could be determined.
@@ -218,18 +222,24 @@ Mean TP, FP and FN values were determined, and then precision, recall and F1 sco
 
 ### Sensitivity analysis
 
-The same dataset including all 37 patients underwent pathway enrichment analysis using the GSAmeth and LAM methods
+The full GSE158422 dataset including normal and cancer samples of all 37 patients underwent differential analysis with limma
+correcting for patient of origin effects.
+Downstream pathway enrichment analysis was conducted using the GSAmeth and LAM methods
 with Reactome pathways downloaded from MSigDB website (version 2023.1).
+LAM relies on probe-gene associations from the "UCSC_RefGene_Name" column of the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19"
+annotation.
+As these annotations are several years old, we updated them using HGNChelper (database current as of 21-Dec-2023) [@Oh2022-ts].
+Circa 12% of defunct gene symbols were updated.
 Euler diagrams were created with the `eulerr` R package.
-Then, a random subset of n patients was selected followed by pathway enrichment analysis with the
+To test sensitivity, a random subset of n patients was selected followed by pathway enrichment analysis with the
 respective method, with n varied between 2 and 30.
-The subset results were compared to the full n=37 results to test the sensitivity of these enrichment
+The subset results were compared to the full group (n=37) results to test the sensitivity of these enrichment
 methods at differenent effect size levels, and whether findings at a smaller sample size were consistent with the full group.
-This process was repeated 50 times.
+This process was repeated 50 times at each sample size.
 
 ### Association of methylation with gene expression
 
-RNA-seq based gene counts for the same set of lung cancer patients were downloaded from GEO [GSE158420](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420).
+RNA-seq based gene counts for the same set of lung cancer patients were downloaded from GEO (accession: GSE158420).
 HGNChelper was used to repair transmogrified gene names, followed by DESeq2 based differential analysis.
 This underwent filtering to remove genes with expression below 10 reads per sample on average across the dataset.
 Then DESeq2 was used to compare normal and cancerous tissue gene expression taking into consideration sample pairing.
