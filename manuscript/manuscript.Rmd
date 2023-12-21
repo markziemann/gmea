@@ -1,5 +1,5 @@
 ---
-title: "Finally, a functional class scoring method for enrichment analysis of Infinium DNA methylation data"
+title: "Direction-aware functional class scoring enrichment analysis of Infinium DNA methylation data"
 date: "`r Sys.Date()`"
 output:
   rmdformats::robobook:
