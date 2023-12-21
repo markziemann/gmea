@@ -62,10 +62,9 @@ GSE158422 is the accession number for the array data.
 
 ```{r,arraydata}
 
-options(timeout=10000000000000)
-
 ARRAY_DATA="GSE158422_RAW.tar"
 if(!file.exists(ARRAY_DATA)){
+  options(timeout=10000000000000)
   download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE158422&format=file",
     destfile=ARRAY_DATA)
   untar(tarfile = ARRAY_DATA)
@@ -73,8 +72,9 @@ if(!file.exists(ARRAY_DATA)){
 
 SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
 if(!file.exists(SERIES_MATRIX)){
-download.file("https://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matrix/GSE158422_series_matrix.txt.gz",
-  destfile=SERIES_MATRIX)
+  options(timeout=10000000000000)
+  download.file("https://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158422/matrix/GSE158422_series_matrix.txt.gz",
+    destfile=SERIES_MATRIX)
 }
 gse <- getGEO(filename=SERIES_MATRIX)
 baseDir <- "IDAT"
@@ -90,7 +90,6 @@ rgSet
 
 targets$Basename <- gsub("IDAT/","",mybase)
 head(targets)
-
 
 ```
 
