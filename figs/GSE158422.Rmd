@@ -251,7 +251,7 @@ if (sig > 10) {
   cgi <- NULL
 }
 
-make_dm_plots(dm = dm ,name=name , mx=beta,mxs=mxs, groups = groups,
+make_dm_plots(dm = dm ,name=name , mx=beta,mxs=mxs, groups = tumor,
   confects=confects,dmr = dmr, comp=comp, cgi=cgi)
 
 GSE158422 <- list("dma"=dma, "dm_up"=dm_up, "dm_dn"=dm_dn, "confects"=confects,
