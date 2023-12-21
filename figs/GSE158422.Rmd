@@ -67,8 +67,8 @@ if(!file.exists(ARRAY_DATA)){
   options(timeout=10000000000000)
   download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE158422&format=file",
     destfile=ARRAY_DATA)
-  untar(tarfile = ARRAY_DATA)
 }
+untar(tarfile = ARRAY_DATA,exdir="IDAT")
 
 SERIES_MATRIX="GSE158422_series_matrix.txt.gz"
 if(!file.exists(SERIES_MATRIX)){
