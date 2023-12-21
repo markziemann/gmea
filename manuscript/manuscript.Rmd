@@ -75,37 +75,29 @@ epigenetics.
 
 DNA methylation is the most widely studied epigenetic mark, for its role in development and
 disease [@Robertson2005-tu].
-
 Many hundreds of epigenome-wide association studies (EWASs) are conducted each year to understand DNA
 methylation patterns in disease and other contexts [@Li2019-og].
-
 Infinium arrays remain the preferred platform for EWASs due to low cost and analytical simplicity
 as compared to high throughput methylation sequencing [@Wei2021-qj].
-
 Infinium arrays typically have multiple probes per gene in different locations including promoters,
 CpG islands, gene bodies and enhancers [@Pidsley2016-ix], which complicates downstream functional enrichment analysis,
 otherwise known as pathway analysis or gene set enrichment analysis.
-
 Enrichment analysis comes in two popular types; over-representation analysis (ORA) and functional
 class scoring (FCS) [@Khatri2012-qy].
 A third type of enrichment analysis called pathway topology improves upon other methods with more sophisticated
 modelling of gene network activations, but these are yet to be adopted widely [@Xie2021-py].
-
 In ORA, genes with probes that meet an arbitrary significance threshold are selected and compared
 to a background list consisting of genes measured in the assay.
 The test seeks to identify sets of genes (eg: ontologies, pathways) that are over-represented in the
 gene list of interest relative to the background [@Tavazoie1999-ng].
-
 FCS takes a different approach by ranking all detected genes by a differential
 regulation score (eg: fold change, confident effect size) followed by a test to assess whether each
 set of genes has a distribution of scores that is different to the null [@Subramanian2005-ar].
-
 The `gsameth()` function of the `missMethyl` package is the state-of-the-art method for ORA of infinium methylation array
 data as it addresses issues related to probes belonging to more than one gene and the fact that genes can have multiple
 probes [@Maksimovic2021-ur].
 As gsameth is an ORA method, results dependent strongly on the significance threshold used [@Ren2019-mr], and also
 on the proportion of probes that meet this threshold.
-
 FCS methods `ebGSEA` and `methylGSA` have been developed for EWAS data and are suggested to have better sensitivity to
 determine subtle associations between pathways and differential methylation [@Dong2019-np;@Ren2019-mr].
 The ebGSEA tool uses an empirical Bayes modeling approach followed by a one-tailed nonparametric test for gene set
@@ -119,8 +111,8 @@ direction of methylation change, it limits the utility for downstream interpreta
 changes on genomic regulation.
 Moreover, as pathways tend to be either upregulated or downregulated in omics assays, combining the two tends to dilute
 their signal and reduce sensitivity [@Hong2014-ab].
-Neither gsameth, ebGSEA nor methylGSA report computed enrichment scores, which hinders downstream interpretation, as the
-enrichment score is a useful surrogate for effect size (check this).
+Neither GSAmeth nor methylGSA report computed enrichment scores, which hinders downstream interpretation, as the
+enrichment score is a useful surrogate for effect size.
 Without an enrichment score, users are limited to using statistical significance values to prioritise results, which
 biases towards large gene sets that have non-specific biological functions.
 This can lead to end users over-looking smaller pathways with more specific biological functions that have larger effect
@@ -183,7 +175,7 @@ Similar to ALT, however it uses the Wilcoxon non-parametric test for gene set en
 8. Aggregate Limma Mitch (ALM).
 Similar to ALW, however uses the Mitch package to execute a two-way, two-sample Kruskal-Wallis test.
 
-The above were compared to a standard ORA based approach (GSA), which involves limma on probes, selection of
+The above were compared to a standard ORA-based approach (GSA), which involves limma on probes, selection of
 statistically significant probes (FDR<0.05) for ORA with the `GSAmeth()` function of missMethyl which conducts a
 modified hypergeometric test that accounts for multiple probe biases.
 In the case that fewer than 250 significant probes are identified, then 250 probes with the smallest p-values
@@ -223,17 +215,18 @@ Mean TP, FP and FN values were determined, and then precision, recall and F1 sco
 ### Sensitivity analysis
 
 The full GSE158422 dataset including normal and cancer samples of all 37 patients underwent differential analysis with limma
-correcting for patient of origin effects.
+correcting for patient-of-origin effects.
 Downstream pathway enrichment analysis was conducted using the GSAmeth and LAM methods
 with Reactome pathways downloaded from MSigDB website (version 2023.1).
 LAM relies on probe-gene associations from the "UCSC_RefGene_Name" column of the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19"
 annotation.
 As these annotations are several years old, we updated them using HGNChelper (database current as of 21-Dec-2023) [@Oh2022-ts].
-Circa 12% of defunct gene symbols were updated.
+Circa 12% of gene symbols were updated.
 Euler diagrams were created with the `eulerr` R package.
 To test sensitivity, a random subset of n patients was selected followed by pathway enrichment analysis with the
 respective method, with n varied between 2 and 30.
-The subset results were compared to the full group (n=37) results to test the sensitivity of these enrichment
+Significantly enriched pathways were defined as those with ANOVA FDR values < 0.05.
+The subset significant results were compared to the full group (n=37) results to test the sensitivity of these enrichment
 methods at differenent effect size levels, and whether findings at a smaller sample size were consistent with the full group.
 This process was repeated 50 times at each sample size.
 
@@ -252,12 +245,42 @@ promoter and gene body methylation together, prioritising the results by s-dista
 
 
 ### Pathway-level differential methylation in aging
-In order to deminstrate the utility of the LAM method for 
-(2) the association of elevated plasma homocysteine with methylation patterns.
 
+In order to deminstrate the utility of the LAM method for large EWAS studies, we examined
+methylation profile associations with age of two independent cohorts involving a total of 7036
+participants [@McCartney2020-ob].
+Limma summary statistics for chromological age were read into R and enrichment analysis was conducted as above.
+Briefly, gene-probe associations were first obtained from the
+"IlluminaHumanMethylationEPICanno.ilm10b4.hg19" dataset, followed by update of gene symbols with
+HGNChelper.
+Data were imported with mitch and enrichment analysis was conducted with gene sets from Reactome.
 
 ### Pathway-level differential methylation in assisted reproductive technology
-(i) the effect of assisted reproductive technology DNA methylation
+
+In order to demonstrate that methylation patterns across different array platforms can be compared using LAM,
+we examined methylation differences in infants associated with assisted reproduction as described by two
+independent studies [@Estill2016-jh;@Novakovic2019-jt].
+The Estill study was published in 2016 and is based on the HM450K array and the data is available from GEO Accession GSE79257.
+The Novakovic study in was published 2019, and used the EPIC methylation array and the data is available from GEO under accession
+GSE131433.
+Various assisted reproductive technology conception groups are described in these studies, but we examined
+just fresh in vitro fertilised conceived infants compared to naturally conceived infants.
+
+Raw intensity files (IDAT format) were read into R with minfi [aryee], normalistion was conducted with the SWAN method [maksimovic],
+and probe filtering was conducted to remove proves with a detection p-value > 0.01 in addition to probes located on X or Y
+chromosomes.
+M values were computed and underwent differential methylation analysis using limma [ritchie].
+The Estill study included 43 naturally conceived infants and 38 with fresh embryo transfer.
+The Novakovic study included XX naturally conceived infants and XX with fresh embryo transfer.
+Limma differential methylation tables were then imported with mitch.
+Probe gene associations for HM450K array were established using the "IlluminaHumanMethylation450kanno.ilmn12.hg19" annotation set
+and the gene symbols were updated with HGNChelper (database current as of 21-Dec-2023).
+As the Novakovic study involved EPIC array data, gene-probe associations were obtained from the
+"IlluminaHumanMethylationEPICanno.ilm10b4.hg19" annotation set, and gene symbols were updated with
+HGNChelper.
+Limma tables were read into R and imported with mitch.
+Gene level differential methylation score tables were merged and underwent mitch enrichment analysis using Reactome gene sets.
+
 
 ## Results
 
