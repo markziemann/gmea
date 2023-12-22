@@ -386,7 +386,7 @@ simlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   m1 <- aggregate(t ~ gene,dd,mean)
   rownames(m1) <- m1$gene
   m1$gene=NULL
-  lares1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  lares1 <- ttenrich(m=m1,genesets=gsets,cores=2,testtype="competitive")
   gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
   gtup <- names(sim[[6]])
@@ -435,7 +435,7 @@ simlactop <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probe
   })
   rownames(m1) <- m1$gene
   m1$gene=NULL
-  lares1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  lares1 <- ttenrich(m=m1,genesets=gsets,cores=2,testtype="competitive")
   gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
   gtup <- names(sim[[6]])
@@ -482,7 +482,7 @@ simnlac <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   m1 <- aggregate(t ~ gene,dd,mean)
   rownames(m1) <- m1$gene
   m1$gene=NULL
-  lares1 <- wtenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  lares1 <- wtenrich(m=m1,genesets=gsets,cores=2,testtype="competitive")
   gsig_up3 <- rownames(subset(lares1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(lares1, fdr < 0.05 & t_mean < 0))
   gtup <- names(sim[[6]])
@@ -529,7 +529,7 @@ simlacm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   m1 <- aggregate(t ~ gene,dd,mean)
   rownames(m1) <- m1$gene
   m1$gene=NULL
-  lamres1 <- runmitch(m=m1,genesets=gsets,cores=4)
+  lamres1 <- runmitch(m=m1,genesets=gsets,cores=2)
   gsig_up3 <- rownames( subset( lamres1, p.adjustANOVA < 0.05 & s.dist > 0 ) )
   gsig_dn3 <- rownames( subset( lamres1, p.adjustANOVA < 0.05 & s.dist < 0 ) )
   gtup <- names(sim[[6]])
@@ -580,7 +580,7 @@ simlrm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   rownames(mma) <- mma$gene
   mma$gene = NULL
   colnames(mma) <- "meanrank"
-  lrmres <- runmitch(m=mma,genesets=gsets,cores=4)
+  lrmres <- runmitch(m=mma,genesets=gsets,cores=2)
   gsig_up3 <- rownames( subset( lrmres, p.adjustANOVA < 0.05 & s.dist > 0 ) )
   gsig_dn3 <- rownames( subset( lrmres, p.adjustANOVA < 0.05 & s.dist < 0 ) )
   gtup <- names(sim[[6]])
@@ -642,7 +642,7 @@ simalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   m1 <- as.data.frame(al$t)
   rownames(m1) <- rownames(al)
   colnames(m1) <- "t"
-  alres1 <- ttenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  alres1 <- ttenrich(m=m1,genesets=gsets,cores=2,testtype="competitive")
   # summarise results
   gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
@@ -697,7 +697,7 @@ simnalc <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes,
   m1 <- as.data.frame(al$t)
   rownames(m1) <- rownames(al)
   colnames(m1) <- "t"
-  alres1 <- wtenrich(m=m1,genesets=gsets,cores=4,testtype="competitive")
+  alres1 <- wtenrich(m=m1,genesets=gsets,cores=2,testtype="competitive")
   # summarise results
   gsig_up3 <- rownames(subset(alres1, fdr < 0.05 & t_mean > 0))
   gsig_dn3 <- rownames(subset(alres1, fdr < 0.05 & t_mean < 0))
@@ -768,7 +768,7 @@ simalm <- function(genesetdatabase, myann, mval, seed, frac_genes, frac_probes, 
   m1 <- as.data.frame(al$t)
   rownames(m1) <- rownames(al)
   colnames(m1) <- "t"
-  almres1 <- runmitch(m=m1,genesets=gsets,cores=4)
+  almres1 <- runmitch(m=m1,genesets=gsets,cores=2)
   # summarise results
   gsig_up3 <- rownames( subset( almres1, p.adjustANOVA < 0.05 & s.dist > 0 ) )
   gsig_dn3 <- rownames( subset( almres1, p.adjustANOVA < 0.05 & s.dist < 0 ) )
@@ -908,7 +908,7 @@ params %>% kbl(caption="Parameters to test") %>% kable_paper("hover", full_width
 
 ## GSA meth sim
 
-Cannot be run in multicore due to fragility of AnnotationDbi SQLite objects.
+CCannot be run in multicore due to fragility of AnnotationDbi SQLite objects.
 
 ```{r,rungsa}
 
