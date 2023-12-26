@@ -161,60 +161,6 @@ runlimma <- function(mval,design,myann) {
 
 ```
 
-The following function is key for the aggregation of probe t-statistic values by gene using the arithmetic mean.
-In this step, ~800k probe values are summarised to ~28k genes.
-
-```{r,lamfunction}
-
-# LAM aggregate
-agg <- function(dm,cores=1) {
-  dm <- dm[which(dm$UCSC_RefGene_Name!=""),]
-  gn <- unique(unlist(strsplit( dm$UCSC_RefGene_Name ,";")))
-  gnl <- strsplit( dm$UCSC_RefGene_Name ,";")
-  gnl <- mclapply(gnl,unique,mc.cores=cores)
-  dm$UCSC_RefGene_Name <- gnl
-  l <- mclapply(1:nrow(dm), function(i) {
-    a <- dm[i,]
-    len <- length(a[[1]][[1]])
-    tvals <- as.numeric(rep(a["t"],len))
-    genes <- a[[1]][[1]]
-    data.frame(genes,tvals)
-  },mc.cores=cores)
-  df <- do.call(rbind,l)
-  keep <- names(which(table(df$genes)>1))
-  df <- df[df$genes %in% keep,]
-  gn <- unique(df$genes)
-  gme_res <- lapply( 1:length(gn), function(i) {
-    g <- gn[i]
-    tstats <- df[which(df$genes==g),"tvals"]
-    myn <- length(tstats)
-    mymean <- mean(tstats)
-    mymedian <- median(tstats)
-    top <- tstats[order(-abs(tstats))][1]
-    if ( length(tstats) > 2 ) {
-      ttest <- t.test(tstats)
-      pval <- ttest$p.value
-    } else {
-      pval = 1
-    }
-    res <- c("gene"=g,"nprobes"=myn,"mean"=mymean,
-      "median"=mymedian, "top"=top, "pval"=pval)
-  } )
-  gme_res_df <- do.call(rbind, gme_res)
-  rownames(gme_res_df) <- gme_res_df[,1]
-  gme_res_df <- gme_res_df[,-1]
-  tmp <- apply(gme_res_df,2,as.numeric)
-  rownames(tmp) <- rownames(gme_res_df)
-  gme_res_df <- as.data.frame(tmp)
-  gme_res_df$sig <- -log10(gme_res_df[,"pval"])
-  gme_res_df <- gme_res_df[order(-gme_res_df$sig),]
-  gme_res_df$fdr <- p.adjust(gme_res_df$pval)
-  out <- list("df"=df,"gme_res_df"=gme_res_df)
-  return(out)
-}
-
-```
-
 Function to run mitch analysis.
 
 ```{r,mitchfunc}
@@ -347,23 +293,12 @@ Record timings.
 ```{r,rungmea}
 
 tic()
-dmagg <- agg(dm,cores=16)
-m <- dmagg$gme_res_df[,"mean",drop=FALSE]
-lamres <- runmitch(m=m,genesets=gs_symbols,cores=16)
+dd <- merge(dm,gt,by.x=0,by.y="probe")
+m <- aggregate(t ~ gene,dd,mean)
+rownames(m) <- m$gene
+m$gene=NULL
+lamres <- runmitch(m=m,genesets=gs_symbols,cores=8)
 toc()
-
-#tic()
-#dmagg <- agg(dm,cores=16)
-#m <- dmagg$gme_res_df[,"mean",drop=FALSE]
-#lamres <- runmitch(m=m,genesets=gs_symbols,cores=16)
-#toc()
-#c32<-c()
-#c16<-c(123.666,129.619)
-#c8<-c()
-#c4<-c()
-#c2<-c()
-#c1<-c()
-#duration <- list("c1"=c1, "c2"=c2, "c4"=c4, "c8"=c8, "c16"=c16,"c32"=c32)
 
 top %>%
   kbl(caption="Top significant probes") %>%
@@ -404,7 +339,6 @@ This will run the LAM analysis at group sizes of 2, 3, 6, 10, 16, 22 and 30,
 
 ```{r,al_down1,fig.height=10}
 
-blah()
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 ssres <- lapply(SAMPLESIZES,function(n) {
   SEEDS <- seq(100,5000,100)
@@ -417,8 +351,10 @@ ssres <- lapply(SAMPLESIZES,function(n) {
     design2 <- design2[,colSums(design2)>0]
     mval2 <- mval[,mysample]
     dm2 <- runlimma(mval=mval2,design=design2,myann=myann)
-    dmagg2 <- agg(dm2,cores=2)
-    m2 <- dmagg2$gme_res_df[,"mean",drop=FALSE]
+    dd <- merge(dm2,gt,by.x=0,by.y="probe")
+    m2 <- aggregate(t ~ gene,dd,mean)
+    rownames(m2) <- m2$gene
+    m2$gene=NULL
     lamres2 <- runmitch(m=m2,genesets=gs_symbols,cores=2)
     lamsig2 <- subset(lamres2,p.adjustANOVA<0.05)
     lamsigsets2 <- paste(rownames(lamsig2),as.character(lamsig2$s.dist > 0))
