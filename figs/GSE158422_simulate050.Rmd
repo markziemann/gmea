@@ -82,11 +82,11 @@ str(gt)
 head(gt)
 
 #new.hgnc.table <- getCurrentHumanMap()
-new.hgnc.table <- readRDS("new.hgnc.table.rds")
-fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
-fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
-length(unique(fix2$x))
-gt$gene <- fix$Suggested.Symbol
+#new.hgnc.table <- readRDS("new.hgnc.table.rds")
+#fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+#fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+#length(unique(fix2$x))
+#gt$gene <- fix$Suggested.Symbol
 
 if (!file.exists("GSE158422_design.rds")) {
   download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
@@ -892,7 +892,7 @@ Set assumptions.
 ```{r,set}
 
 num_dm_sets=50
-sims=50
+sims=20
 
 groupsizes=c(3,5,8,12)
 deltas=c(0.1,0.2,0.3,0.4,0.5)

@@ -82,11 +82,11 @@ str(gt)
 head(gt)
 
 #new.hgnc.table <- getCurrentHumanMap()
-new.hgnc.table <- readRDS("new.hgnc.table.rds")
-fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
-fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
-length(unique(fix2$x))
-gt$gene <- fix$Suggested.Symbol
+#new.hgnc.table <- readRDS("new.hgnc.table.rds")
+#fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+#fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+#length(unique(fix2$x))
+#gt$gene <- fix$Suggested.Symbol
 
 if (!file.exists("GSE158422_design.rds")) {
   download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
