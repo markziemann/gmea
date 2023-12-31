@@ -25,11 +25,13 @@ Here is an explanation of the different objects:
 
 4. LAM: lacmres
 
-5. ALT: alcres
+5. LRM: lrmres
 
-6. ALW: nalcres
+6. ALT: alcres
 
-7. ALM: almres
+7. ALW: nalcres
+
+8. ALM: almres
 
 ```{r,packages}
 
@@ -76,7 +78,7 @@ mar = c(5.1, 4.1, 5.1, 2.1)
 load("GSE158422_simulate020.Rdata")
 
 l1 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
-  "LAM"=lacmres2,"ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
+  "LAM"=lacmres2, "LRM"=lrmres2, "ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
 
 x1 <- do.call(rbind,lapply(l1,summarise))
 
@@ -92,7 +94,7 @@ legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.7)
 load("GSE158422_simulate050.Rdata")
 
 l2 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
-  "LAM"=lacmres2,"ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
+  "LAM"=lacmres2, "LRM"=lrmres2, "ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
 
 x2 <- do.call(rbind,lapply(l2,summarise))
 
@@ -104,7 +106,7 @@ grid()
 load("GSE158422_simulate100.Rdata")
 
 l3 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
-  "LAM"=lacmres2,"ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
+  "LAM"=lacmres2, "LRM"=lrmres2, "ALT"=alcres2,"ALW"=nalcres2,"ALM"=almres2)
 
 x3 <- do.call(rbind,lapply(l3,summarise))
 
