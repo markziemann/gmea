@@ -244,47 +244,6 @@ par(mfrow=c(1,1))
 
 ```
 
-## LRM - limma rank mean mitch
-
-```{r,lmrm1}
-
-dm$rank <-  rank(dm$t) - nrow(subset(dm,t<0))
-mm <- merge(dm,gt,by.x=0,by.y="probe")
-head(mm)
-mma <-aggregate(mm$rank ~ gene,mm,mean)
-rownames(mma) <- mma$gene
-mma$gene = NULL
-colnames(mma) <- "meanrank"
-lrmres <- runmitch(m=mma,genesets=gs_symbols,cores=16)
-
-lrmsig <- subset(lrmres,p.adjustANOVA<0.05)
-
-top <- head(lrmsig,20)
-top <- top[order(top$s.dist),]
-
-top %>%
-  kbl(caption="Top gene sets (biggest effect size with FDR<0.05)") %>%
-  kable_paper("hover", full_width = F)
-
-barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
-cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
-
-par(mar = c(5.1, 29.1, 4.1, 2.1))
-barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.65,
-  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
-grid()
-
-par( mar = c(5.1, 4.1, 4.1, 2.1) )
-
-hist(lrmsig$s.dist)
-
-# distinguish up (TRUE) and down (FALSE)
-lrmsigsets <- paste(rownames(lrmsig),as.character(lrmsig$s.dist > 0))
-lrmsigsets2 <- gsub(" TRUE"," UP",lrmsigsets)
-lrmsigsets2 <- gsub(" FALSE"," DN",lrmsigsets2)
-
-```
-
 ## Run LAM
 
 Run LAM method on tumour-normal methylation data.
@@ -306,12 +265,21 @@ top %>%
 
 lamsig <- subset(lamres,p.adjustANOVA<0.05)
 
-top <- head(lamsig,20)
-top <- top[order(top$s.dist),]
+topup <- subset(lamres,p.adjustANOVA<0.05 & s.dist >0 )
+topup <- tail(topup[order(topup$s.dist),],10)
 
-top %>%
-  kbl(caption="Top gene sets (biggest effect size with FDR<0.05)") %>%
+topdn <- subset(lamres,p.adjustANOVA<0.05 & s.dist <0 )
+topdn <- head(topdn[order(topdn$s.dist),],10)
+
+topup %>%
+  kbl(caption="Top gene sets hypermethylated (biggest effect size with FDR<0.05)") %>%
   kable_paper("hover", full_width = F)
+
+topdn %>%
+  kbl(caption="Top gene sets hypomethylated (biggest effect size with FDR<0.05)") %>%
+  kable_paper("hover", full_width = F)
+
+top <- rbind(topdn,topup)
 
 barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(top)))
 cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
@@ -371,11 +339,13 @@ ssres <- lapply(SAMPLESIZES,function(n) {
 par(mfrow=c(3,1))
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
+lapply(dots,summary)
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="LAM") ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h=nrow(lamsig))
 
 dots <- lapply(ssres,function(x) { x[,"FP"] })
+lapply(dots,summary)
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0) ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 
@@ -385,6 +355,7 @@ dots <- lapply(ssres,function(x) { x[,"FP"] })
 FPdots <- do.call(rbind,dots)
 ratio <- t(FPdots / (TPdots + FPdots))
 ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+lapply(ratio,summary)
 boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
@@ -418,7 +389,8 @@ nsigs <- lapply(sizes, function(z) {
 })
 
 names(nsigs) <- sizes
-nsigs
+str(nsigs)
+lapply(nsigs,length)
 
 par( mar = c(5.1, 6.1, 4.1, 2.1) )
 barplot(unlist(lapply(nsigs,length)),horiz=TRUE,las=1,xlab="no. significant sets") ; grid()
@@ -438,10 +410,11 @@ ngsig <- lapply(FCLIM,function(F) {
 })
 
 names(ngsig) <- FCLIM
-ngsig
+str(ngsig)
+lapply(ngsig,length)
 
 par( mar = c(5.1, 6.1, 4.1, 2.1) )
-barplot(unlist(lapply(ngsig,length)),horiz=TRUE,las=1,xlab="no. significant sets",xlim=c(0,60)) ; grid()
+barplot(unlist(lapply(ngsig,length)),horiz=TRUE,las=1,xlab="no. significant sets") ; grid()
 mtext("fold change threshold", 2, 4)
 
 sigup <- rownames(subset(dm,logFC > 0 & adj.P.Val < 0.05))
@@ -467,9 +440,7 @@ gsigsets <- rownames(gsig)
 
 ```
 
-Only 4 hyper and 1 hypomethylated gene set were identified.
-This is surprising as there were 1299 hypermethylated probes corresponding to 808 genes, and
-1016 hypomethylated probes corresponding to 657 genes.
+107 significant gene sets were identified.
 
 Calc GSA enrichment scores.
 First calculate the background which is the detected genes with annotations.
@@ -503,8 +474,15 @@ myes <- lapply(1:nrow(gsig), function(i) {
 
 myes <- data.frame(do.call(rbind,myes))
 gsiges <- data.frame(gsig,myes)
-gsiges <- head(gsiges[order(-gsiges$ES),],20)
-gsiges <- gsiges[order(gsiges$ES),]
+
+
+gsigesdn <- gsiges[grep(" DN",rownames(gsiges)),]
+gsigesdn <- tail(gsigesdn[order(gsigesdn$ES),],10)
+gsigesdn <- gsigesdn[nrow(gsigesdn):1,]
+gsigesup <- gsiges[grep(" UP",rownames(gsiges)),]
+gsigesup <- tail(gsigesup[order(gsigesup$ES),],10)
+
+gsiges <- rbind(gsigesdn,gsigesup)
 
 barnames <- gsub("_"," ",gsub("REACTOME_","",rownames(gsiges)))
 cols <- gsub("FALSE","blue",gsub("TRUE","red",grepl(" UP",barnames)))
@@ -575,11 +553,14 @@ gsres <- lapply(gsres,function(x) {
 par(mfrow=c(3,1))
 
 dots <- lapply(gsres,function(x) { x[,"TP"] })
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="GSAmeth")
+lapply(dots,summary)
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",
+  cex=0,main="GSAmeth",ylim=c(0,nrow(gsig)))
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h=nrow(gsig))
 
 dots <- lapply(gsres,function(x) { x[,"FP"] })
+lapply(dots,summary)
 boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 
@@ -589,6 +570,7 @@ dots <- lapply(gsres,function(x) { x[,"FP"] })
 FPdots <- do.call(rbind,dots)
 ratio <- t(FPdots / (TPdots + FPdots))
 ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+lapply(ratio,summary)
 boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
@@ -605,12 +587,14 @@ par(mar = c(4.5, 4.1, 2.1, 0.5))
 par(mfrow=c(3,2))
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",cex=0,main="LAM") ; grid()
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",
+  cex=0,main="LAM", ylim=c(0,nrow(lamsig))) ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h=nrow(lamsig))
 
 dots <- lapply(gsres,function(x) { x[,"TP"] })
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",cex=0,main="GSA") ; grid()
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",
+  cex=0,main="GSA", ylim=c(0,nrow(gsig))) ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h=nrow(gsig))
 
@@ -649,9 +633,40 @@ par(mfrow=c(1,1))
 ## Overlap
 
 Use Euler diagrams to find the similarity.
-As medians are normally distributed about the zero, one would expect equal numbers of up and down-
-methylated gene sets.
-Therefore the t-test based approach could be considered better.
+First, distinguish based on direction.
+
+```{r,ol0}
+
+lamsigsets2up <- lamsigsets2[grep(" UP", lamsigsets2)]
+lamsigsets2dn <- lamsigsets2[grep(" DN", lamsigsets2)]
+
+gsigsetsup <- gsigsets[grep(" UP", gsigsets)]
+gsigsetsdn <- gsigsets[grep(" DN", gsigsets)]
+
+v1 <- list("LAM up"=lamsigsets2up,"LAM dn"=lamsigsets2dn,
+  "GSA up"=gsigsetsup, "GSA dn"=gsigsetsdn)
+
+plot(euler(v1),quantities = TRUE)
+
+message("common")
+intersect(lamsigsets2up, gsigsetsup)
+intersect(lamsigsets2dn, gsigsetsdn)
+
+message("specific to LAM")
+LAMspec <- setdiff(lamsigsets2up, gsigsetsup)
+LAMspec
+LAMspec <- setdiff(lamsigsets2dn, gsigsetsdn)
+LAMspec
+
+message("specific to GSA")
+GSAspec <- setdiff(gsigsetsup, lamsigsets2up)
+GSAspec
+GSAspec <- setdiff(gsigsetsdn, lamsigsets2dn)
+GSAspec
+
+```
+
+Euler without direction noted.
 
 ```{r,ol1}
 
