@@ -96,6 +96,11 @@ GSE158420_counts.txt.gz
 
 ```{r,deseq1}
 
+if (!file.exists("GSE158420_counts.txt.gz")) {
+  download.file("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420",
+    destfile="GSE158420_counts.txt.gz")
+}
+
 x <- read.table("GSE158420_counts.txt.gz",row.names=NULL)
 dim(x)
 x <- aggregate(. ~ row.names,x,sum)
