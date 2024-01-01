@@ -97,7 +97,7 @@ GSE158420_counts.txt.gz
 ```{r,deseq1}
 
 if (!file.exists("GSE158420_counts.txt.gz")) {
-  download.file("https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE158420",
+  download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE158420&format=file&file=GSE158420%5Fcounts%2Etxt%2Egz",
     destfile="GSE158420_counts.txt.gz")
 }
 
