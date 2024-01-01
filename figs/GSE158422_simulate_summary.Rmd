@@ -91,6 +91,12 @@ grid()
 
 legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.7)
 
+pdf("fig1a.pdf",width=5,height=4)
+barplot(t(x1),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="20 genes per set")
+grid()
+legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.7)
+dev.off()
+
 load("GSE158422_simulate050.Rdata")
 
 l2 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
@@ -103,6 +109,11 @@ x2 %>% kbl(caption="sim 50 res") %>% kable_paper("hover", full_width = F)
 barplot(t(x2),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="50 genes per set")
 grid()
 
+pdf("fig1b.pdf",width=5,height=4)
+barplot(t(x2),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="50 genes per set")
+grid()
+dev.off()
+
 load("GSE158422_simulate100.Rdata")
 
 l3 <- list("GSA"=gres2,"LAT"=lacres2,"LTT"=lactopres2,"LAW"=nlacres2,
@@ -114,6 +125,12 @@ x3 %>% kbl(caption="sim 100 res") %>% kable_paper("hover", full_width = F)
 
 barplot(t(x3),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="100 genes per set")
 grid()
+
+pdf("fig1c.pdf",width=5,height=4)
+barplot(t(x3),beside=TRUE,ylim=c(0,1),ylab="index", col=cols, cex.names=0.7, cex.axis=0.7, main="100 genes per set")
+grid()
+legend("topleft", inset=.1, c("Precision","Recall","F1"), fill=cols, cex=0.7)
+dev.off()
 
 ```
 
