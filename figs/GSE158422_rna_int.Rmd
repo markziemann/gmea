@@ -346,7 +346,7 @@ colfunc <- colorRampPalette(c("blue", "white", "red"))
 heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.6, cexCol=1)
 
 pdf("fig5c.pdf")
-heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.7, cexCol=1)
+heatmap.2( as.matrix(mtop) , trace="none",margins = c(6,25), col=colfunc(25), cexRow=.65, cexCol=1)
 dev.off()
 
 # rna vs promoter
