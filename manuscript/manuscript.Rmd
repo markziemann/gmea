@@ -220,8 +220,8 @@ Downstream pathway enrichment analysis was conducted using the GSAmeth and LAM m
 with Reactome pathways downloaded from MSigDB website (version 2023.1).
 LAM relies on probe-gene associations from the "UCSC_RefGene_Name" column of the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19"
 annotation.
-As these annotations are several years old, we updated them using HGNChelper (database current as of 21-Dec-2023) [@Oh2022-ts].
-Circa 12% of gene symbols were updated.
+As gene annotations are several years old, we used HGNChelper to update them (database current as of 21-Dec-2023) [@Oh2022-ts]
+(3253 gene symbols were updated).
 Euler diagrams were created with the `eulerr` R package.
 To test sensitivity, a random subset of n patients was selected followed by pathway enrichment analysis with the
 respective method, with n varied between 2 and 30.
@@ -311,17 +311,21 @@ the gene sets are larger than 50 members.
 ### Sensitivity of GSA and LAM methods with real cancer data
 
 Next, GSA and LAM methods were applied to compare paired normal and cancer methylation data from 37 lung squamous cell carcinoma patients.
-From the 839,473 probes examined, 473,572 probes were considered significant at 5% FDR.
+From the 839,473 probes passing quality control, 473,572 were considered significant at 5% FDR.
 Of these, 119,785 probes were significantly hypermethylated and 353,787 were significantly hypomethylated.
 These significantly hypermethylated probes mapped to 16,520 unique genes, while the hypomethylated probes mapped to 24,114 genes.
 These numbers are large, considering that there are 26,219 genes represented on this array.
+LAM resulted in 406 significant Reactome pathways at FDR<0.05.
+Of these 370 involved higher methylation, while 36 involved lower methylation.
+LAM execution took 51 seconds using eight parallel threads.
+With GSA, there were 75 pathways with higher methylation and 32 with lower methylation.
+12 pathways were significant in both directions.
+There were 30 pathways that were common between LAM and GSA methods.
+This includes 26 and 4 with higher and lower methylation respectively (**Figure 3A**).
 
-LAM resulted in 358 significant Reactome pathways at FDR<0.05 while there were just 21 with GSA (**Figure 3A**).
-The overlap of significant pathways was unexpectedly small, with just five common pathways.
-
-We were curious about whether LAM method had a bias towards larger gene sets as the recall of this
-method is higher with larger gene sets.
-Unexpectedly, pathways identified by LAM were collectively smaller than GSA (**Figure 3B**).
+As the simulation results indicated LAM had better recall with larger gene sets, we were curious about whether there were differences in the sizes of
+gene sets found by LAM and GSA.
+GSA significant pathways had a median size of 135, while for LAM the median was 54.5, indicating pathways identified as significant by LAM were collectively smaller than GSA (**Figure 3B**).
 Although algorithmic accuracy cannot be inferred from the types of pathways identified in real data,
 top ranked results from LAM appeared to be more related to cell differentiation, identity and development (**Figure 3C**),
 as compared to GSA (**Figure 3D**).
@@ -340,12 +344,11 @@ This process was repeated 50 times and the results shown in (**Figure 4**).
 Pathways that were identified as statistically significant (FDR<0.05) in the smaller and full group were
 termed "consistent", while pathways that were identified in the smaller but not in the full group were
 termed "inconsistent".
-LAM was able to detect 300 out of 358 consistent pathways with a sample size of 10,
-while GSA detected just 4 of 21 at this sample size.
+At a sample size of 10, LAM was able to detect 354 out of 406 (87%) consistent pathways with a sample size of 10,
+while GSA detected just 13 of 107 at this sample size (12%).
 LAM identified more inconsistent pathways than GSA, but the proportion of
 inconsistent findings was lower across all sample sizes.
-At a sample size of 10, the proportion of inconsistent pathways was 10% for LAM and
-60% for GSA.
+At a sample size of 10, the proportion of inconsistent pathways was 13% for LAM and 33% for GSA.
 This result suggests that LAM has superior sensitivity to detect differentially methylated
 pathways in real cancer data.
 
@@ -364,7 +367,7 @@ Left panels correspond to LAM, and right panels to GSA methods.
 Associations of epigenetic marks with gene expression are of great interest for understanding disease processes.
 Matching tumour-normal RNA-seq datasets were analysed and we conducted enrichment analysis of gene expression together with
 DNA methylation.
-There were 12,386 differentially expressed genes (FDR<0.05), with 7,418 and 4,968 up- and down-regulated in the tumour group respectively.
+From 18,704 detected genes, There were 12,380 differentially expressed genes (FDR<0.05), with 7,415 and 4,965 up- and down-regulated in the tumour group respectively.
 At the pathway level there were 318 and 193 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
 As the context of gene methylation is important in influencing gene expression, promoter and gene body methylation
 were considered separately.
