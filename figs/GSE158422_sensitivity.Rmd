@@ -289,6 +289,14 @@ barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.65,
   cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
 grid()
 
+pdf("fig3c.pdf",height=6,width=7)
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+grid()
+dev.off()
+
+
 par( mar = c(5.1, 4.1, 4.1, 2.1) )
 
 hist(lamsig$s.dist)
@@ -493,6 +501,13 @@ barplot(abs(gsiges$ES),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.75,
   cex.axis=0.85, col=cols, xlab="Enrichment score",main="GSA")
 grid()
 
+pdf("fig3d.pdf",height=6,width=7)
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(gsiges$ES)-1,horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
+  cex.axis=0.85, col=cols, xlab="Enrichment score",main="GSA")
+grid()
+dev.off()
+
 ```
 
 ## GSAmeth Downsample
@@ -648,6 +663,10 @@ v1 <- list("LAM up"=lamsigsets2up,"LAM dn"=lamsigsets2dn,
 
 plot(euler(v1),quantities = TRUE)
 
+pdf("fig3a.pdf",height=4,width=5)
+plot(euler(v1),quantities = TRUE)
+dev.off()
+
 message("common")
 intersect(lamsigsets2up, gsigsetsup)
 intersect(lamsigsets2dn, gsigsetsdn)
@@ -721,6 +740,11 @@ LAMNAME=paste("LAM (",length(lamsigsets1len),")",sep="")
 mylist <- list(GSANAME=gsigsets1len,LAMNAME=lamsigsets1len)
 boxplot(mylist,cex=0, ylab="gene set size",names=c(GSANAME,LAMNAME))
 beeswarm(mylist,pch=19,add=TRUE,cex=0.7)
+
+pdf("fig3b.pdf",height=4,width=5)
+boxplot(mylist,cex=0, ylab="gene set size",names=c(GSANAME,LAMNAME))
+beeswarm(mylist,pch=19,add=TRUE,cex=0.3)
+dev.off()
 
 ```
 
