@@ -368,23 +368,26 @@ Associations of epigenetic marks with gene expression are of great interest for 
 Matching tumour-normal RNA-seq datasets were analysed and we conducted enrichment analysis of gene expression together with
 DNA methylation.
 From 18,704 detected genes, There were 12,380 differentially expressed genes (FDR<0.05), with 7,415 and 4,965 up- and down-regulated in the tumour group respectively.
-At the pathway level there were 318 and 193 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
+At the pathway level there were 304 and 135 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
 As the context of gene methylation is important in influencing gene expression, promoter and gene body methylation
 were considered separately.
-In promoters, GSA identified 15 and 8 pathways with higher and lower methylation respectively, while at gene bodies, there were were 17 and 67
+In promoters, GSA identified 15 and 7 pathways with higher and lower methylation respectively, while at gene bodies, there were were 18 and 75
 pathways with higher and lower methylation respectively (FDR<0.05).
-Using LAM, there were 133 and 12 pathways identified with higher and lower promoter methylation respectively, while there were 236 and 35 with higher and lower gene body methylation respectively (FDR<0.05).
-The relative overlap between promoter and gene body results was larger for LAM pathway sets as compared to GSA (**Figure 5A,B**).
+Using LAM at promoters, there were 190 and 20 pathways identified with higher and lower methylation respectively.
+LAM at gene bodies identified 251 and 31 pathways with higher and lower methylation respectively (FDR<0.05).
+The relative overlap between promoter and gene body results was larger for LAM pathway sets (22%) as compared to GSA (3%) (**Figure 5A,B**).
 There was no observed overlap between GSA methylation-based pathways and gene expression pathways (**Figure 5A**), but there were some
 overlaps between pathways identified with LAM based promoter and gene body methylation and gene expression (**Figure 5B**).
-Interestingly, 123/318 upregulated gene expression pathways were associated with increasing gene body methylation with LAM.
-Likewise 19 pathways with downregulated expression were associated with increasing promoter methylation.
+
+
+Interestingly, 136/304 upregulated gene expression pathways were associated with increasing gene body methylation with LAM.
+Likewise 21 pathways with downregulated expression were associated with increasing promoter methylation.
 Some of these pathways with large effect sizes across the three contrasts are depicted in heatmap form (**Figure 5C**).
 Of these selected pathways, there was a mixture of concordant and discordant signatures in the three contrasts,
 suggesting that promoter methylation differences do not strongly influence RNA expression at the level of pathways.
 However there were a small number of pathways that did exhibit what could be epigenetic influences, for example
-"DNA strand elongation", "Unwinding of DNA", "Mucopolysaccharidoses" and "Interaction with cumulus cells and the zona pellucida"
-demonstrated an inverse relationship between promoter methylation and gene expression.
+"Unwinding of DNA", "Mucopolysaccharidoses","Interaction with cumulus cells and the zona pellucida", "glucocorticoid biosynthesis" and
+"olfactory signaling" demonstrated an inverse relationship between promoter methylation and gene expression.
 These results demonstrate that LAM can illuminate the complicated relationship between DNA methylation and gene expression at the pathway level in cancer.
 
 ![**Figure 5. Integration of gene expression data with methylation pathways.**
