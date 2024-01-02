@@ -348,13 +348,13 @@ par(mfrow=c(3,1))
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
 lapply(dots,summary)
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",cex=0,main="LAM") ; grid()
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",cex=0,main="LAM") ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h=nrow(lamsig))
 
 dots <- lapply(ssres,function(x) { x[,"FP"] })
 lapply(dots,summary)
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0) ; grid()
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. inconsistent",xlab="sample size",cex=0) ; grid()
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 
 dots <- lapply(ssres,function(x) { x[,"TP"] })
@@ -364,10 +364,34 @@ FPdots <- do.call(rbind,dots)
 ratio <- t(FPdots / (TPdots + FPdots))
 ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
 lapply(ratio,summary)
-boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion inconsistent",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
+pdf("fig4a.pdf",height=7,width=5)
+par(mfrow=c(3,1))
+par( mar = c(4.1, 4.1, 2.1, 1.1) )
+dots <- lapply(ssres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",cex=0,main="LAM") ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h=nrow(lamsig))
+
+dots <- lapply(ssres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(ssres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(ssres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(FPdots / (TPdots + FPdots))
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
+
+dev.off()
+
 par(mfrow=c(1,1))
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
 
 ```
 
@@ -569,14 +593,14 @@ par(mfrow=c(3,1))
 
 dots <- lapply(gsres,function(x) { x[,"TP"] })
 lapply(dots,summary)
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. true positives",xlab="sample size",
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",
   cex=0,main="GSAmeth",ylim=c(0,nrow(gsig)))
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 abline(h=nrow(gsig))
 
 dots <- lapply(gsres,function(x) { x[,"FP"] })
 lapply(dots,summary)
-boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. false positives",xlab="sample size",cex=0)
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. inconsistent",xlab="sample size",cex=0)
 beeswarm(dots,add=TRUE,pch=1,cex=0.6)
 
 dots <- lapply(gsres,function(x) { x[,"TP"] })
@@ -586,10 +610,36 @@ FPdots <- do.call(rbind,dots)
 ratio <- t(FPdots / (TPdots + FPdots))
 ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
 lapply(ratio,summary)
-boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion FP",xlab="sample size",cex=0) ; grid()
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion inconsistent",xlab="sample size",cex=0) ; grid()
 beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
 
+pdf("fig4b.pdf",height=7,width=5)
+par(mfrow=c(3,1))
+par( mar = c(4.1, 4.1, 2.1, 1.1) )
+
+dots <- lapply(gsres,function(x) { x[,"TP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. consistent",xlab="sample size",
+  cex=0,main="GSAmeth",ylim=c(0,nrow(gsig)))
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+abline(h=nrow(gsig))
+
+dots <- lapply(gsres,function(x) { x[,"FP"] })
+boxplot(dots,names=SAMPLESIZES,col="white",ylab="no. inconsistent",xlab="sample size",cex=0)
+beeswarm(dots,add=TRUE,pch=1,cex=0.6)
+
+dots <- lapply(gsres,function(x) { x[,"TP"] })
+TPdots <- do.call(rbind,dots)
+dots <- lapply(gsres,function(x) { x[,"FP"] })
+FPdots <- do.call(rbind,dots)
+ratio <- t(FPdots / (TPdots + FPdots))
+ratio <- lapply(1:ncol(ratio),function(i) {ratio[,i]})
+boxplot(ratio,names=SAMPLESIZES,col="white",ylab="proportion inconsistent",xlab="sample size",cex=0) ; grid()
+beeswarm(ratio,add=TRUE,pch=1,cex=0.6)
+
+dev.off()
+
 par(mfrow=c(1,1))
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
 
 ```
 
