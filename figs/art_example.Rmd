@@ -127,7 +127,7 @@ length(unique(gt2$gene))
 toc() #10.6s
 
 tic()
-new.hgnc.table <- getCurrentHumanMap()
+#new.hgnc.table <- getCurrentHumanMap()
 fix <- checkGeneSymbols(gt2$gene,map=new.hgnc.table)
 fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))
