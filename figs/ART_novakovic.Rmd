@@ -64,15 +64,10 @@ gse <- getGEO(filename=SERIES_MATRIX)
 baseDir <- "."
 sample_metadata <- pData(phenoData(gse))
 targets <- sample_metadata
-
-files <- list.files(WORKING_DIR,pattern = "GSM",recursive = TRUE)
-mybase <- unique(gsub("_Red.idat.gz" ,"", gsub("_Grn.idat.gz", "" ,files)))
-mybase <- paste(WORKING_DIR,"/",mybase,sep="")
-targets$Basename <- mybase
+targets <- subset(targets,`time of collection:ch1`=="birth")
+targets$Basename <- head( gsub("_Grn.idat.gz","",list.files("IDAT",full.names=TRUE,pattern="Grn")) , 207 )
 head(targets)
 
-# filter time of birth as were not interested in follow up samples
-targets <- subset(targets,`time of collection:ch1`=="birth")
 rgSet <- read.metharray.exp(targets = targets)
 rgSet
 
