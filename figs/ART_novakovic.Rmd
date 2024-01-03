@@ -185,8 +185,8 @@ colnames(beta) <- sapply(strsplit(colnames(beta),"_"),"[[",1)
 colnames(Mval) <- sapply(strsplit(colnames(Mval),"_"),"[[",1)
 
 #targets$Basename <- gsub("IDAT/","",targets$Basename)  
-birth<-targets[which(targets$`time_of_collection`=="birth"),]
-birth$Basename <- sapply(strsplit(birth$Basename,"/"),"[[",3)
+birth <- targets[which(targets$`time_of_collection`=="birth"),]
+birth$Basename <- sapply(strsplit(birth$Basename,"/"),"[[",2)
 birth$Basename <- sapply(strsplit(birth$Basename,"_"),"[[",1)
 
 samplesheet <- subset(birth,art_subtype_ch1=="non-ART"|art_subtype_ch1=="Fresh embryo")
