@@ -258,7 +258,7 @@ mtable <- mres$enrichment_result
 sig <- subset(mtable,p.adjustMANOVA<0.05)
 head(sig,20)
 
-det <- mres$detailed_sets$REACTOME_ADRENORECEPTORS
+det <- mres$detailed_sets$REACTOME_ADRENOCEPTORS
 
 k <- MASS::kde2d(det[,1], det[,2])
 X_AXIS = "Estill 450k"
@@ -289,7 +289,7 @@ det <- cbind(det, apply(det,1,median))
 
 det <- det[order(det[,3]),]
 
-head(det,20) %>% kbl(caption="Top hypomethylated genes of the selectedpathway") %>% kable_paper("hover", full_width = F)
+head(det,20) %>% kbl(caption="Top hypomethylated genes of the selected pathway") %>% kable_paper("hover", full_width = F)
 
 ```
 
