@@ -438,9 +438,9 @@ A scatterplot of pathway enrichment scores indicates a moderate degree of agreem
 A heatmap shows a high degree of agreement of pathways with higher methylation in the IVF groups,
 while pathways with overall lower methylation in the IVF group showed some variability in enrichment scores
 between studies (**Figure 7C**).
-We were interested in which pathways had consistently lower methylation in the IVF group and identified the Reactome pathway "Adrenoreceptors" which had enrichment scores of -0.42 in the Estill study and -0.56 in the Novakovic study, recording a MANOVA FDR value of 0.005 (**Figure 7D**).
-Top ranked genes from this pathway include *FOSL1*, *JUNB*, *ASCL1* and *ID1*.
-A loss of methylation of these genes could contribute to disorders of development.
+We were interested in which pathways had consistently lower methylation in the IVF group and identified the Reactome pathway "Adrenoreceptors" which had enrichment scores of -0.42 in the Estill study and -0.56 in the Novakovic study, recording a MANOVA FDR value of 0.04 (**Figure 7D**).
+Top ranked genes from this pathway include *ADRA2C*, *ADRB2*, *ADRA2B* and *ADRA1B*.
+A loss of methylation of these genes could contribute to reported elevated blood pressure in people conceived by IVF [@Meister2018-cp].
 Taken together, this analysis shows that LAM method can be used to compare enrichment of independent studies
 conducted with 450k and EPIC arrays.
 
@@ -448,7 +448,7 @@ conducted with 450k and EPIC arrays.
 (A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (450k) and Novakovic (EPIC) studies.
 (B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
 (C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates higher methylation and blue shows lower methylation.
-(D) An example of a pathway identified with this joint enrichment analysis method, "Nuclear kinase and transcription factor activation" shows lower methylation of member genes in both Estill and Novakovic studies.
+(D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of member genes in both Estill and Novakovic studies.
 ](../figs/fig7.png)
 
 ## Discussion
