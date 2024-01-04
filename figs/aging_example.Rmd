@@ -125,8 +125,35 @@ toc() #11.45s
 mtable <- mres$enrichment_result
 head(mtable,20)
 
-```
+#numsig manova
+nrow(subset(mtable,p.adjustMANOVA<0.05))
+sig <- subset(mtable,p.adjustMANOVA<0.05)
+table(sign(sig$s.Discovery) == sign(sig$s.Replication))
 
+
+# num sig discovery
+length(which(p.adjust(mtable$p.Discovery,method="fdr")<0.05))
+sig_disc <- mtable[which(p.adjust(mtable$p.Discovery,method="fdr")<0.05),c("set","s.Discovery")]
+sig_disc_up <- sig_disc[which(sig_disc$s.Discovery>0),"set"]
+sig_disc_dn <- sig_disc[which(sig_disc$s.Discovery<0),"set"]
+
+# num sig replication
+length(which(p.adjust(mtable$p.Replication,method="fdr")<0.05))
+sig_repl <- mtable[which(p.adjust(mtable$p.Replication,method="fdr")<0.05),c("set","s.Replication")]
+sig_repl_up <- sig_disc[which(sig_repl$s.Replication>0),"set"]
+sig_repl_dn <- sig_disc[which(sig_repl$s.Replication<0),"set"]
+
+l <- list("Discovery up"=sig_disc_up,"Discovery dn"=sig_disc_dn,
+  "Replication up"=sig_repl_up,"Replication dn"=sig_repl_dn)
+
+str(l)
+
+plot(euler(l),quantities = TRUE)
+
+
+
+
+```
 
 Rank-rank
 
