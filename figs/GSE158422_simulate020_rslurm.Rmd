@@ -1,0 +1,406 @@
+---
+title: "Testing gene methylation enrichment analysis approaches using simulated data"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+In this report we establish a new method for generating simulated data with known ground truth.
+This will be used to test different gene methylation enrichment approaches systematically.
+
+The general steps are:
+
+1. Import GSE158422 data corresponding to control (non-tumour tissue).
+
+2. From the 37 samples, create two groups of 18 samples.
+One of these will be considered "control" and the other "case".
+
+3. Create random gene sets that have similar sized to Reactome pathways.
+
+3. Some gene sets will be selected to be differentially methylated.
+Half of these will be hypermethylated and the others will be hypomethylated.
+
+4. The changes will be incorporated into the "case" samples.
+
+5. The enrichment analysis will be conducted.
+
+6. The accuracy will be calculated.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("stringi")
+  library("limma")
+  library("missMethyl")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
+  library('org.Hs.eg.db')
+  library("psych")
+  library("mitch")
+  library("kableExtra")
+  library("rslurm")
+})
+
+source("GSE158422_simulate_functions.R")
+
+# optimised for 128 GB sever with 32 threads
+CORES=6
+
+```
+
+## Load data
+
+* annotations
+
+* probe sets
+
+* gene sets
+
+* design matrix
+
+* mval matrix
+
+```{r,annotation}
+
+# get probe-gene mapping
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+dim(gt)
+str(gt)
+head(gt)
+
+#new.hgnc.table <- getCurrentHumanMap()
+#new.hgnc.table <- readRDS("new.hgnc.table.rds")
+#fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+#fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+#length(unique(fix2$x))
+#gt$gene <- fix$Suggested.Symbol
+
+if (!file.exists("GSE158422_design.rds")) {
+  download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_design.rds", "GSE158422_design.rds")
+}
+design <- readRDS("GSE158422_design.rds")
+
+if (!file.exists("GSE158422_design.rds")) {
+  options(timeout=10000000000000)
+  download.file("https://ziemann-lab.net/public/gmea_prototype/GSE158422_mx.rds","GSE158422_mx.rds")
+}
+mval <- readRDS("GSE158422_mx.rds")
+
+```
+
+# Gene set database
+
+We could use Reactome pathways, however these have a lot of overlapping sets, which could cause inflated
+false positives.
+After some testing, I found that the gene set size strongly impacts the accuracy.
+
+For reference, Reactome sets have a mean of 48 and median of 15, while MSigDB has a median of 47 and mean of 116.
+
+Therefore, a reasonable analysis would include small (20), medium (50) and large (100) sets.
+
+To reflect coverage of Reactome and other pathway databases, only half the genes will be included in sets.
+
+```{r,gset_prep}
+
+gene_catalog <- unique(gt$gene)
+
+# set gene set size here
+lengths <- rep(20,1000)
+
+gsets <- randomGeneSets(gene_catalog,lengths,seed=100)
+
+```
+
+# Incorporate changes
+
+TODO: to incorporate changes to case samples.
+
+Need to figure out what magnitude to change.
+Will refer to the cancer/normal comparison.
+
+Select genes and probes to alter.
+
+```{r,incorp}
+
+seed=100
+frac_genes=0.5
+frac_probes=0.5
+delta=1
+nsamples=10
+normal_mval <- mval[,(1:(ncol(mval)/2)*2)]
+
+```
+
+# Run analyses
+
+Set assumptions.
+
+```{r,set}
+
+num_dm_sets=50
+sims=100
+groupsizes=c(3,5,8,12)
+deltas=c(0.1,0.2,0.3,0.4,0.5)
+
+#groupsizes=5
+#deltas=0.4
+
+params <- expand.grid("groupsizes"=groupsizes,"deltas"=deltas,"seed"=seq(100,sims*100,100))
+
+colnames(params) <- c("groupsize","delta","seed")
+
+params %>% kbl(caption="Parameters to test") %>% kable_paper("hover", full_width = F)
+
+```
+
+## GSA
+
+Using GSAmeth of significant probes.
+
+```{r,rungsa,eval=FALSE}
+
+sopt1 <- list(time = '1:00:00', mem="10G")
+
+sjob <- slurm_apply(simgsa, params, jobname = 'gsa',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "F1", "gsets") )
+
+gres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+gres <- do.call(rbind,gres)
+
+gres <- data.frame(params,gres)
+
+str(gres)
+
+```
+
+
+## LAT
+
+Limma Average t-test.
+
+```{r,runlat,eval=FALSE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simlac, params, jobname = 'lat',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "ttenrich","F1", "gsets","gt") )
+
+latres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+latres <- do.call(rbind,latres)
+
+latres <- data.frame(params,latres)
+
+str(latres)
+
+```
+
+## LTT
+
+Limma top t-test.
+
+```{r,runltt,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simlactop, params, jobname = 'ltt',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "ttenrich","F1", "gsets","gt") )
+
+lttres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+lttres <- do.call(rbind,lttres)
+
+lttres <- data.frame(params,lttres)
+
+str(lttres)
+
+```
+
+## LAW
+
+Limma average wilcox.
+
+```{r,runlaw,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simnlac, params, jobname = 'law',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "wtenrich","F1", "gsets","gt") )
+
+lawres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+lawres <- do.call(rbind,lawres)
+
+lawres <- data.frame(params,lawres)
+
+str(lawres)
+
+```
+
+## LAM
+
+Limma average mitch.
+
+```{r,runlam,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simlacm, params, jobname = 'lam',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "runmitch","F1", "gsets","gt") )
+
+lamres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+lamres <- do.call(rbind,lamres)
+
+lamres <- data.frame(params,lamres)
+
+str(lamres)
+
+```
+
+## LRM
+
+Limma rank mitch.
+
+```{r,runlrm,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simlrm, params, jobname = 'lrm',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "runmitch","F1", "gsets","gt") )
+
+lrmres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+lrmres <- do.call(rbind,lrmres)
+
+lrmres <- data.frame(params,lrmres)
+
+str(lrmres)
+
+```
+
+## ALT
+
+Aggregate limma t-test
+
+```{r,runalt,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simalc, params, jobname = 'alt',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "ttenrich","F1", "gsets","gt") )
+
+altres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+altres <- do.call(rbind,altres)
+
+altres <- data.frame(params,altres)
+
+str(altres)
+
+```
+
+## ALW
+
+Aggregate limma wilcox test
+
+```{r,runalw,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simnalc, params, jobname = 'alw',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "wtenrich","F1", "gsets","gt") )
+
+alwres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+alwres <- do.call(rbind,alwres)
+
+alwres <- data.frame(params,alwres)
+
+str(alwres)
+
+```
+
+## ALM
+
+Aggregate limma mitch
+
+```{r,runalm,eval=TRUE}
+
+sopt1 <- list(time = '1:00:00', mem="16G")
+
+sjob <- slurm_apply(simalm, params, jobname = 'alm',
+  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
+  frac_probes=0.5, num_dm_sets=num_dm_sets,
+  pkgs = rev(.packages()),
+  global_objects = c("randomGeneSets", "runlimma","incorp_dm", "runmitch","F1", "gsets","gt") )
+
+almres <- get_slurm_out(sjob, outtype = 'raw', wait = TRUE)
+
+almres <- do.call(rbind,almres)
+
+almres <- data.frame(params,almres)
+
+str(almres)
+
+```
+
+## Session information
+
+```{r,save}
+
+save.image("GSE158422_simulate020_rslurm.Rdata")
+
+sessionInfo()
+
+```
