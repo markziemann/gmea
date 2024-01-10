@@ -157,15 +157,16 @@ num_dm_sets=50
 sims=100
 groupsizes=c(3,5,8,12)
 deltas=c(0.1,0.2,0.3,0.4,0.5)
-
-#groupsizes=5
-#deltas=0.4
+#groupsizes=12
+#deltas=0.5
 
 params <- expand.grid("groupsizes"=groupsizes,"deltas"=deltas,"seed"=seq(100,sims*100,100))
 
 colnames(params) <- c("groupsize","delta","seed")
 
-params %>% kbl(caption="Parameters to test") %>% kable_paper("hover", full_width = F)
+str(params)
+
+params <- params[order(params$groupsize),]
 
 ```
 
@@ -173,12 +174,12 @@ params %>% kbl(caption="Parameters to test") %>% kable_paper("hover", full_width
 
 Using GSAmeth of significant probes.
 
-```{r,rungsa,eval=FALSE}
+```{r,rungsa}
 
-sopt1 <- list(time = '1:00:00', mem="10G")
+sopt1 <- list(time = '6:00:00', mem="16G")
 
 sjob <- slurm_apply(simgsa, params, jobname = 'gsa',
-  nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
+  nodes = 50, cpus_per_node = 1, submit = TRUE, slurm_options = sopt1,
   genesetdatabase=gsets, myann=myann, mval=normal_mval, frac_genes=0.5,
   frac_probes=0.5, num_dm_sets=num_dm_sets,
   pkgs = rev(.packages()),
@@ -199,9 +200,9 @@ str(gres)
 
 Limma Average t-test.
 
-```{r,runlat,eval=FALSE}
+```{r,runlat}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simlac, params, jobname = 'lat',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -224,9 +225,9 @@ str(latres)
 
 Limma top t-test.
 
-```{r,runltt,eval=TRUE}
+```{r,runltt}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simlactop, params, jobname = 'ltt',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -249,9 +250,9 @@ str(lttres)
 
 Limma average wilcox.
 
-```{r,runlaw,eval=TRUE}
+```{r,runlaw}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simnlac, params, jobname = 'law',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -274,9 +275,9 @@ str(lawres)
 
 Limma average mitch.
 
-```{r,runlam,eval=TRUE}
+```{r,runlam}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simlacm, params, jobname = 'lam',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -299,9 +300,9 @@ str(lamres)
 
 Limma rank mitch.
 
-```{r,runlrm,eval=TRUE}
+```{r,runlrm}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simlrm, params, jobname = 'lrm',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -324,9 +325,9 @@ str(lrmres)
 
 Aggregate limma t-test
 
-```{r,runalt,eval=TRUE}
+```{r,runalt}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simalc, params, jobname = 'alt',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -349,9 +350,9 @@ str(altres)
 
 Aggregate limma wilcox test
 
-```{r,runalw,eval=TRUE}
+```{r,runalw}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simnalc, params, jobname = 'alw',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,
@@ -374,9 +375,9 @@ str(alwres)
 
 Aggregate limma mitch
 
-```{r,runalm,eval=TRUE}
+```{r,runalm}
 
-sopt1 <- list(time = '1:00:00', mem="16G")
+sopt1 <- list(time = '6:00:00', mem="32G")
 
 sjob <- slurm_apply(simalm, params, jobname = 'alm',
   nodes = 50, cpus_per_node = 2, submit = TRUE, slurm_options = sopt1,

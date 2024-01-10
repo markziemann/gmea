@@ -121,7 +121,7 @@ To reflect coverage of Reactome and other pathway databases, only half the genes
 gene_catalog <- unique(gt$gene)
 
 # set gene set size here
-lengths <- rep(100,1000)
+lengths <- rep(50,1000)
 
 gsets <- randomGeneSets(gene_catalog,lengths,seed=100)
 
@@ -400,7 +400,7 @@ str(almres)
 
 ```{r,save}
 
-save.image("GSE158422_simulate100_rslurm.Rdata")
+save.image("GSE158422_simulate050_rslurm.Rdata")
 
 sessionInfo()
 
