@@ -43,14 +43,15 @@ Source: https://github.com/markziemann/gmea
 
 ## Abstract
 
-* Infinium methylation beadarrays remain one of the most popular techniques for studying genomic
-methylation, but tools for downstream pathways analysis remain limited.
+* Infinium methylation beadarrays remain one of the most popular platforms for studying genomic
+methylation, but tools for downstream pathways analysis have their limitations.
 
 * Functional class scoring (FCS) is a group of pathway enrichment techniques that involve the ranking of
 genes and evaluation of their collective regulation in biological systems.
 
-* Here we propose three different approaches to apply FCS to Infinium data, which vary upon when the
-differential methylation analysis is conducted, at the level of probes, genes or gene sets.
+* Here we evaluate several approaches to apply FCS to Infinium data retaining directional information.
+The best performing method involves the mean aggregation of probe limma t-statistics by gene followed by
+a rank-ANOVA enrichment test using the mitch package.
 
 * Using real EPIC array data, we demonstrate that aggregation of probe methylation to gene level before
 differential methylation analysis yields a high degree of true positives and low number of contradictory
@@ -286,27 +287,35 @@ Gene level differential methylation score tables were merged and underwent mitch
 
 ### Evaluation of FCS methods for Infinium methylation array data
 
-Simulations were conducted using the seven FCS methods (LAT, LTT, LAW, LAM, ALT, ALW, ALM) and GSAmeth,
+Simulations were conducted using the seven FCS methods (LAT, LTT, LAW, LAM, LRM, ALT, ALW, ALM) and GSAmeth,
 with group sizes of 3-12 and delta values between 0.1 and 0.5, and random gene sets with sizes 20, 50
 and 100.
 True positives, false positives and false negatives were used to calculate overall precision and recall
-at these three gene set sizes (**Figure 1**).
-We found that overall recall was positively associated with the size of the gene sets considered.
-At 20 genes per set, GSA had the highest overall performance, with F1 of 0.097, followed by LAM with 0.035.
-At 50 genes per set, LAM achieved an F1 value of 0.29, while GSA scored 0.19.
-At 100 genes per set, LAM showed the highest F1 performance of 0.56 followed by ALM with 0.53, while
-GSA scored only 0.24.
-This result suggests that FCS methods perform better than ORA with gene set sizes >50.
+at these three gene set sizes (**Figure 1A**).
+The LAM and ALM methods recorded an overall precision of 0.94, while GSA scored lowest with 0.848.
+Recall was highest for LAM with 0.22, while ALM scored 0.21 and GSA scored 0.15
+F1 scores were highest for LAM with 0.36 followed by ALM with 0.35, while GSA scored 0.26.
 
-![**Figure 1. Precision, recall and F1 for enrichment tests with simulated data.** Gene set sizes vary between 20 and 100 genes per set.](../figs/fig1.png)
+We noticed that the size of gene sets used in the simulations strongly influenced the results, with overall recall increasing with
+gene set size (**Figure 1B-D**).
+The GSA method performed better than FCS methods with gene sets of 20 (**Figure 1B**), while at 50 genes per set GSA performance
+was on par with LAM (**Figure 1C**).
+At 100 genes per set however, LAM showed superior precision and recall compared to GSA (**Figure 1D**).
 
-Performance results for GSA and LAM methods with 100 genes per set shows that precision was similar, with most simulations yielding
->95% precision (**Figure 2**).
-LAM recall was superior for most simulations, particularly with lower group sizes.
-Taken together, this result suggests that LAM offers improved sensitivity over existing approaches when
-the gene sets are larger than 50 members.
+![**Figure 1. Precision, recall and F1 for enrichment tests with simulated data.**
+(A) Overall results including 20, 50 and 100 genes per set.
+(B-D) Results for simulations using 20, 50 and 100 genes per set respectively.
+](../figs/fig1_slurm.pdf){height="500px" width="500px"}
+
+Focusing on results from 100 genes per set, LAM precision was more consistent across the parameter ranges as compared to GSA which
+showed lower precision when group size and delta were lower (**Figure 2**).
+Recall was strongly dependent on group size and delta parameters.
+LAM recorded relatively higher recall when group size and delta were lower.
+F1 performance scores at 100 genes per set were better for LAM as compared to GSA.
 
 ![**Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests with simulated data over a range of group sizes and delta values.** One hundred genes per set.](../figs/fig2.png)
+
+Overall, LAM was the superior FCS method across these tests and performed better than the existing GSA method.
 
 ### Sensitivity of GSA and LAM methods with real cancer data
 
@@ -388,10 +397,10 @@ However there were a small number of pathways that did exhibit what could be epi
 "olfactory signaling" demonstrated an inverse relationship between promoter methylation and gene expression.
 These results demonstrate that LAM can illuminate the complicated relationship between DNA methylation and gene expression at the pathway level in cancer.
 
-![**Figure 5. Integration of gene expression data with methylation pathways.**
-(A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A) and LAM (B) results.
-(C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch. Top 20 gene sets shown with largest s distance after FDR filtering at 0.05.
-](../figs/fig5.png)
+#[**Figure 5. Integration of gene expression data with methylation pathways.**
+#(A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A) and LAM (B) results.
+#(C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch. Top 20 gene sets shown with largest s distance after FDR filtering at 0.05.
+#](../figs/fig5.png)
 
 ## Exploration of methylation pathways in aging
 
@@ -409,12 +418,12 @@ When prioritising the results by S distance, a surrogate measure of effect size,
 Some of the observed methylation changes make sense with reports in the literature.
 For example the complement pathway is associated with aging and in this analysis we observe a reduction in methylation of genes beloning to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
 
-![**Figure 6. Pathway level DNA methylation alterations with chronological age.**
-(A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
-(B) Mitch pathway enrichment scores (S distances) in discovery and replication studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
-(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates increasing methylation and blue shows lower methylation.
-(D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes in both discovery and replication studies.
-](../figs/fig6.png)
+#![**Figure 6. Pathway level DNA methylation alterations with chronological age.**
+#(A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
+#(B) Mitch pathway enrichment scores (S distances) in discovery and replication studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+#(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates increasing methylation and blue shows lower methylation.
+#(D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes in both discovery and replication studies.
+#](../figs/fig6.png)
 
 ## Exploration of methylation pathways altered by IVF
 
@@ -444,12 +453,12 @@ A loss of methylation of these genes could contribute to reported elevated blood
 Taken together, this analysis shows that LAM method can be used to compare enrichment of independent studies
 conducted with 450k and EPIC arrays.
 
-![**Figure 7. Pathway level DNA methylation differences in natural and IVF conceived infants.**
-(A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (450k) and Novakovic (EPIC) studies.
-(B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
-(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates higher methylation and blue shows lower methylation.
-(D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of member genes in both Estill and Novakovic studies.
-](../figs/fig7.png)
+#![**Figure 7. Pathway level DNA methylation differences in natural and IVF conceived infants.**
+#(A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (450k) and Novakovic (EPIC) studies.
+#(B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+#(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates higher methylation and blue shows lower methylation.
+#(D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of member genes in both Estill and Novakovic studies.
+#](../figs/fig7.png)
 
 ## Discussion
 
