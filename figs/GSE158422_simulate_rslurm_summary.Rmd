@@ -1,0 +1,465 @@
+---
+title: "Testing gene methylation enrichment analysis approaches using simulated data - summarise data"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here is an explanation of the different objects:
+
+0. GSA: gres
+
+1. LAT: lacres
+
+2. LTT: lactopres
+
+3. LAW: nlacres
+
+4. LAM: lacmres
+
+5. LRM: lrmres
+
+6. ALT: alcres
+
+7. ALW: nalcres
+
+8. ALM: almres
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("kableExtra")
+})
+
+```
+
+## Functions
+
+```{r,functions}
+
+F1 <- function(x,y) {
+  ( 2 * x * y ) / ( x + y )
+}
+
+PRECREC <- function(x){
+  y <- aggregate(.~groupsize+delta,x,mean)
+  y$PREC <- y$TP / ( y$TP + y$FP )
+  y$REC <- y$TP / ( y$TP + y$FN )
+  y$F1 <- F1(y$PREC,y$REC)
+  y
+}
+# usage: lapply(x20,PRECREC)
+
+smrz <- function(x) {
+  P <- mean(x$PREC)
+  R <- mean(x$REC)
+  F <- F1(P,R)
+  c(P,R,F)
+}
+# usage: smrz(x20a)
+
+```
+
+## Load data
+
+```{r,load}
+
+load("GSE158422_simulate020_rslurm.Rdata")
+
+x20 <- list("GSA"=gres,"LAT"=latres,"LTT"=lttres,"LAW"=lawres,
+  "LAM"=lamres,"LRM"=lrmres,"ALT"=altres,"ALW"=alwres,"ALM"=almres)
+
+load("GSE158422_simulate050_rslurm.Rdata")
+
+x50 <- list("GSA"=gres,"LAT"=latres,"LTT"=lttres,"LAW"=lawres,
+  "LAM"=lamres,"LRM"=lrmres,"ALT"=altres,"ALW"=alwres,"ALM"=almres)
+
+load("GSE158422_simulate100_rslurm.Rdata")
+
+x100 <- list("GSA"=gres,"LAT"=latres,"LTT"=lttres,"LAW"=lawres,
+  "LAM"=lamres,"LRM"=lrmres,"ALT"=altres,"ALW"=alwres,"ALM"=almres)
+
+rm(myann)
+rm(gp2)
+rm(normal_mval)
+rm(mval,anno)
+
+```
+
+## Overall summary
+
+Merge the data at gene set sizes of 20, 50 and 100 into a single result.
+
+```{r,merge,fig.width=5,fig.height=4}
+
+all <- lapply(1:length(x20),function(i) {
+  mg <- rbind(x20[[i]],x50[[i]],x100[[i]])
+  m <- apply(mg,2,mean)
+  P <- m["TP"] / ( m["TP"] + m["FP"])
+  R <- m["TP"] / ( m["TP"] + m["FN"] )
+  F <- F1(P,R)
+  res <- c(P,R,F)
+  names(res) <- c("P","R","F")
+  return(res)
+} )
+names(all) <- names(x20)
+all <- do.call(rbind,all)
+colnames(all) <- c("PREC","REC","F1")
+
+all %>% kbl(caption="Overall simulation results") %>% kable_paper("hover", full_width = F)
+
+par(mar = c(5.1, 4.1, 5.1, 2.1))
+cols <- c("white","gray","black")
+
+barplot(t(all),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.7, cex.axis=0.7, main="Overall simulation results")
+grid()
+legend("right", inset=.01, c("Precision","Recall","F1"), fill=cols, cex=0.7)
+
+```
+
+## Focus on differences caused byu gene set size
+
+Make a set of three barplots which summarise method performance over the range of group size and
+delta values, for gene set sizes of 20, 50 and 200.
+
+```{r,x20summary,fig.width=5,fig.height=4}
+
+groupsizes=unique(x20[[1]]$groupsize)
+deltas=unique(x20[[1]]$delta)
+
+x20a <- lapply(x20,PRECREC)
+x20aa <- lapply(x20a,smrz)
+x20aa <- do.call(rbind,x20aa)
+colnames(x20aa) <- c("PREC","REC","F1")
+x50a <- lapply(x50,PRECREC)
+x50aa <- lapply(x50a,smrz)
+x50aa <- do.call(rbind,x50aa)
+colnames(x50aa) <- c("PREC","REC","F1")
+x100a <- lapply(x100,PRECREC)
+x100aa <- lapply(x100a,smrz)
+x100aa <- do.call(rbind,x100aa)
+colnames(x100aa) <- c("PREC","REC","F1")
+
+x20aa %>% kbl(caption="sim 20 res") %>% kable_paper("hover", full_width = F)
+x50aa %>% kbl(caption="sim 50 res") %>% kable_paper("hover", full_width = F)
+x100aa %>% kbl(caption="sim 100 res") %>% kable_paper("hover", full_width = F)
+
+barplot(t(x20aa),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.8, cex.axis=0.8, main="20 genes per set")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("right", inset=.01, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+barplot(t(x50aa),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.8, cex.axis=0.8, main="50 genes per set")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("right", inset=.01, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+barplot(t(x100aa),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.8, cex.axis=0.8, main="100 genes per set")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("bottomright", inset=.01, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+dev.off()
+
+
+
+pdf("fig1_slurm.pdf",height=6,width=7)
+par(mfrow=c(2,2))
+par(mar = c(2.5, 4, 3, 1))
+barplot(t(all),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.65, cex.axis=0.8, main="Overall simulation results")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("right", inset=0, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+mtext("A", 2, adj=2.5, las=1,padj=-4,cex=2)
+barplot(t(x20aa),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.65, cex.axis=0.8, main="20 genes per set")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("right", inset=0, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+mtext("B", 2, adj=2.5, las=1,padj=-4,cex=2)
+barplot(t(x50aa),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.65, cex.axis=0.8, main="50 genes per set")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("right", inset=0, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+mtext("C", 2, adj=2.5, las=1,padj=-4,cex=2)
+barplot(t(x100aa),beside=TRUE,ylim=c(0,1),ylab="index",
+  col=cols, cex.names=0.65, cex.axis=0.8, main="100 genes per set")
+abline(h=seq(0.2,1,0.2),lty=2,col="gray")
+legend("bottomright", inset=0, c("Precision","Recall","F1"), fill=cols, bg="white", cex=0.8)
+mtext("D", 2, adj=2.5, las=1,padj=-4,cex=2)
+dev.off()
+
+```
+
+## In depth analysis of GSA vs LAM
+
+As GSA appears to be the best-performing existing method for enrichment analysis, it is a good idea
+to compare it to LAM which is the best one out of the new methods evaluated here.
+The following charts show the performance of GSA and LAM including precision and recall over the
+range of group sizes and delta values when the sets contain 20, 50 and 100 genes each.
+
+First with 20 genes per set.
+
+```{r,020_gsa_vs_lam}
+
+par(mfrow=c(2,3))
+par(mar = c(4.1, 4.1, 3.5, 0.9))
+
+gsa <- lapply(deltas,function(d) { subset(x20a$GSA,delta==d) } )
+lam <- lapply(deltas,function(d) { subset(x20a$LAM,delta==d) } )
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"PREC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"PREC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="GSA",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"REC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"REC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"F1"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"F1"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"PREC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"PREC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="LAM",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"REC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"REC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"F1"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"F1"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+```
+
+Now with 50 genes per set.
+
+```{r,050_gsa_vs_lam}
+
+par(mfrow=c(2,3))
+par(mar = c(4.1, 4.1, 3.5, 0.9))
+
+gsa <- lapply(deltas,function(d) { subset(x50a$GSA,delta==d) } )
+lam <- lapply(deltas,function(d) { subset(x50a$LAM,delta==d) } )
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"PREC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"PREC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="GSA",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"REC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"REC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"F1"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"F1"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"PREC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"PREC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="LAM",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"REC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"REC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"F1"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"F1"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+```
+
+Now 100 genes per set
+
+```{r,100_gsa_vs_lam}
+
+par(mfrow=c(2,3))
+par(mar = c(4.1, 4.1, 3.5, 0.9))
+
+gsa <- lapply(deltas,function(d) { subset(x100a$GSA,delta==d) } )
+lam <- lapply(deltas,function(d) { subset(x100a$LAM,delta==d) } )
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"PREC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"PREC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="GSA",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"REC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"REC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"F1"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"F1"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"PREC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"PREC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="LAM",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"REC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"REC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"F1"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"F1"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+## PDF output
+
+pdf("fig2_slurm.pdf",height=6,width=7)
+par(mfrow=c(2,3))
+par(mar = c(4.1, 4.1, 3.5, 0.9))
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"PREC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"PREC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="GSA",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"REC"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"REC"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(gsa[[length(gsa)]][,"groupsize"],  gsa[[length(gsa)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(gsa[[length(gsa)-1]][,"groupsize"], gsa[[length(gsa)-1]][,"F1"] ,type="b",col="red")
+lines(gsa[[length(gsa)-2]][,"groupsize"], gsa[[length(gsa)-2]][,"F1"] ,type="b",col="blue")
+lines(gsa[[length(gsa)-3]][,"groupsize"], gsa[[length(gsa)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(gsa[[length(gsa)-4]][,"groupsize"], gsa[[length(gsa)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"PREC"],type="b",las=1,ylab="precision",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"PREC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"PREC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"PREC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"PREC"] ,type="b",col="darkorange")
+grid()
+legend("bottomright", legend=c("0.5", "0.4", "0.3", "0.2", "0.1"),title="delta",
+  lty=1, lwd=2, col=c("black", "red", "blue", "darkgreen", "darkorange"), cex=1, bg="white")
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"REC"],type="b",las=1,ylab="recall",xlab="group size",
+  main="LAM",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"REC"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"REC"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"REC"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"REC"] ,type="b",col="darkorange")
+grid()
+
+plot(lam[[length(lam)]][,"groupsize"],  lam[[length(lam)]][,"F1"],type="b",las=1,ylab="F1",xlab="",
+  main="",ylim=c(0,1))
+lines(lam[[length(lam)-1]][,"groupsize"], lam[[length(lam)-1]][,"F1"] ,type="b",col="red")
+lines(lam[[length(lam)-2]][,"groupsize"], lam[[length(lam)-2]][,"F1"] ,type="b",col="blue")
+lines(lam[[length(lam)-3]][,"groupsize"], lam[[length(lam)-3]][,"F1"] ,type="b",col="darkgreen")
+lines(lam[[length(lam)-4]][,"groupsize"], lam[[length(lam)-4]][,"F1"] ,type="b",col="darkorange")
+grid()
+
+dev.off()
+
+```
+
+## Session information
+
+```{r,save}
+
+sessionInfo()
+
+```
+
