@@ -286,13 +286,13 @@ cols <- gsub("TRUE","red",gsub("FALSE","blue",as.character(top$s.dist>0)))
 
 par(mar = c(5.1, 29.1, 4.1, 2.1))
 barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.65,
-  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="LAM")
 grid()
 
 pdf("fig3c.pdf",height=6,width=7)
 par(mar = c(5.1, 29.1, 4.1, 2.1))
 barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
-  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="LAM")
 grid()
 dev.off()
 

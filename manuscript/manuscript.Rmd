@@ -43,29 +43,25 @@ Source: https://github.com/markziemann/gmea
 
 ## Abstract
 
-* Infinium methylation beadarrays remain one of the most popular platforms for studying genomic
-methylation, but tools for downstream pathways analysis have their limitations.
-
-* Functional class scoring (FCS) is a group of pathway enrichment techniques that involve the ranking of
-genes and evaluation of their collective regulation in biological systems.
-
-* Here we evaluate several approaches to apply FCS to Infinium data retaining directional information.
-The best performing method involves the mean aggregation of probe limma t-statistics by gene followed by
-a rank-ANOVA enrichment test using the mitch package.
-
-* Using real EPIC array data, we demonstrate that aggregation of probe methylation to gene level before
-differential methylation analysis yields a high degree of true positives and low number of contradictory
-results.
-
-* Using matched RNA-seq data we evaluate the relationship of methylation differences at promoters and
-gene bodies with RNA expression at the level of pathways.
-
-* We apply this approach to two further contexts, where existing methods failed to identify any
-pathway-level effects in 450K and EPIC datasets: (i) the effect of assisted reproductive technology on
-DNA methylation, and (2) the association of elevated plasma homocysteine with methylation patterns.
-
-* The methods described here have been incorporated into a package called gmea, short for gene
-methylation enrichment analysis.
+Infinium methylation beadarrays remain one of the most popular platforms for studying genomic
+DNA methylation, but tools for downstream pathways analysis have their limitations.
+Functional class scoring (FCS) is a group of pathway enrichment techniques that involve the ranking of
+genes and evaluation of their collective regulation in biological systems, but the implementations described for
+Infinium methylation data do not retain direction information which is important for mechanistic understanding
+of genomic regulation.
+Here, we evaluate several candidate FCS methods that retain directional information.
+According to simulation results, the best performing method involves the mean aggregation of probe limma
+t-statistics by gene followed by a rank-ANOVA enrichment test using the mitch package.
+This method, which we call "LAM", outperformed an existing over-representation analysis method in
+simulations, and showed higher sensitivity and robustness in an analysis of real lung tumor-normal paired datasets.
+Using matched RNA-seq data we examine the relationship of methylation differences at promoters and
+gene bodies with RNA expression at the level of pathways in lung cancer.
+To further demonstrate the utility of our approach, we apply it to two other contexts; firstly an examination of
+methylation differences associated with chronological age; and secondly to examine methylation differences in
+infants conceived with assisted reproductive technology.
+These results indicate that the LAM method is more sensitive and precise as compared to existing methods.
+LAM has the potential to illuminate disease mechanisms and identify novel diagnostic signatures.
+A vignette is provided to illustrate how to implement this method.
 
 **Keywords:** Pathway analysis, functional enrichment analysis, Infinium Array, DNA methylation,
 epigenetics.
@@ -74,8 +70,8 @@ epigenetics.
 
 ## Introduction
 
-DNA methylation is the most widely studied epigenetic mark, for its role in development and
-disease [@Robertson2005-tu].
+DNA methylation is the most widely studied epigenetic mark, for its role in
+development and disease [@Robertson2005-tu].
 Many hundreds of epigenome-wide association studies (EWASs) are conducted each year to understand DNA
 methylation patterns in disease and other contexts [@Li2019-og].
 Infinium arrays remain the preferred platform for EWASs due to low cost and analytical simplicity
@@ -244,7 +240,6 @@ For this analysis, Reactome gene sets were used.
 Subsequently, to generate the mitch heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
 promoter and gene body methylation together, prioritising the results by s-distance, a surrogate measure of effect size.
 
-
 ### Pathway-level differential methylation in aging
 
 In order to deminstrate the utility of the LAM method for large EWAS studies, we examined
@@ -265,8 +260,7 @@ The Estill study was published in 2016 and is based on the HM450K array and the 
 The Novakovic study in was published 2019, and used the EPIC methylation array and the data is available from GEO under accession
 GSE131433.
 Various assisted reproductive technology conception groups are described in these studies, but we examined
-just fresh in vitro fertilised conceived infants compared to naturally conceived infants.
-
+just fresh in vitro fertilisation (IVF) conceived infants compared to naturally conceived infants.
 Raw intensity files (IDAT format) were read into R with minfi [aryee], normalistion was conducted with the SWAN method [maksimovic],
 and probe filtering was conducted to remove proves with a detection p-value > 0.01 in addition to probes located on X or Y
 chromosomes.
@@ -290,6 +284,7 @@ Gene level differential methylation score tables were merged and underwent mitch
 Simulations were conducted using the seven FCS methods (LAT, LTT, LAW, LAM, LRM, ALT, ALW, ALM) and GSAmeth,
 with group sizes of 3-12 and delta values between 0.1 and 0.5, and random gene sets with sizes 20, 50
 and 100.
+At each parameter setting, the simulations were repeated 100 times with a different seed value.
 True positives, false positives and false negatives were used to calculate overall precision and recall
 at these three gene set sizes (**Figure 1A**).
 The LAM and ALM methods recorded an overall precision of 0.94, while GSA scored lowest with 0.848.
@@ -302,10 +297,9 @@ The GSA method performed better than FCS methods with gene sets of 20 (**Figure 
 was on par with LAM (**Figure 1C**).
 At 100 genes per set however, LAM showed superior precision and recall compared to GSA (**Figure 1D**).
 
-![**Figure 1. Precision, recall and F1 for enrichment tests with simulated data.**
-(A) Overall results including 20, 50 and 100 genes per set.
-(B-D) Results for simulations using 20, 50 and 100 genes per set respectively.
-](../figs/fig1_slurm.pdf){height="500px" width="500px"}
+***Figure 1. Precision, recall and F1 for enrichment tests with simulated data.***
+*(A) Overall results including 20, 50 and 100 genes per set.
+(B-D) Results for simulations using 20, 50 and 100 genes per set respectively.*
 
 Focusing on results from 100 genes per set, LAM precision was more consistent across the parameter ranges as compared to GSA which
 showed lower precision when group size and delta were lower (**Figure 2**).
@@ -313,9 +307,9 @@ Recall was strongly dependent on group size and delta parameters.
 LAM recorded relatively higher recall when group size and delta were lower.
 F1 performance scores at 100 genes per set were better for LAM as compared to GSA.
 
-![**Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests with simulated data over a range of group sizes and delta values.** One hundred genes per set.](../figs/fig2.png)
-
-Overall, LAM was the superior FCS method across these tests and performed better than the existing GSA method.
+***Figure 2. Precision, recall and F1 for GSA and LAM enrichment tests with simulated data over a range of group sizes and delta
+values.***
+*One hundred genes per set.*
 
 ### Sensitivity of GSA and LAM methods with real cancer data
 
@@ -327,24 +321,28 @@ These numbers are large, considering that there are 26,219 genes represented on 
 LAM resulted in 406 significant Reactome pathways at FDR<0.05.
 Of these 370 involved higher methylation, while 36 involved lower methylation.
 LAM execution took 51 seconds using eight parallel threads.
-With GSA, there were 75 pathways with higher methylation and 32 with lower methylation.
+With GSA, there were 75 Reactome pathways with higher methylation and 32 with lower methylation.
 12 pathways were significant in both directions.
 There were 30 pathways that were common between LAM and GSA methods.
 This includes 26 and 4 with higher and lower methylation respectively (**Figure 3A**).
+GSA execution for both directions in series took 22 seconds.
 
-As the simulation results indicated LAM had better recall with larger gene sets, we were curious about whether there were differences in the sizes of
-gene sets found by LAM and GSA.
-GSA significant pathways had a median size of 135, while for LAM the median was 54.5, indicating pathways identified as significant by LAM were collectively smaller than GSA (**Figure 3B**).
+As the simulation results indicated LAM had better recall with larger gene sets, we were curious about whether there were differences
+in the sizes of gene sets found by LAM and GSA.
+GSA significant pathways had a median size of 135, while for LAM the median was 54.5, indicating pathways identified as significant
+with LAM were collectively smaller than GSA (**Figure 3B**).
+This may seem counterintuitive, but may be due to LAM's better sensitivity in dectecting pathway enrichment when effect sizes are
+lower.
+
 Although algorithmic accuracy cannot be inferred from the types of pathways identified in real data [@Timmons2015-kr],
 top ranked results from LAM appeared to be more related to cell differentiation, identity and development (**Figure 3C**),
 as compared to GSA (**Figure 3D**).
 
-![**Figure 3. Pathway enrichment analysis comparing normal and cancer samples using LAM and GSA methods.**
-(A) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from LAM and GSA results.
+***Figure 3. Pathway enrichment analysis comparing normal and cancer samples using LAM and GSA methods.***
+*(A) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from LAM and GSA results.
 (B) Sizes of significant gene sets found with LAM and GSA methods.
 (C) Significant LAM pathways with largest S distance, a proxy for effect size.
-(D) Top ranked significant GSA pathways ranked by fold enrichment.
-](../figs/fig3.png)
+(D) Top ranked significant GSA pathways ranked by fold enrichment.*
 
 To compare the sensitivity of these methods with real data, sample sizes were randomly downsampled, analysed
 as above and the significant pathways were compared to the results from the full
@@ -353,112 +351,134 @@ This process was repeated 50 times at each sample size and the results shown in 
 Pathways that were identified as statistically significant (FDR<0.05) in the smaller and full group were
 termed "consistent", while pathways that were identified in the smaller but not in the full group were
 termed "inconsistent".
-At a sample size of 10, LAM was able to detect 354 out of 406 (87%) consistent pathways with a sample size of 10,
+At a sample size of 10, LAM was able to detect 354 out of 406 (87%) consistent pathways,
 while GSA detected just 13 of 107 at this sample size (12%).
 LAM identified more inconsistent pathways than GSA, but the proportion of
 inconsistent findings was lower across all sample sizes.
-At a sample size of 10, the proportion of inconsistent pathways was 13% for LAM and 33% for GSA.
+At a sample size of 10, the proportion of inconsistent pathways was 10% for LAM and 28% for GSA.
 This result suggests that LAM has superior sensitivity to detect differentially methylated
 pathways in real cancer data.
 
-![**Figure 4. Sensitivity of LAM and GSA methods with real cancer array data.**
-Upper panels show the number of significant pathways identified in the smaller sample that were consistent
+***Figure 4. Sensitivity of LAM and GSA methods with real cancer array data.***
+*Upper panels show the number of significant pathways identified in the smaller sample that were consistent
 with the full group for LAM (left) and GSA (right).
 Middle panels show the number of significant pathways identified in the smaller sample that were inconsistent
 with the full group.
 Lower panels show the proportion of significant pathways identified that were inconsistent with the full
 group.
-Left panels correspond to LAM, and right panels to GSA methods.
-](../figs/fig4.png)
+Left panels correspond to LAM, and right panels to GSA methods.*
 
-## LAM and GSA integrative analysis with RNA expression
+## Integrating methylation and RNA expression pathways
 
 Associations of epigenetic marks with gene expression are of great interest for understanding disease processes.
 Matching tumour-normal RNA-seq datasets were analysed and we conducted enrichment analysis of gene expression together with
 DNA methylation.
-From 18,704 detected genes, There were 12,380 differentially expressed genes (FDR<0.05), with 7,415 and 4,965 up- and down-regulated in the tumour group respectively.
+From 18,704 detected genes, There were 12,380 differentially expressed genes (FDR<0.05), with 7,415 and 4,965 up- and down-regulated
+in the tumour group respectively.
 At the pathway level there were 304 and 135 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
 As the context of gene methylation is important in influencing gene expression, promoter and gene body methylation
 were considered separately.
-In promoters, GSA identified 15 and 7 pathways with higher and lower methylation respectively, while at gene bodies, there were were 18 and 75
-pathways with higher and lower methylation respectively (FDR<0.05).
+In promoters, GSA identified 15 and 7 pathways with higher and lower methylation respectively, while at gene bodies, there were were
+18 and 75 pathways with higher and lower methylation respectively (FDR<0.05).
 Using LAM at promoters, there were 190 and 20 pathways identified with higher and lower methylation respectively.
 LAM at gene bodies identified 251 and 31 pathways with higher and lower methylation respectively (FDR<0.05).
-The relative overlap between significant promoter and gene body pathways was larger for LAM pathway sets (22%) as compared to GSA (3%) (**Figure 5A,B**).
+The relative overlap between significant promoter and gene body pathways was larger for LAM pathway sets (22%) as compared to GSA
+(3%) (**Figure 5A,B**).
 There was no observed overlap between GSA methylation-based pathways and gene expression pathways (**Figure 5A**), but there were some
 overlaps between pathways identified with LAM based promoter and gene body methylation and gene expression (**Figure 5B**).
-Interestingly, 136/304 upregulated gene expression pathways were associated with increasing gene body methylation with LAM.
-Likewise 21 pathways with downregulated expression were associated with increasing promoter methylation.
-Some of these pathways with large effect sizes across the three contrasts are depicted in heatmap form (**Figure 5C**).
-Of these selected pathways, there was a mixture of concordant and discordant signatures in the three contrasts,
-suggesting that promoter methylation differences do not strongly influence RNA expression at the level of pathways.
-However there were a small number of pathways that did exhibit what could be epigenetic influences, for example
-"unwinding of DNA", "mucopolysaccharidoses","interaction with cumulus cells and the zona pellucida", "glucocorticoid biosynthesis" and
-"olfactory signaling" demonstrated an inverse relationship between promoter methylation and gene expression.
-These results demonstrate that LAM can illuminate the complicated relationship between DNA methylation and gene expression at the pathway level in cancer.
 
-#[**Figure 5. Integration of gene expression data with methylation pathways.**
-#(A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A) and LAM (B) results.
-#(C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch. Top 20 gene sets shown with largest s distance after FDR filtering at 0.05.
-#](../figs/fig5.png)
+Using LAM, 136/304 upregulated RNA expression pathways were associated with increasing gene body methylation.
+Likewise, 21 pathways with downregulated RNA expression were associated with increasing promoter methylation.
+Some of these pathways with large enrichment scores across the three contrasts are depicted in heatmap form (**Figure 5C**).
+There were a small number of pathways that exhibited an inverse relationship between promoter methylation and RNA expression such as
+"unwinding of DNA", "mucopolysaccharidoses","interaction with cumulus cells and the zona pellucida", "glucocorticoid biosynthesis" and
+"olfactory signaling".
+These were however less common than pathways that showed a positive relationship between RNA expression and promoter methylation.
+These results demonstrate that LAM can illuminate the complicated relationship between DNA methylation and gene expression at the
+pathway level in cancer.
+
+***Figure 5. Integration of gene expression data with methylation pathways.***
+*(A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A)
+and LAM (B) results.
+(C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch.
+Top 20 gene sets shown with largest s distance after FDR filtering at 0.05.*
 
 ## Exploration of methylation pathways in aging
 
 We sought to explore the utility of LAM for exploring large EWAS datasets.
 One of the best studied associations with DNA methylation is with chronological aging, although
 pathway level differential methylation is not well defined.
-Using summary statistics from independent discovery and replication studies using the EPIC array platform described
-by McCartney et al (2020) [@McCartney2020-ob] irrespective of sex, we applied the LAM method to explore the pathway level differential methylation.
+Using limma summary statistics from independent discovery and replication studies using the EPIC array platform described
+by McCartney et al (2020) [@McCartney2020-ob], we applied the LAM method to explore the pathway level
+differential methylation.
 In the discovery cohort we observed 304 differential pathways (FDR<0.05), while in the replication group we observed 107.
 There was a high degree of agreement, with 43 pathways significant in both groups.
-This is not surprising, as the gene-level differential methylation scores show a strong positive association between discovery and replication studies (**Figure 6A**).
-Using the MANOVA test, we identified 390 pathways with altered methylation.
-Visualised as a scatterplot, the overall pattern is concordant, although a cluster of points in the lower right of the chart indicates a cluster of 268 pathways with higher methylation in the discovery sample that were lower in methylation in the replication sample (**Figure 6B**).
-When prioritising the results by S distance, a surrogate measure of effect size, 29 of the top 30 pathways were concordant in their direction of regulation (**Figure 6C**).
+This is not surprising, as the gene-level rank differential methylation scores show a strong positive association between discovery and
+replication studies (**Figure 6A**).
+Using the rank-MANOVA test of the mitch package, we identified 390 pathways with altered methylation.
+Visualised as a scatterplot, the overall pattern is concordant, although a cluster of points in the lower right of the chart
+indicates 268 pathways with higher methylation in the discovery sample and lower in methylation in the replication
+sample (**Figure 6B**).
+When prioritising the results by S distance, a surrogate measure of effect size, 29 of the top 30 pathways were concordant in their
+direction of regulation (**Figure 6C**).
 Some of the observed methylation changes make sense with reports in the literature.
-For example the complement pathway is associated with aging and in this analysis we observe a reduction in methylation of genes beloning to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
+For example the complement pathway is associated with aging and in this analysis we observe a reduction in methylation of genes
+beloning to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
 
-#![**Figure 6. Pathway level DNA methylation alterations with chronological age.**
-#(A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
-#(B) Mitch pathway enrichment scores (S distances) in discovery and replication studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
-#(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates increasing methylation and blue shows lower methylation.
-#(D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes in both discovery and replication studies.
-#](../figs/fig6.png)
+***Figure 6. Pathway level DNA methylation alterations with chronological age.***
+*(A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
+(B) Mitch pathway enrichment scores (S distances) in discovery and replication studies.
+Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
+Red indicates increasing methylation and blue shows lower methylation.
+(D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes
+in both discovery and replication studies.*
 
-## Exploration of methylation pathways altered by IVF
+## Exploration of methylation pathway differences in infants conceived with in vitro fertilisation
 
 Another application for this method is the joint pathway enrichment analysis of studies conducted with different
 array systems.
-Epigenetic differences between infants conceived naturally and with assisted reproductive technologies have been the subject of studies since 2009 [@Katari2009-ya].
-Two of the highest powered studies with publicly available data are Estill 2016 which used the 450K array and Novakovic 2019 study which used
-the EPIC array [@Estill2016-jh;@Novakovic2019-jt].
+Epigenetic differences between infants conceived naturally and with assisted reproductive technologies have been the subject of
+studies since 2009 [@Katari2009-ya].
+Two of the highest powered studies with publicly available data are Estill 2016 which used the 450K array and Novakovic 2019 study
+which used the EPIC array [@Estill2016-jh;@Novakovic2019-jt].
 Joint enrichment analysis can uncover pathways that are common or different between these studies and illuminate
 the biological differences between conception groups.
-For this example we focused on comparing naturally conceived infants to those conceived with in vitro fertilisation with fresh embryo transfer.
-The Estill dataset on 450k had 418,833 probes that met the quality criteria (Natural n=43; IVF n=38).
-Of these, 149,589 probes showed statistical significant differential methylation (FDR<0.05), of which 28,767 and 120,822 exhibited higher or lower methylation in the IVF group respectively.
+For this example we focused on comparing naturally conceived infants to those conceived with in vitro fertilisation (IVF) with fresh
+embryo transfer.
+The Estill dataset on the 450k platform had 418,833 probes that met the quality criteria (Natural n=43; IVF n=38).
+Of these, 149,589 probes showed statistical significant differential methylation (FDR<0.05), of which 28,767 and 120,822 exhibited
+higher or lower methylation in the IVF group respectively.
 The Novakovic dataset on EPIC array had 793,844 probes that met the filtering criteria (n=133).
-Of these, 5,562 were statistically significant (FDR<0.05) with 1,348 and 4,214 exhibited higher or lower methylation in the IVF group respectively.
-After summarisation to the gene level, the Estill dataset on 450k array describes 19,240 genes, while the
-Novakovic dataset on EPIC array describes 22,588 genes.
+Of these, 5,562 were statistically significant (FDR<0.05) with 1,348 and 4,214 exhibited higher or lower methylation in the IVF group
+respectively.
+After summarisation to the gene level, the Estill dataset on 450k array describes 19,240 genes, while the Novakovic dataset on EPIC
+array describes 22,588 genes.
 There were 19,234 genes common to both platforms.
-The rank-rank plot indicates a high degree of overlap overall, and interestingly shows a trend of more genes having lower methylation level in the IVF group (**Figure 7A**).
-A scatterplot of pathway enrichment scores indicates a moderate degree of agreement between these studies at the level of pathway enrichment scores (*r*=0.35,*p*=2.2e-16) despite these studies being conducted on independent cohorts years apart and analysed with different array systems (**Figure 7B**).
+The rank-rank plot of differential gene methylation scores indicates a high degree of similarity overall, and interestingly shows a
+trend of more genes having lower methylation level in the IVF group (**Figure 7A**).
+A scatterplot of pathway enrichment scores indicates a moderate degree of agreement between these studies
+(*r*=0.35,*p*=2.2e-16) despite these studies being conducted on independent cohorts years apart and analysed with different array
+systems (**Figure 7B**).
 A heatmap shows a high degree of agreement of pathways with higher methylation in the IVF groups,
 while pathways with overall lower methylation in the IVF group showed some variability in enrichment scores
 between studies (**Figure 7C**).
-We were interested in which pathways had consistently lower methylation in the IVF group and identified the Reactome pathway "Adrenoreceptors" which had enrichment scores of -0.42 in the Estill study and -0.56 in the Novakovic study, recording a MANOVA FDR value of 0.04 (**Figure 7D**).
+We were interested in which pathways had consistently lower methylation in the IVF group and identified the Reactome pathway
+"Adrenoreceptors" which had enrichment scores of -0.42 in the Estill study and -0.56 in the Novakovic study, recording a MANOVA FDR
+value of 0.04 (**Figure 7D**).
 Top ranked genes from this pathway include *ADRA2C*, *ADRB2*, *ADRA2B* and *ADRA1B*.
 A loss of methylation of these genes could contribute to reported elevated blood pressure in people conceived by IVF [@Meister2018-cp].
 Taken together, this analysis shows that LAM method can be used to compare enrichment of independent studies
 conducted with 450k and EPIC arrays.
 
-#![**Figure 7. Pathway level DNA methylation differences in natural and IVF conceived infants.**
-#(A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (450k) and Novakovic (EPIC) studies.
-#(B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies. Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
-#(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size). Red indicates higher methylation and blue shows lower methylation.
-#(D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of member genes in both Estill and Novakovic studies.
-#](../figs/fig7.png)
+***Figure 7. Pathway level DNA methylation differences in natural and IVF conceived infants.***
+*(A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (450k) and Novakovic (EPIC) studies.
+(B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies.
+Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
+Red indicates higher methylation and blue shows lower methylation.
+(D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of
+member genes in both Estill and Novakovic studies.*
 
 ## Discussion
 
