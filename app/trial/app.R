@@ -3,9 +3,10 @@ library("vroom")
 library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 library("mitch")
 
-options(shiny.maxRequestSize = 100 * 1024^2) #100MB
+options(shiny.maxRequestSize = 300 * 1024^2) #300MB
 
-arraytype <- c("450k", "EPIC")
+arraytype <- c("EPIC","450k")
+
 genesettype <- c("Reactome","KEGG","GO")
 
 ui <- fluidPage(
@@ -13,6 +14,7 @@ ui <- fluidPage(
     "GMEA"
   ),
   sidebarPanel(
+    "Welcome to the GMEA analysis server. Optionally give your analysis a name, select your array platform, your preferred gene set annotation set, upload your limma data set and hit the analyse button. Please be patient as analysis might take a few minutes. Keep in mind that only TSV is supported at this time. Please ensure that the first column is the probe ID, and that there is one column with the heading 't'. This app doesn't default R row names, so please check that the sample t values shown match your data.",
     textInput("dataname", "Dataset name:"),
     radioButtons("arraytype", "Array platform:", arraytype),
     radioButtons("genesettype", "Gene set database:", genesettype),
@@ -21,9 +23,16 @@ ui <- fluidPage(
   ),
   mainPanel(
     textOutput("jobdata"),
+    "file information",
     tableOutput("fileinfo"),
-    tableOutput("head"),
-    dataTableOutput("mtable")
+    "t values",
+    tableOutput("tvals"),
+    "Top differentially methylated pathways",
+    dataTableOutput("mtable"),
+    "Download PDF report",
+    downloadButton("reportpdf","Generate PDF report"),
+    "Download HTML report",
+    downloadButton("reporthtml","Generate HTML report")
   )
 )
 
@@ -45,9 +54,7 @@ server <- function(input, output, session) {
     input$upload
   })
  
-  output$jobdata <- renderText(paste(mydataname(),myarraytype(),mygenesettype()))
-  output$fileinfo <- renderTable(fileinfo())
-
+  
   data <- reactive({
     req(input$upload)
     
@@ -57,10 +64,6 @@ server <- function(input, output, session) {
            tsv = vroom::vroom(input$upload$datapath, delim = "\t"),
            validate("Invalid file; Please upload a .csv or .tsv file")
     )
-  })
-  
-  output$head <- renderTable({
-    head(data(), 10)
   })
   
   gt2 <- reactive({
@@ -78,17 +81,65 @@ server <- function(input, output, session) {
   })
   
   genesets <- reactive({
-    if((mygenesettype)  == "Reactome") {
+    if((mygenesettype())  == "Reactome") {
       gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
     }
   })
   
-  mtable <- reactive({
-    m2 <- mitch_import(x=data(),DEtype="limma",geneTable=gt2())
-    mres <- mitch_calc(x=m2,genesets=genesets(),minsetsize=5,cores=16, priority="effect")
-    mres$enrichment_result
+  mres <- reactive({
+    m <- data()
+    m <- cbind(m[,1],m[,"t"])
+    rownames(m) <- m[,1]
+    m[,1]=NULL
+    m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt2())
+    mres <- mitch_calc(x=m2,genesets=genesets(),minsetsize=5,cores=1, priority="effect")    
   })
-  output$mtable <- renderDataTable(mtable())
+  
+  mtable <- reactive({
+        myres <- mres()
+        myres$enrichment_result
+  })
+  
+  reportpdf <- reactive({
+    req(mres())
+    mitch_plots(mres(),outfile = "plots.pdf")
+    pl <- "plots.pdf"
+    readBin(pl, raw(), file.info(pl)$size)
+  })
+  
+  reporthtml <- reactive({
+    req(mres())
+    mitch_report(mres(),outfile = "report.html",overwrite = TRUE)
+    htm <- "report.html"
+    readBin(htm, raw(), file.info(htm)$size)
+  })
+  
+  output$jobdata <- renderText(paste(mydataname(),myarraytype(),mygenesettype()))
+  
+  output$fileinfo <- renderTable(fileinfo())
+  
+  output$tvals <- renderTable({
+    req(input$upload)
+    m <- data()
+    m <- cbind(m[,1],m[,"t"])
+    rownames(m) <- m[,1]
+    m[,1]=NULL
+    head(m)
+  })
+  
+  output$mtable <- renderDataTable(mtable(),options = list(pageLength = 10, info = FALSE))
+
+  # report download not working
+  output$reportpdf <- downloadHandler(
+    # For PDF output, change this to "report.pdf"
+    filename = "report.pdf",
+    content = reportpdf()
+  )
+  output$reporthtml <- downloadHandler(
+    # For PDF output, change this to "report.pdf"
+    filename = "report.html",
+    content = reporthtml()
+  )
 }
 
 shinyApp(ui, server)
