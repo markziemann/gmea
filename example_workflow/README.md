@@ -2,10 +2,7 @@
 
 You will need a Linux computer with 32 GB RAM and 20 GB of free space and docker installed.
 You will also need to be in the docker group so you can use it without needing sudo password.
-Here we provide two approaches.
-First one is using the Rstudio IDE and the other using the command line.
-
-## Using Rstudio
+The docker container has Rstudio and all the packages we'll need to run this example.
 
 In a terminal run the following command to start a container.
 
@@ -31,73 +28,19 @@ In the terminal, execute this command to update the codes.
 cd gmea && git pull
 ```
 
-In the files pane, click on the gmea folder to reveal the contents. Click on "example_workflow" and the
-"example_workflow.Rmd" file to bring up the Rmarkdown script.
+In the files pane, click on the gmea folder to reveal the contents. 
+Click on "example_workflow" and you will see there is the "example_workflow.Rmd" script
+as well as a gmt file of gene ontologies and the DMPs.csv.gz file with the methylation
+data.
 
+Click on the "example_workflow.Rmd" script and the contents will appear in the text editor
+window.
 Click on the "Knit" button to execute it.
 It might take a few minutes.
+When it's complete you will also see that a html report called "example_mitchreport.html"
+and "example_mitchplots.pdf" have been generated as part of this workflow.
+It contains some data and charts to help interpret the enrichment results.
 
 In order to customise it for your own data, replace the input file "DMPs.csv.gz" with your own data file.
-Ensure you are using the appropriate gene table eg: EPIC array or 450K. I have examples of each in the example_workflow.Rmd script.
-
-## Using the command line
-
-In a terminal run the following to start a container and get a bash command prompt.
-
-```
-docker run -it mziemann/gmea /bin/bash
-```
-
-You are located in the /gmea main folder.
-The contents may not have been updated for a while, so pull to get the latest code.
-
-```
-git pull
-```
-
-Make your way to the "example_workflow" folder and list the contents.
-
-```
-cd example_workflow/
-ls
-```
-
-In the folder you will see the following: 
-
-* "example_workflow.Rmd" script
-
-* "DMPs.csv.gz" differential methylation data from limma
-
-* "c5.go.v2023.2.Hs.symbols.gmt" Gene ontology gene sets
-
-As the packages are already installed, we should be able to run the codes.
-Use the `R` command to open a prompt, then type the following command.
-
-```
-rmarkdown::render("example_workflow.Rmd")
-```
-
-Which will generate a html output for you.
-To visualise the html on your PC, exit R (`q()`)and the container (`exit`), and type the following command:
-
-```
-docker cp `docker ps -alq`:/gmea/example_workflow/example_workflow.html .
-```
-
-Then open it up in your favourite browser.
-
-```
-firefox example_workflow.html
-```
-
-You will see that mitch has generated some charts and a report for you.
-You can fetch them using the following:
-
-```
-docker cp `docker ps -alq`:/gmea/example_workflow/example_mitchreport.html .
-docker cp `docker ps -alq`:/gmea/example_workflow/example_mitchcharts.pdf .
-```
-
-In order to run this with your own data, you can replace the DMPs.csv.gz file of limma differential methylation
-with your own data.
-
+Ensure you are using the appropriate gene table eg: EPIC array or 450K.
+I have examples of each in the example_workflow.Rmd script.
