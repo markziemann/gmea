@@ -1,0 +1,210 @@
+---
+title: "Example of using mitch package for Infinium methylation analysis"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we are looking at putting together the easiest possible workflow for the package.
+
+Source code: https://github.com/markziemann/gmea/blob/main/example_workflow/example_workflow.Rmd
+
+## Requirements
+
+Load packages.
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
+  library("tictoc")
+  library("mitch")
+  library("kableExtra")
+  library("beeswarm")
+  library("missMethyl")
+  library("gridExtra")
+  library("png")
+})
+
+CORES=2
+
+```
+
+## Load methylation data
+
+The limma data table is read in.
+This dataset is available from GEO (GSE49667).
+The limma data was obtained using the "A cross-package Bioconductor workflow for analysing methylation array data" workflow.
+
+```{r,loaddata}
+
+dm <- read.csv("DMPs.csv.gz",header=TRUE)
+
+head(dm)
+
+```
+## Load pathways
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+```{r,loadpathways}
+
+gene_sets <- gmt_import("c5.go.v2023.2.Hs.symbols.gmt")
+
+```
+
+## Curate the annotation
+
+Use all probes on the HM450K chip.
+
+Updating gene names using the HGNC package because a lot of them have been updated over time.
+
+An example of making a gene table for EPIC data is included down below.
+
+```{r,anno1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt1 <- stack(gp2)
+colnames(gt1) <- c("gene","probe")
+gt1$probe <- as.character(gt1$probe)
+dim(gt1)
+str(gt1)
+length(unique(gt1$gene))
+toc() #6.0s
+
+tic()
+#new.hgnc.table <- getCurrentHumanMap()
+new.hgnc.table <- readRDS("../figs/new.hgnc.table.rds")
+fix <- checkGeneSymbols(gt1$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt1$gene <- fix$Suggested.Symbol
+toc() #  36 sec (2788 gene names updated)
+
+head(gt1)
+
+```
+
+## Mitch pipeline
+
+The first part is to import the data into mitch.
+
+This only works properly when mitch's mapGeneIds function uses `mean` to aggregate (line 69 of mitch.R).
+
+```{r,mg1}
+
+# mitch aggregate function needs to be changes to `mean`
+tic()
+m <- mitch_import(x=dm,DEtype="limma",geneTable=gt1,geneIDcol="Name")
+toc() #2.5 sec
+
+head(m) %>%
+  kbl(caption = "Example of differential gene methylation scores used for pathway analysis") %>%
+  kable_paper("hover", full_width = F)
+
+```
+
+Now run the enrichment analysis.
+
+Note that the results are not sorted by p-value, rather S.distance, an enrichment score.
+
+```{r,mitch1}
+
+tic()
+mres <- mitch_calc(x=m,genesets=gene_sets,minsetsize=5,cores=4, priority="effect")
+toc() #7 sec on 4 threads
+
+mtable <- mres$enrichment_result
+up <- subset(mtable,s.dist>0 & p.adjustANOVA<0.05)
+dn <- subset(mtable,s.dist<0 & p.adjustANOVA<0.05)
+nrow(up)
+nrow(dn)
+
+head(up,10) %>%
+  kbl(caption = "Top significant pathways with higher methylation") %>%
+  kable_paper("hover", full_width = F)
+
+head(dn,10) %>%
+  kbl(caption = "Top significant pathways with lower methylation") %>%
+  kable_paper("hover", full_width = F)
+
+top <- rbind(up[1:10,],dn[1:10,])
+top <- top[order(top$s.dist),]
+
+barnames <- gsub("_"," ",gsub("REACTOME_","",top$set))
+cols <- as.character(((sign(top$s.dist)+1)/2)+1)
+cols <- gsub("1","blue",gsub("2","red",cols))
+
+par(mar = c(5.1, 29.1, 4.1, 2.1))
+barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+mtext("whole gene")
+grid()
+
+par( mar = c(5.1, 4.1, 4.1, 2.1) )
+
+```
+
+Make a html report and some charts.
+
+```{r,report1}
+
+mitch_report(res=mres,outfile="example_mitchreport.html",overwrite=TRUE)
+mitch_plots(res=mres,outfile="example_mitchcharts.pdf")
+
+```
+
+## Make gene table for EPIC array data
+
+```{r,gt2}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+gt$probe <- as.character(gt$probe)
+dim(gt)
+str(gt)
+toc() #9.0s
+
+tic()
+#new.hgnc.table <- getCurrentHumanMap()
+new.hgnc.table <- readRDS("../figsnew.hgnc.table.rds")
+fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt$gene <- fix$Suggested.Symbol
+toc()
+
+```
+
+## Session information
+
+```{r,save}
+
+sessionInfo()
+
+```
