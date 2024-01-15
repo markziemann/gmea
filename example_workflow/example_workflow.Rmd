@@ -192,7 +192,7 @@ toc() #9.0s
 
 tic()
 #new.hgnc.table <- getCurrentHumanMap()
-new.hgnc.table <- readRDS("../figsnew.hgnc.table.rds")
+new.hgnc.table <- readRDS("../figs/new.hgnc.table.rds")
 fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
 fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))
