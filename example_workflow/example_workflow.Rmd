@@ -9,6 +9,8 @@ output:
     fig_width: 7
     fig_height: 7
 theme: cosmo
+bibliography: references.bib
+csl: epigenetics.csl
 ---
 
 ## Introduction
@@ -43,9 +45,9 @@ suppressPackageStartupMessages({
 
 ## Load methylation data
 
-The limma data table is read in.
-This dataset is available from GEO (GSE49667).
-The limma data was obtained using the "A cross-package Bioconductor workflow for analysing methylation array data" workflow.
+The limma[@Ritchie2015-zn] data table is read in.
+This dataset is available from GEO (GSE49667)[@Zhang2013-oy].
+The limma data was obtained using a previously prepared workflow [@Maksimovic2017-zv].
 
 ```{r,loaddata}
 
@@ -54,9 +56,13 @@ dm <- read.csv("DMPs.csv.gz",header=TRUE)
 head(dm)
 
 ```
+
+Note that this object has probes with their own column, not simply as row names.
+
 ## Load pathways
 
-Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+Gene ontologies were downloaded in GMT format from MSigDB on 15th Jan 2024[@Liberzon2015-um;@The_Gene_Ontology_Consortium2023-fm].
+The GMT file is read into R using the mitch function `gmt_import()`.
 
 ```{r,loadpathways}
 
@@ -66,11 +72,19 @@ gene_sets <- gmt_import("c5.go.v2023.2.Hs.symbols.gmt")
 
 ## Curate the annotation
 
-Use all probes on the HM450K chip.
+One of the critical parts of this workflow is the establishment of probe-gene relationships.
+This controls how the probe data is aggregated to make the gene level scores.
 
-Updating gene names using the HGNC package because a lot of them have been updated over time.
+In this demonstration we are using all probes on the HM450K chip.
+Alternative approaches could use only promoters CpGs for example.
 
-An example of making a gene table for EPIC data is included down below.
+As these annotations are several years old, many of the annotated gene names are no longer
+current.
+To remedy this, the gene names are screened with the HGNChelper package and any defunct
+symbols get updated to the newer gene name, so they will be recognised properly in the
+gene sets.
+
+The process for making a gene table for EPIC data is included down below.
 
 ```{r,anno1}
 
@@ -110,7 +124,6 @@ This only works properly when mitch's mapGeneIds function uses `mean` to aggrega
 
 ```{r,mg1}
 
-# mitch aggregate function needs to be changes to `mean`
 tic()
 m <- mitch_import(x=dm,DEtype="limma",geneTable=gt1,geneIDcol="Name")
 toc() #2.5 sec
@@ -124,12 +137,13 @@ head(m) %>%
 Now run the enrichment analysis.
 
 Note that the results are not sorted by p-value, rather S.distance, an enrichment score.
+I think this works better for interpretation.
 
 ```{r,mitch1}
 
 tic()
 mres <- mitch_calc(x=m,genesets=gene_sets,minsetsize=5, priority="effect")
-toc() #7 sec on 4 threads
+toc() #7 secs
 
 mtable <- mres$enrichment_result
 up <- subset(mtable,s.dist>0 & p.adjustANOVA<0.05)
@@ -145,22 +159,30 @@ head(dn,10) %>%
   kbl(caption = "Top significant pathways with lower methylation") %>%
   kable_paper("hover", full_width = F)
 
+```
+
+Now make a barplot of these top findings.
+
+```{r, barplot}
+
 top <- rbind(up[1:10,],dn[1:10,])
 top <- top[order(top$s.dist),]
 
-barnames <- gsub("_"," ",gsub("REACTOME_","",top$set))
+barnames <- gsub("_"," ",top$set)
 cols <- as.character(((sign(top$s.dist)+1)/2)+1)
 cols <- gsub("1","blue",gsub("2","red",cols))
 
 par(mar = c(5.1, 29.1, 4.1, 2.1))
 barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
-  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Reactomes")
+  cex.axis=0.8,col=cols, xlab="Enrichment score",main="Gene Ontologies")
 mtext("whole gene")
 grid()
 
 par( mar = c(5.1, 4.1, 4.1, 2.1) )
 
 ```
+
+There are some interesting results there that give hints to the differences between naive T and Treg cells.
 
 Make a html report and some charts.
 
@@ -172,6 +194,8 @@ mitch_plots(res=mres,outfile="example_mitchcharts.pdf")
 ```
 
 ## Make gene table for EPIC array data
+
+In case you are working with EPIC array data, the probe-gene table can be make with this snippet of code.
 
 ```{r,gt2}
 
@@ -207,3 +231,5 @@ toc()
 sessionInfo()
 
 ```
+
+## Bibliography
