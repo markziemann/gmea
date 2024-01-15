@@ -1,3 +1,12 @@
+
+## Take a look at the example reproducible workflow
+
+Hosted [here](https://ziemann-lab.net/public/gmea/example_workflow.html).
+
+It documents all the steps in the Rmarkdown report.
+If you want to rerun the example yourself and experiment with the workflow, the easiest/quickest way
+is to use docker.
+
 ## Run the example yourself.
 
 You will need a Linux computer with 32 GB RAM and 20 GB of free space and docker installed.
