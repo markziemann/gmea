@@ -18,8 +18,8 @@ Mark Ziemann<sup>1,2*</sup>,
 Mandhri Abeysooriya<sup>2,3</sup>,
 Anusuiya Bora<sup>1,2</sup>,
 Severin Lamon<sup>3</sup>,
-Mary Kasu<sup>1</sup>,
-Mitch Norris<sup>1</sup>,
+Mary Sravya Kasu<sup>1</sup>,
+Mitch W. Norris<sup>1</sup>,
 Yen Ting Wong<sup>4</sup>,
 Jeffrey Craig<sup>4,5</sup>
 </strong>
@@ -42,7 +42,7 @@ Jeffrey Craig<sup>4,5</sup>
 | Mandhri Abeysooriya | 0000-0003-2163-6203 |
 | Anusuiya Bora | 0009-0006-2908-1352 |
 | Severine Lamon | 0000-0002-3271-6551 |
-
+| Mary Sravya Kasu | 0000-0002-7891-836X |
 
 Source: https://github.com/markziemann/gmea
 
@@ -166,7 +166,7 @@ two-sample ANOVA-on-ranks test (Kruskal-Wallis).
 
 5. Limma Rank Mitch (LRM).
 Probes are ranked by t-statistic. The mean rank values for probes beloning to each gene are computed and used
-as input for a two-way, two-sample KruskalWallis test.
+as input for a two-way, two-sample ANOVA-on-ranks test.
 
 6. Aggregate Limma t-test (ALT).
 In this method, all probe measurements beloning to each gene are averaged before conducting differential
@@ -177,7 +177,7 @@ The limma t-statistics are then used downstream for enrichment analysis with the
 Similar to ALT, however it uses the Wilcoxon non-parametric test for gene set enrichment.
 
 8. Aggregate Limma Mitch (ALM).
-Similar to ALW, however uses the Mitch package to execute a two-way, two-sample Kruskal-Wallis test.
+Similar to ALW, however uses the Mitch package to execute a two-way, two-sample ANOVA-on-ranks test.
 
 The above were compared to a standard ORA-based approach (GSA), which involves limma on probes, selection of
 statistically significant probes (FDR<0.05) for ORA with the `GSAmeth()` function of missMethyl which conducts a
@@ -489,9 +489,47 @@ member genes in both Estill and Novakovic studies.](img/fig7.svg)
 
 ## Discussion
 
+* Overall, we found that the FCS methods performed better across all simulation conditions.
+Of the different FCS methods tested, LAM was superior in terms of precision and recall.
+LAM also fits relatively easily into existing workflows, as most EWAS studies seem to use
+limma in their analyses of differential probe methylation.
+These analyses also consistently showed that non-parametric methods showed better recall with only a small decrease in precision, in accordance with some previous reports.
+Summarisation to gene level only takes a few seconds with the efficient base R aggregation command,
+and once aggregated, signatures can be analysed with existing packages like mitch.
+Mitch does not require a large amount of system memory and due to its parallel architecture can
+make use of multi-threaded processors, so it is not much slower than conducting ORA with existing methods.
+
+* But it was interesting that ORA performed better when gene sets are smaller.
+Given that KEGG and Reactome pathways consist of both large (>100) and small (<20) gene sets,
+a hybrid FCS and ORA approach might increase sensitivity and recall.
+
+* At 100 genes per set, LAM had superior sensitivity compared to GSA, which agrees with mitch's performance with simulated RNA-seq gene
+expression data[@Kaspi2020-yx].
+The improved sensitivity of this method provides a new opportunity for researchers to reanalyse previously conducted EWASs with contemporary pathway databases to better understand
+the subtle signatures, as we have demonstrated with the chronological age and assisted reproduction examples.
+The analyses conducted here used Reactome pathways, but this method is general purpose, so different gene sets can be used to examine various hypotheses.
+Transcription factor target gene sets can be used to identify transcription factors associated with changes in pathway methylation.
+MicroRNA target gene sets can identify potential associations between microRNA targets and DNA methylation patterns.
+The MSigDB resource contains these and several other types of gene sets for exploration [@Liberzon2015-um].
+
+* The differences in pathway results obtained with LAM and GSA from lung cancer data were striking, not only in the numbers of pathways identified, but also their relevance to the disease.
+Interestingly the relationship between promoter methylation and gene expression was not always inverse as we had anticipated.
+Joint enrichment analysis showed some genes with increasing promoter methylation together with increasing RNA expression (eg: "Negative regulation of AP2 transcription factors").
+Likewise a few pathways showed decreases in methylation with decreases in RNA expression such as "Dectin family", "TLR regulation" and "glycan biosynthesis termination".
+These results indicate that there is a complicated relationship between DNA methylation and gene expression in lung cancer and further work is required to appreciate the mechanisms involved.
+
+* We have demonstrated that this method works with both HM450K and EPIC array data and can even facilitate the comparison of EWAS using different platforms.
+We have provided an example workflow that researchers can use as a template.
+It shows how to generate a probe-gene table from Bioconductor annotation datasets, how to update the defunct gene names and how to run the enrichment analysis.
+Using this example, generating similar gene tables for the new EPIC 2.0 array and any future arrays will be straightforward.
+Updating defunct gene symbols in important as 2788 and 3253 gene symbols were updated on the HM450K and EPIC array annotations, which is approximately 10-14% of genes on these platforms.
+Omitting this step could lead to a loss of these genes from the pathway enrichment and a loss of sensitivity.
+
 ## Code availability
 
 Code to generate the results shown here are included in a GitHub repository (https://github.com/markziemann/gmea/).
-To enable reproduction of the findings, a docker image is made available at DockerHub (https://hub.docker.com/repository/docker/mziemann/gmea/general).
+To enable reproduction of the findings, a docker image is made available at DockerHub
+(https://hub.docker.com/repository/docker/mziemann/gmea/general), and an example workflow can be found
+in the GitHub repository (https://github.com/markziemann/gmea/tree/main/example_workflow).
 
 ## Bibliography
