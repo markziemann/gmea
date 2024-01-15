@@ -38,7 +38,6 @@ suppressPackageStartupMessages({
   library("png")
 })
 
-CORES=2
 
 ```
 
@@ -129,7 +128,7 @@ Note that the results are not sorted by p-value, rather S.distance, an enrichmen
 ```{r,mitch1}
 
 tic()
-mres <- mitch_calc(x=m,genesets=gene_sets,minsetsize=5,cores=4, priority="effect")
+mres <- mitch_calc(x=m,genesets=gene_sets,minsetsize=5, priority="effect")
 toc() #7 sec on 4 threads
 
 mtable <- mres$enrichment_result
