@@ -529,7 +529,7 @@ Omitting this step could lead to a loss of these genes from the pathway enrichme
 
 Code to generate the results shown here are included in a GitHub repository (https://github.com/markziemann/gmea/).
 To enable reproduction of the findings, a docker image is made available at DockerHub
-(https://hub.docker.com/repository/docker/mziemann/gmea/general), and an example workflow can be found
-in the GitHub repository (https://github.com/markziemann/gmea/tree/main/example_workflow).
+(https://hub.docker.com/repository/docker/mziemann/gmea/general).
+A reproducible example workflow report is hosted on our website (https://ziemann-lab.net/public/gmea/example_workflow.html).
 
 ## Bibliography
