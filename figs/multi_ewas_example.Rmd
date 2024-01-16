@@ -66,11 +66,18 @@ if(!file.exists("hillary/compressed-disease-states-ewas.tar.gz")){
 
 ```{r,load}
 
-myfiles <- list.files("hillary",pattern="prevalent_full",full.names=TRUE)
-l1 <- lapply(myfiles, read.csv)
+myfiles1 <- list.files("hillary",pattern="prevalent_full",full.names=TRUE)
+l1 <- lapply(myfiles1, read.csv)
 l1 <- lapply(l1,function(x) { x[,c("CpG","Beta"),drop=FALSE] } )
 names(l1) <- gsub("_gs.csv","",gsub("hillary/prevalent_full_","",myfiles))
 str(l1)
+
+
+myfiles2 <- list.files("hillary",pattern="incident_full",full.names=TRUE)
+l2 <- lapply(myfiles2, read.csv)
+l2 <- lapply(l2,function(x) { x[,c("CpG","Beta"),drop=FALSE] } )
+names(l2) <- gsub("_gs.csv","",gsub("hillary/incident_full_","",myfiles2))
+str(l2)
 
 gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
 
@@ -115,39 +122,46 @@ As we don't have the test statistic, we will use the delta beta value,
 which according to preliminary investigations works better than the directional
 p-value.
 
+l1: prevalent
+
+l2: incident
 
 ```{r,mg1}
 
 tic()
-m <- mitch_import(x=l1,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
+m1 <- mitch_import(x=l1,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
 toc() #117 sec
-head(m)
+head(m1)
+
+tic()
+m2 <- mitch_import(x=l2,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
+toc() #158 sec
+head(m2)
 
 ```
 
-## Mitch calc
+## Mitch calc prevalence
 
-Multi-comparison.
+Multi-comparison for prevalence.
 
-```{r,mitch1}
+```{r,mitch1prev}
 
 tic()
-mres <- mitch_calc(x=m,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+mres1 <- mitch_calc(x=m1,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
 toc() #21.3s
 
-
-mtable <- mres$enrichment_result
-head(mtable,20)
+mtable1 <- mres1$enrichment_result
+head(mtable1,20)
 
 #numsig manova
-nrow(subset(mtable,p.adjustMANOVA<0.05))
-sig <- subset(mtable,p.adjustMANOVA<0.05)
+nrow(subset(mtable1,p.adjustMANOVA<0.05))
+sig <- subset(mtable1,p.adjustMANOVA<0.05)
 
 ```
 
 Individual comparisons.
 
-```{r,mitch2,fig.height=5,fig.width=5}
+```{r,mitch2prev,fig.height=5,fig.width=5}
 
 r1 <- lapply(l1,function(m) {
   m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
@@ -183,7 +197,7 @@ barplot(t(nums),beside=TRUE,horiz=TRUE,las=1,
 abline(v=seq(0,200,50),lty=2,lwd=0.5,col="gray")
 dev.off()
 
-r2 <- lapply(r1,function(r) {
+r2 <- lapply(r2,function(r) {
   ups <- head(subset(r,p.adjustANOVA<0.05 & s.dist > 0.3)$set,5)
   dns <- head(subset(r,p.adjustANOVA<0.05 & s.dist < -0.3)$set,5)
   list("ups"=ups,"dns"=dns)
@@ -200,24 +214,18 @@ par(mar = c(5.1, 4.1, 4.1, 2.1))
 
 Make a heatmap with these gene sets.
 
-```{r,mitchheat,fig.height=9,fig.width=9}
+```{r,mitchheatprev,fig.height=9,fig.width=9}
 
-top <- mtable[which(mtable$set %in% gsets),]
-
+top <- mtable1[which(mtable1$set %in% gsets),]
 top <- top[,c(1,4:17)]
-
 rownames(top) <- top$set
 top$set=NULL
 head(top,2)
 
 rownames(top) <- gsub("REACTOME_","",rownames(top))
 rownames(top) <- gsub("_"," ",rownames(top))
-
 colnames(top) <- gsub("^s.","",colnames(top))
-
 colnames(top) <- gsub("_"," ",colnames(top))
-
-#colfunc <- colorRampPalette(c("#B80F0A", "white", "#1134A6"))
 colfunc <- colorRampPalette(c("blue", "white", "red"))
 
 heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,25),
@@ -225,6 +233,107 @@ heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,25),
 
 pdf("fig8b.pdf",height=9,width=7)
 heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,22),
+  col=colfunc(25),cexRow=0.5,cexCol=0.8)
+dev.off()
+
+```
+
+## Mitch calc incidence
+
+Multi-comparison for incidence.
+
+```{r,mitch1incidence}
+
+tic()
+mres2 <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+toc() #29.5s
+
+mtable2 <- mres2$enrichment_result
+head(mtable2,20)
+
+#numsig manova
+nrow(subset(mtable2,p.adjustMANOVA<0.05))
+sig <- subset(mtable2,p.adjustMANOVA<0.05)
+
+```
+
+Individual comparisons.
+
+```{r,mitch2incidence,fig.height=5,fig.width=5}
+
+r1 <- lapply(l2,function(m) {
+  m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
+  mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+  mtable <- mres$enrichment_result
+})
+
+nup <- lapply(r1,function(r) {
+  ups <- subset(r,p.adjustANOVA<0.05 & s.dist>0)$set
+  length(ups)
+} )
+
+ndn <- lapply(r1,function(r) {
+  dns <- subset(r,p.adjustANOVA<0.05 & s.dist<0)$set
+  length(dns)
+} )
+
+nums <- cbind(unlist(ndn),unlist(nup))
+colnames(nums) <- c("dn","up")
+nums
+
+rownames(nums) <- gsub("ibd","IBD",rownames(nums))
+rownames(nums) <- gsub("_"," ",rownames(nums))
+
+par(mar = c(5.1, 10.1, 4.1, 2.1))
+barplot(t(nums),beside=TRUE,horiz=TRUE,las=1,
+  legend.text = c("down","up"),xlab="no. pathways")
+abline(v=seq(0,200,50),lty=2,lwd=0.5,col="gray")
+
+pdf("fig8c.pdf",height=6,width=4)
+par(mar = c(5.1, 10.1, 4.1, 2.1))
+barplot(t(nums),beside=TRUE,horiz=TRUE,las=1,
+  legend.text = c("down","up"),xlab="no. pathways")
+abline(v=seq(0,200,50),lty=2,lwd=0.5,col="gray")
+dev.off()
+
+r2 <- lapply(r1,function(r) {
+  ups <- head(subset(r,p.adjustANOVA<0.05 & s.dist > 0.3)$set,3)
+  dns <- head(subset(r,p.adjustANOVA<0.05 & s.dist < -0.3)$set,3)
+  list("ups"=ups,"dns"=dns)
+} )
+
+r2
+
+gsets <- unique(unname(unlist(r2)))
+gsets
+
+par(mar = c(5.1, 4.1, 4.1, 2.1))
+
+```
+
+Make a heatmap with these gene sets.
+
+```{r,mitchheatincidence,fig.height=9,fig.width=9}
+
+top <- mtable2[which(mtable2$set %in% gsets),]
+top <- top[,c(1,4:17)]
+rownames(top) <- top$set
+top$set=NULL
+head(top,2)
+
+rownames(top) <- gsub("REACTOME_","",rownames(top))
+rownames(top) <- gsub("_"," ",rownames(top))
+colnames(top) <- gsub("^s.","",colnames(top))
+colnames(top) <- gsub("_"," ",colnames(top))
+colnames(top) <- gsub("ibd","IBD",colnames(top))
+
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+
+heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,22),
+  col=colfunc(25),cexRow=0.6,cexCol=0.7)
+
+pdf("fig8d.pdf",height=9,width=7)
+heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,20),
   col=colfunc(25),cexRow=0.5,cexCol=0.8)
 dev.off()
 
