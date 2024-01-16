@@ -197,7 +197,7 @@ barplot(t(nums),beside=TRUE,horiz=TRUE,las=1,
 abline(v=seq(0,200,50),lty=2,lwd=0.5,col="gray")
 dev.off()
 
-r2 <- lapply(r2,function(r) {
+r2 <- lapply(r1,function(r) {
   ups <- head(subset(r,p.adjustANOVA<0.05 & s.dist > 0.3)$set,5)
   dns <- head(subset(r,p.adjustANOVA<0.05 & s.dist < -0.3)$set,5)
   list("ups"=ups,"dns"=dns)
