@@ -218,7 +218,7 @@ colnames(top) <- gsub("^s.","",colnames(top))
 colnames(top) <- gsub("_"," ",colnames(top))
 
 #colfunc <- colorRampPalette(c("#B80F0A", "white", "#1134A6"))
-colfunc <- colorRampPalette(c("red", "white", "blue"))
+colfunc <- colorRampPalette(c("blue", "white", "red"))
 
 heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,25),
   col=colfunc(25),cexRow=0.6,cexCol=0.8)
