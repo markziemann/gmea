@@ -1,0 +1,241 @@
+---
+title: "Multi-EWAS enrichment example"
+author: "The GMEA team"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we are looking at applying LAM/mitch to a multi-EWAS dataset.
+
+https://pubmed.ncbi.nlm.nih.gov/37410739/
+
+https://zenodo.org/records/8021411
+
+## Requirements
+
+```{r,packages}
+
+suppressPackageStartupMessages({
+  library("limma")
+  library("eulerr")
+  library("IlluminaHumanMethylation450kmanifest")
+  library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
+  library("HGNChelper")
+  library("tictoc")
+  library("mitch")
+  library("gplots")
+  library("kableExtra")
+  library("beeswarm")
+  library("missMethyl")
+  library("gridExtra")
+  library("png")
+})
+
+CORES=8
+
+```
+
+## Load data
+
+Reactome pathways were downloaded on the 14th Sept 2023 from MsigDB.
+
+We'll also score the probes by the signed -log pvalue
+
+```{r,download1}
+
+if(!dir.exists("hillary")){
+  dir.create("hillary")
+}
+
+if(!file.exists("hillary/compressed-disease-states-ewas.tar.gz")){
+  setwd("hillary")
+  download.file("https://zenodo.org/records/8021411/files/compressed-disease-states-ewas.tar.gz?download=1",destfile="compressed-disease-states-ewas.tar.gz")
+  untar("compressed-disease-states-ewas.tar.gz")
+  setwd("..")
+}
+
+```
+
+```{r,load}
+
+myfiles <- list.files("hillary",pattern="prevalent_full",full.names=TRUE)
+l1 <- lapply(myfiles, read.csv)
+l1 <- lapply(l1,function(x) { x[,c("CpG","Beta"),drop=FALSE] } )
+names(l1) <- gsub("_gs.csv","",gsub("hillary/prevalent_full_","",myfiles))
+str(l1)
+
+gs_symbols <- gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+
+```
+
+## Curate the annotation
+
+Use all probes on the chip.
+
+Update old gene symbols.
+
+```{r,anno1}
+
+tic()
+anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt <- stack(gp2)
+colnames(gt) <- c("gene","probe")
+gt$probe <- as.character(gt$probe)
+dim(gt)
+str(gt)
+toc() #9.0s
+
+tic()
+#new.hgnc.table <- getCurrentHumanMap()
+new.hgnc.table <- readRDS("new.hgnc.table.rds")
+fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt$gene <- fix$Suggested.Symbol
+toc()
+
+```
+
+## Mitch import
+
+As we don't have the test statistic, we will use the delta beta value,
+which according to preliminary investigations works better than the directional
+p-value.
+
+
+```{r,mg1}
+
+tic()
+m <- mitch_import(x=l1,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
+toc() #117 sec
+head(m)
+
+```
+
+## Mitch calc
+
+Multi-comparison.
+
+```{r,mitch1}
+
+tic()
+mres <- mitch_calc(x=m,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+toc() #21.3s
+
+
+mtable <- mres$enrichment_result
+head(mtable,20)
+
+#numsig manova
+nrow(subset(mtable,p.adjustMANOVA<0.05))
+sig <- subset(mtable,p.adjustMANOVA<0.05)
+
+```
+
+Individual comparisons.
+
+```{r,mitch2,fig.height=5,fig.width=5}
+
+r1 <- lapply(l1,function(m) {
+  m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
+  mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+  mtable <- mres$enrichment_result
+})
+
+nup <- lapply(r1,function(r) {
+  ups <- subset(r,p.adjustANOVA<0.05 & s.dist>0)$set
+  length(ups)
+} )
+
+ndn <- lapply(r1,function(r) {
+  dns <- subset(r,p.adjustANOVA<0.05 & s.dist<0)$set
+  length(dns)
+} )
+
+nums <- cbind(unlist(ndn),unlist(nup))
+colnames(nums) <- c("dn","up")
+nums
+
+rownames(nums) <- gsub("_"," ",rownames(nums))
+
+par(mar = c(5.1, 10.1, 4.1, 2.1))
+barplot(t(nums),beside=TRUE,horiz=TRUE,las=1,
+  legend.text = c("down","up"),xlab="no. pathways")
+abline(v=seq(0,200,50),lty=2,lwd=0.5,col="gray")
+
+pdf("fig8a.pdf",height=6,width=4)
+par(mar = c(5.1, 10.1, 4.1, 2.1))
+barplot(t(nums),beside=TRUE,horiz=TRUE,las=1,
+  legend.text = c("down","up"),xlab="no. pathways")
+abline(v=seq(0,200,50),lty=2,lwd=0.5,col="gray")
+dev.off()
+
+r2 <- lapply(r1,function(r) {
+  ups <- head(subset(r,p.adjustANOVA<0.05 & s.dist > 0.3)$set,5)
+  dns <- head(subset(r,p.adjustANOVA<0.05 & s.dist < -0.3)$set,5)
+  list("ups"=ups,"dns"=dns)
+} )
+
+r2
+
+gsets <- unique(unname(unlist(r2)))
+gsets
+
+par(mar = c(5.1, 4.1, 4.1, 2.1))
+
+```
+
+Make a heatmap with these gene sets.
+
+```{r,mitchheat,fig.height=9,fig.width=9}
+
+top <- mtable[which(mtable$set %in% gsets),]
+
+top <- top[,c(1,4:17)]
+
+rownames(top) <- top$set
+top$set=NULL
+head(top,2)
+
+rownames(top) <- gsub("REACTOME_","",rownames(top))
+rownames(top) <- gsub("_"," ",rownames(top))
+
+colnames(top) <- gsub("^s.","",colnames(top))
+
+colnames(top) <- gsub("_"," ",colnames(top))
+
+#colfunc <- colorRampPalette(c("#B80F0A", "white", "#1134A6"))
+colfunc <- colorRampPalette(c("red", "white", "blue"))
+
+heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,25),
+  col=colfunc(25),cexRow=0.6,cexCol=0.8)
+
+pdf("fig8b.pdf",height=9,width=7)
+heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,22),
+  col=colfunc(25),cexRow=0.5,cexCol=0.8)
+dev.off()
+
+```
+
+## Session information
+
+```{r,save}
+
+save.image("multi_ewas_example.Rdata")
+
+sessionInfo()
+
+```
