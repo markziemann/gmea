@@ -316,7 +316,7 @@ Make a heatmap with these gene sets.
 ```{r,mitchheatincidence,fig.height=9,fig.width=9}
 
 top <- mtable2[which(mtable2$set %in% gsets),]
-top <- top[,c(1,4:17)]
+top <- top[,c(1,4:22)]
 rownames(top) <- top$set
 top$set=NULL
 head(top,2)
