@@ -334,7 +334,7 @@ heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,22),
 
 pdf("fig8d.pdf",height=9,width=7)
 heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(6,20),
-  col=colfunc(25),cexRow=0.5,cexCol=0.8)
+  col=colfunc(25),cexRow=0.5,cexCol=0.7)
 dev.off()
 
 ```
