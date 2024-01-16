@@ -525,6 +525,8 @@ Using this example, generating similar gene tables for the new EPIC 2.0 array an
 Updating defunct gene symbols in important as 2788 and 3253 gene symbols were updated on the HM450K and EPIC array annotations, which is approximately 10-14% of genes on these platforms.
 Omitting this step could lead to a loss of these genes from the pathway enrichment and a loss of sensitivity.
 
+* This work could be extended to include not just proximal CpG sites, but also enhancer based probes and their target genes based on resources such as GeneHancer.
+
 ## Code availability
 
 Code to generate the results shown here are included in a GitHub repository (https://github.com/markziemann/gmea/).
