@@ -339,6 +339,31 @@ dev.off()
 
 ```
 
+## Randomise data
+
+To demonstrate that mitch is robust to false positives, we can perform
+randomisation of the data.
+
+```{r,randomise}
+
+fres <- lapply(1:100,function(i){
+  seed=i*1000
+  z <- lapply(l2,function(m) {
+    m=l2[[1]]
+    set.seed=sum(m$Beta)*seed ; m$Beta <- sample(x=m$Beta,replace=FALSE,size=752722)
+    m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
+    mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=1, priority="effect")
+    mtable <- mres$enrichment_result
+    nrow(subset(mtable,p.adjustANOVA<0.05))
+  })
+  sum(unlist(z))
+})
+
+fres <- unlist(fres)
+summary(fres)
+
+```
+
 ## Session information
 
 ```{r,save}
