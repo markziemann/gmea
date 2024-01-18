@@ -10,6 +10,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ## Introduction
 
 In this report, I will take you through a re-analysis methylation data first described by 

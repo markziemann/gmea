@@ -11,6 +11,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ## Introduction
 
 In the previous analysis, it was shown that sensitivity of GSAmeth was poor compared to LAM with real data.

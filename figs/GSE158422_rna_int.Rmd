@@ -11,6 +11,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ## Introduction
 
 Let's take a look at how pathway methylation associates with gene expression.

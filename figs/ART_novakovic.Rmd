@@ -10,6 +10,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ```{r,packages}
 
 source("meth_functions.R")

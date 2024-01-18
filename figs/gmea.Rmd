@@ -12,6 +12,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ##  Introduction
 
 Previously, Mandhri and I analysed the B-PROOF 450K data, trying to understand

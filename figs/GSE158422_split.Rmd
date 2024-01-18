@@ -11,6 +11,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ## Introduction
 
 Here we are splitting the dataset and testing concordance between LA and AL approaches.

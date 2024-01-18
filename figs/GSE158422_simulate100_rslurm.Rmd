@@ -11,6 +11,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ## Introduction
 
 In this report we establish a new method for generating simulated data with known ground truth.

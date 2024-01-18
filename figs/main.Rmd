@@ -8,6 +8,8 @@ output:
 theme: cosmo
 ---
 
+Source: https://github.com/markziemann/gmea/
+
 ## Introduction
 
 Here we evaluate the performance of different FCS methods for Infinium methylation analysis.
@@ -66,6 +68,14 @@ rmarkdown::render("aging_example.Rmd")
 rmarkdown::render("ART_estill2016.Rmd")
 rmarkdown::render("ART_novakovic.Rmd")
 rmarkdown::render("art_example.Rmd")
+
+```
+
+## Multi-EWAS
+
+```{r,fig89}
+
+rmarkdown::render("multi_ewas_example.Rmd")
 
 ```
 
