@@ -165,10 +165,13 @@ Individual comparisons.
 
 ```{r,mitch2prev,fig.height=5,fig.width=5}
 
-r1 <- lapply(l1,function(m) {
+r1 <- lapply(1:length(l1),function(i) {
+  name=names(l1[i])
+  m <- l1[[i]]
   m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
-  mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+  mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=2, priority="effect")
   mtable <- mres$enrichment_result
+  #mitch_report(res=mres,outfile=paste("mitchreport_prev_",name,".html",sep=""))
 })
 
 nup <- lapply(r1,function(r) {
@@ -263,10 +266,13 @@ Individual comparisons.
 
 ```{r,mitch2incidence,fig.height=5,fig.width=5}
 
-r1 <- lapply(l2,function(m) {
+r1 <- lapply(1:length(l2),function(m) {
+  name=names(l2[i])
+  m <- l2[[i]]
   m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
-  mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=8, priority="effect")
+  mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=2, priority="effect")
   mtable <- mres$enrichment_result
+  #mitch_report(res=mres,outfile=paste("mitchreport_incid_",name,".html",sep=""))
 })
 
 nup <- lapply(r1,function(r) {
