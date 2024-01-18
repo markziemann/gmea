@@ -266,7 +266,7 @@ Individual comparisons.
 
 ```{r,mitch2incidence,fig.height=5,fig.width=5}
 
-r1 <- lapply(1:length(l2),function(m) {
+r1 <- lapply(1:length(l2),function(i) {
   name=names(l2[i])
   m <- l2[[i]]
   m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
