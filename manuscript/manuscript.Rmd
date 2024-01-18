@@ -17,7 +17,7 @@ csl: epigenetics.csl
 Mark Ziemann<sup>1,2*</sup>,
 Mandhri Abeysooriya<sup>2,3</sup>,
 Anusuiya Bora<sup>1,2</sup>,
-Severin Lamon<sup>3</sup>,
+Severine Lamon<sup>3</sup>,
 Mary Sravya Kasu<sup>1</sup>,
 Mitch W. Norris<sup>1</sup>,
 Yen Ting Wong<sup>4</sup>,
@@ -297,6 +297,10 @@ Disease status at follow-up was used to classify participants into incidence gro
 The study used the EPIC Infinium array and 752,722 probes were described in the summary statistic dataset.
 As limma t-statistics were not available, we used probe delta-beta values as input for LAM.
 LAM was conducted individually for each disease condition with Reactome gene sets.
+Finally, as a test of type I errors, we randomised each of the 19 incident profiles using
+base R `sample` command with a set seed, followed by LAM enrichment and counting the number
+of significant pathways.
+This process was repeated 100 times with unique seeds.
 
 ## Results
 
@@ -550,7 +554,7 @@ Stars indicate that the pathway was identified as being among the top three diff
 
 To show that these findings are not the result of false positives from the LAM method, we randomised the
 incidence profiles for all 19 conditions prior to enrichment analysis.
-This was repeated 100 times, and these analyses of randimised data yielded few significant pathways.
+This was repeated 100 times, and these analyses of randomised data yielded few significant pathways.
 Specifically, from 100 runs 64 yielded no significant pathways across 19 conditions.
 Twenty eight repeats had fewer than five false positives and eight runs had more than five false positives.
 Across the 100 repeats, the mean number of false positives was 1.95 and median was 0.
@@ -559,7 +563,7 @@ detect altered methylation before a diagnosis has been made, with few false posi
 
 ## Discussion
 
-* Overall, we found that the FCS methods performed better across all simulation conditions.
+Overall, we found that the FCS methods performed better across all simulation conditions.
 Of the different FCS methods tested, LAM was superior in terms of precision and recall.
 LAM also fits relatively easily into existing workflows, as most EWAS studies seem to use
 limma in their analyses of differential probe methylation.
@@ -573,11 +577,11 @@ and once aggregated, signatures can be analysed with existing packages like mitc
 Mitch does not require a large amount of system memory and due to its parallel architecture can
 make use of multi-threaded processors, so it is not much slower than conducting ORA with existing methods that are single threaded.
 
-* An interesting observation is that ORA performed better when gene sets are smaller.
+An interesting observation is that ORA performed better when gene sets are smaller.
 Given that popular pathway databases like KEGG and Reactome pathways consist of both large (>100) and small (<20) gene sets,
 a hybrid FCS and ORA approach might increase sensitivity and recall.
 
-* At 100 genes per set, LAM had superior sensitivity compared to GSA, which agrees with a prevous report of mitch's performance with
+At 100 genes per set, LAM had superior sensitivity compared to GSA, which agrees with a prevous report of mitch's performance with
 simulated RNA-seq gene expression data[@Kaspi2020-yx].
 The improved sensitivity of the LAM method provides a new opportunity for researchers to reanalyse previously conducted EWASs with contemporary pathway databases to better understand
 the subtle signatures, as we have demonstrated with the chronological age, assisted reproduction examples and 19 disease EWAS analyses.
@@ -586,32 +590,34 @@ Transcription factor target gene sets can be used to identify transcription fact
 MicroRNA target gene sets can identify potential associations between microRNA targets and DNA methylation patterns.
 The MSigDB resource contains these and several other types of gene sets for exploration [@Liberzon2015-um].
 
-* The differences in pathway results obtained with LAM and GSA from lung cancer data were striking, not only in the numbers of pathways identified, but also their relevance to the disease.
+The differences in pathway results obtained with LAM and GSA from lung cancer data were striking, not only in the numbers of pathways identified, but also their relevance to the disease.
 Interestingly the relationship between promoter methylation and gene expression was not always inverse as we had anticipated.
 Joint enrichment analysis showed some genes with increasing promoter methylation together with increasing RNA expression (eg: "Negative regulation of AP2 transcription factors").
 Likewise a few pathways showed decreases in methylation with decreases in RNA expression such as "Dectin family", "TLR regulation" and "glycan biosynthesis termination".
 These results indicate that there is a complicated relationship between DNA methylation and gene expression in lung cancer and further work is required to appreciate the mechanisms involved and distinguish which CpGs are critical for influencing gene expression and which are not.
 
-* We have demonstrated that this method works with both HM450K and EPIC array data and can even facilitate the comparison of EWAS using different platforms.
+We have demonstrated that this method works with both HM450K and EPIC array data and can even facilitate the comparison of EWAS using different platforms.
 We have provided an example workflow that researchers can use as a template.
 It shows how to generate a probe-gene table from Bioconductor annotation datasets, how to update the defunct gene names and how to run the enrichment analysis.
 Using this example, generating similar gene tables for the new Infinium Mouse and EPIC 2.0 arrays and any future arrays will be straightforward, once their annotation sets are available through Bioconductor.
 
-* Updating defunct gene symbols is an important step as 2788 and 3253 gene symbols were updated on the HM450K and EPIC array annotations, which is approximately 10-14% of genes on these platforms.
+Updating defunct gene symbols is an important step as 2,788 and 3,253 gene symbols were updated on the HM450K and EPIC array annotations, which is approximately 10-14% of genes on these platforms.
 We note that other packages for enrichment of Infinium array data do not by default address this, which could lead to a loss of these genes from pathway enrichment and diminished sensitivity.
 
-* The analysis of the large scale disease EWAS shows that LAM can be readily applied to identify differential pathway methylation associated with prevalent and incident disease.
+The analysis of the large scale disease EWAS shows that LAM can be readily applied to identify differential pathway methylation associated with prevalent and incident disease.
 The authors of the study used GOmeth for their pathway analysis and from the 33 models examined, significant findings were obtained for only two, prevalent diabetes and heart disease.
 On contrast, LAM identified 2,469 pathway associations (74.8 per model).
 To demonstrate these are not the results of false positives, permutated profiles yielded on average 0.10 significant findings per model,
 supporting the idea that LAM is identifying real pathway signatures.
 
-* Distinguishing prevalent and incident signatures is important as it is known that methylation changes can be caused by disease states.
+Distinguishing prevalent and incident signatures is important as it is known that methylation changes can be caused by disease states.
 For example metabolic changes in diabetes are probably the cause of the observed methylation signatures.
 It is perhaps unexpected that more significant pathways be identified from the incident disease arm of the study,
 
+This work could be extended to include not just proximal CpG sites, but also enhancer based probes and their target genes based on resources such as GeneHancer.
 
-* This work could be extended to include not just proximal CpG sites, but also enhancer based probes and their target genes based on resources such as GeneHancer.
+There is also potential to generate new libraries of differentially methylated probe and gene sets, to contribute to the pool of molecular signatures in public resources like MSigDB,
+which will assist in understanding similarities between methylation profiles.
 
 ## Code availability
 
@@ -619,5 +625,11 @@ Code to generate the results shown here are included in a GitHub repository (htt
 To enable reproduction of the findings, a docker image is made available at DockerHub
 (https://hub.docker.com/repository/docker/mziemann/gmea/general).
 A reproducible example workflow report is hosted on our website (https://ziemann-lab.net/public/gmea/example_workflow.html).
+
+## Acknowledgements
+
+This research was supported by use of the Nectar Research Cloud, a collaborative Australian research platform supported by the NCRIS-funded Australian Research Data Commons (ARDC).
+Authors gratefully acknowledge the contribution to this work of the Victorian Operational Infrastructure Support Program received by the Burnet Institute.
+We thank the researchers who publicly shared data to enable this research.
 
 ## Bibliography
