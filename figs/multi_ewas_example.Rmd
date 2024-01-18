@@ -171,7 +171,7 @@ r1 <- lapply(1:length(l1),function(i) {
   m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt,geneIDcol="CpG")
   mres <- mitch_calc(x=m2,genesets=gs_symbols,minsetsize=5,cores=2, priority="significance")
   mtable <- mres$enrichment_result
-  mitch_report(res=mres,outfile=paste("mitchreport_prev_",name,".html",sep="",overwrite=TRUE))
+  #mitch_report(res=mres,outfile=paste("mitchreport_prev_",name,".html",sep="",overwrite=TRUE))
 })
 
 nup <- lapply(r1,function(r) {
