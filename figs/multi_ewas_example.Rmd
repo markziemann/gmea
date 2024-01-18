@@ -71,7 +71,7 @@ if(!file.exists("hillary/compressed-disease-states-ewas.tar.gz")){
 myfiles1 <- list.files("hillary",pattern="prevalent_full",full.names=TRUE)
 l1 <- lapply(myfiles1, read.csv)
 l1 <- lapply(l1,function(x) { x[,c("CpG","Beta"),drop=FALSE] } )
-names(l1) <- gsub("_gs.csv","",gsub("hillary/prevalent_full_","",myfiles))
+names(l1) <- gsub("_gs.csv","",gsub("hillary/prevalent_full_","",myfiles1))
 str(l1)
 
 
