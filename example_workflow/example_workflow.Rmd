@@ -23,6 +23,8 @@ Source code: https://github.com/markziemann/gmea/blob/main/example_workflow/exam
 
 Load packages.
 
+Important: ensure that the mitch version used is 1.15.1 or higher.
+
 ```{r,packages}
 
 suppressPackageStartupMessages({
@@ -40,6 +42,9 @@ suppressPackageStartupMessages({
   library("png")
 })
 
+if( packageVersion("mitch") < "1.15.1") {
+  warning("This workflow requires mitch version 1.15.1 or higher")
+}
 
 ```
 
