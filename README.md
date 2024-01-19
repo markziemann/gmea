@@ -91,4 +91,4 @@ Rscript -e 'rmarkdown::render("main.Rmd")'
 
 ## Contributions
 
-If you are experiencing problems applying this method or reproducing our work, please raise an issue on this repository.
+If you have questions, or are experiencing problems applying this method or reproducing our work, please raise an issue on this repository.
