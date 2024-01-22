@@ -87,17 +87,26 @@ server <- function(input, output, session) {
     gt2
   })
   
+ genetable <- reactive({
+   if (myarraytype()=="EPIC") {
+     gt <- readRDS("~/gmea/app/epic.rds")
+   } else {
+     gt <- readRDS("~/gmea/app/hm450k.rds")
+   }
+   gt
+ })
+    
   genesets <- reactive({
     if((mygenesettype())  == "Reactome") {
-      gs <- gmt_import("~/gmea/app/trial/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("~/gmea/app/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "KEGG") {
-      gs <- gmt_import("~/gmea/app/trial/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("~/gmea/app/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "GO") {
-      gs <- gmt_import("~/gmea/app/trial/c5.all.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("~/gmea/app/c5.all.v2023.2.Hs.symbols.gmt")
     }
     gs
   })
@@ -116,7 +125,7 @@ server <- function(input, output, session) {
     m <- cbind(m[,1],m[,"t"])
     rownames(m) <- m[,1]
     m[,1]=NULL
-    m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt2())
+    m2 <- mitch_import(x=m,DEtype="prescored",geneTable=genetable())
     mres <- mitch_calc(x=m2,genesets=genesets(),minsetsize=5,cores=1, priority=prioritisation())    
   })
   
