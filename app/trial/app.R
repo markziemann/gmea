@@ -14,14 +14,17 @@ ui <- fluidPage(
     "GMEA"
   ),
   sidebarPanel(
-    "Welcome to the GMEA analysis server. Optionally give your analysis a name, select your array platform, your preferred gene set annotation set, upload your limma data set and hit the analyse button. Please be patient as analysis might take a few minutes. Keep in mind that only TSV is supported at this time. Please ensure that the first column is the probe ID, and that there is one column with the heading 't'. This app doesn't default R row names, so please check that the sample t values shown match your data.",
+    "Welcome to the GMEA analysis server. Optionally give your analysis a name, select your array platform, your preferred gene set annotation set, upload your limma data set and hit the analyse button. Please be patient as analysis might take a few minutes. Keep in mind that only TSV is supported at this time. Please ensure that the first column is the probe ID, and that there is one column with the heading 't'. This app doesn't recognise default R row names, so please check that the sample t values shown match your data. After selecting the file to analyze, hit the 'Analyse!' button and once the top results are shown go ahead and download the full table and the HTML report.",
     textInput("dataname", "Dataset name:"),
     radioButtons("arraytype", "Array platform:", arraytype),
     radioButtons("genesettype", "Gene set database:", genesettype),
     fileInput("upload", multiple = FALSE,label="Upload limma data:"),
+    downloadButton("downloadData", label = "Download full results table"),
+    downloadButton("downloadData2", label = "Download HTML report"),
     actionButton("analyse", "Analyse!",icon = icon("gears"))
   ),
   mainPanel(
+    "This area will populate with results once analysis is complete.",
     textOutput("jobdata"),
     "file information",
     tableOutput("fileinfo"),
@@ -29,10 +32,7 @@ ui <- fluidPage(
     tableOutput("tvals"),
     "Top differentially methylated pathways",
     dataTableOutput("mtable"),
-    "Download PDF report",
-    downloadButton("reportpdf","Generate PDF report"),
-    "Download HTML report",
-    downloadButton("reporthtml","Generate HTML report")
+    
   )
 )
 
@@ -82,8 +82,17 @@ server <- function(input, output, session) {
   
   genesets <- reactive({
     if((mygenesettype())  == "Reactome") {
-      gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+      gmt_import("~/gmea/app/trial/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
+    
+    if((mygenesettype())  == "KEGG") {
+      gmt_import("~/gmea/app/trial/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
+    }
+    
+    if((mygenesettype())  == "GO") {
+      gmt_import("~/gmea/app/trial/c5.all.v2023.2.Hs.symbols.gmt")
+    }
+    
   })
   
   mres <- reactive({
@@ -100,20 +109,6 @@ server <- function(input, output, session) {
         myres$enrichment_result
   })
   
-  reportpdf <- reactive({
-    req(mres())
-    mitch_plots(mres(),outfile = "plots.pdf")
-    pl <- "plots.pdf"
-    readBin(pl, raw(), file.info(pl)$size)
-  })
-  
-  reporthtml <- reactive({
-    req(mres())
-    mitch_report(mres(),outfile = "report.html",overwrite = TRUE)
-    htm <- "report.html"
-    readBin(htm, raw(), file.info(htm)$size)
-  })
-  
   output$jobdata <- renderText(paste(mydataname(),myarraytype(),mygenesettype()))
   
   output$fileinfo <- renderTable(fileinfo())
@@ -127,19 +122,35 @@ server <- function(input, output, session) {
     head(m)
   })
   
-  output$mtable <- renderDataTable(mtable(),options = list(pageLength = 10, info = FALSE))
+  output$mtable <- renderDataTable(
+    mtable(),options = list(pageLength = 10, info = FALSE)
+  )
 
-  # report download not working
-  output$reportpdf <- downloadHandler(
-    # For PDF output, change this to "report.pdf"
-    filename = "report.pdf",
-    content = reportpdf()
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste(mydataname(), '.tsv', sep='')
+    },
+    content = function(file) {
+      req(mtable())
+      write.table(mtable(),file,sep="\t",row.names = FALSE)
+      #write.csv(mtcars, file)
+    }
   )
-  output$reporthtml <- downloadHandler(
-    # For PDF output, change this to "report.pdf"
-    filename = "report.html",
-    content = reporthtml()
-  )
+
+  output$downloadData2 <- downloadHandler(
+    filename = function() {
+      paste(mydataname(), '.html.zip', sep='')
+    },
+    content = function(file) {
+      req(mtable())
+      tmpdir <- tempdir()
+      setwd(tempdir())
+      mitch_report(res=mres(),outfile = "mitchreport.html",overwrite = TRUE)
+      zip(zipfile=file, files="mitchreport.html")
+    },
+    contentType = "application/zip"
+  )    
+
 }
 
 shinyApp(ui, server)
