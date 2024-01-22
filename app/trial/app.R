@@ -121,7 +121,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       req(mtable())
-      write.table(mtable(),file,sep="\t")
+      write.table(mtable(),file,sep="\t",row.names = FALSE)
       #write.csv(mtcars, file)
     }
   )
