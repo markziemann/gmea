@@ -6,7 +6,7 @@ library("mitch")
 options(shiny.maxRequestSize = 300 * 1024^2) #300MB
 # Specify the application port
 options(shiny.host = "0.0.0.0")
-options(shiny.port = 8180)
+options(shiny.port = 3838)
 
 arraytype <- c("EPIC","450k")
 
