@@ -7,7 +7,9 @@ options(shiny.maxRequestSize = 300 * 1024^2) #300MB
 
 arraytype <- c("EPIC","450k")
 
-genesettype <- c("Reactome","KEGG","GO")
+genesettype <- c("Reactome","KEGG MEDICUS","GO")
+
+prioritisationtype <- c("Significance","Enrichment score")
 
 ui <- fluidPage(
   titlePanel(
@@ -18,6 +20,7 @@ ui <- fluidPage(
     textInput("dataname", "Dataset name:"),
     radioButtons("arraytype", "Array platform:", arraytype),
     radioButtons("genesettype", "Gene set database:", genesettype),
+    radioButtons("prioritisationtype", "Prioritisation:", prioritisationtype),
     fileInput("upload", multiple = FALSE,label="Upload limma data:"),
     downloadButton("downloadData", label = "Download full results table"),
     downloadButton("downloadData2", label = "Download HTML report"),
@@ -49,12 +52,16 @@ server <- function(input, output, session) {
   mygenesettype <- eventReactive(input$analyse, {
     as.character(input$genesettype)
   })
+  
+  myprioritisationtype <- eventReactive(input$analyse, {
+    as.character(input$prioritisationtype)
+  })  
 
   fileinfo <- eventReactive(input$analyse, {
     input$upload
   })
  
-  
+
   data <- reactive({
     req(input$upload)
     
@@ -82,17 +89,26 @@ server <- function(input, output, session) {
   
   genesets <- reactive({
     if((mygenesettype())  == "Reactome") {
-      gmt_import("~/gmea/app/trial/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("~/gmea/app/trial/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "KEGG") {
-      gmt_import("~/gmea/app/trial/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("~/gmea/app/trial/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "GO") {
-      gmt_import("~/gmea/app/trial/c5.all.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("~/gmea/app/trial/c5.all.v2023.2.Hs.symbols.gmt")
     }
-    
+    gs
+  })
+  
+  prioritisation <- reactive({
+    if((myprioritisationtype())  == "Significance") {
+      prioritisation = "significance"
+    } else {
+      prioritisation = "effect"
+    }
+    prioritisation
   })
   
   mres <- reactive({
@@ -101,7 +117,7 @@ server <- function(input, output, session) {
     rownames(m) <- m[,1]
     m[,1]=NULL
     m2 <- mitch_import(x=m,DEtype="prescored",geneTable=gt2())
-    mres <- mitch_calc(x=m2,genesets=genesets(),minsetsize=5,cores=1, priority="effect")    
+    mres <- mitch_calc(x=m2,genesets=genesets(),minsetsize=5,cores=1, priority=prioritisation())    
   })
   
   mtable <- reactive({
