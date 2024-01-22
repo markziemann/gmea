@@ -36,7 +36,7 @@ A live compiled version is found online [here](https://ziemann-lab.net/public/gm
 * example workflow: this contains a reproducible example workflow so you can see how the method works.
 A live compiled version is found [here](https://ziemann-lab.net/public/gmea/example_workflow.html).
 
-* app/trial: this is an attempt to create a shiny app (currently not working).
+* app/trial: this is an attempt to create a shiny app (currently in beta testing).
 
 * Dockerfile: this was used to create a docker image which was used to execute all of the data analysis for the project.
 This makes our work perfectly reproducible, and portable across different systems.
