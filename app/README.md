@@ -108,6 +108,24 @@ Here are the names:
 
 * c5.all.v2023.2.Hs.symbols.gmt
 
+## Make own server
+
+If you want to run this service frequently you can set it up on a webserver.
+
+There is a Dockerfile in this folder to build the service.
+
+```
+docker build -t "gmea_app" .
+```
+
+Then run the app with a maximum of 4 CPU threads.
+
+```
+docker run --cpus=4 -p 3838:3838 gmea_app
+```
+
+Then you can access the service via browser (use http).
+
 ## Session information
 
 R version 4.3.2 (2023-10-31)
