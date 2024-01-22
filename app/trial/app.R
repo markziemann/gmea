@@ -19,20 +19,18 @@ ui <- fluidPage(
     radioButtons("arraytype", "Array platform:", arraytype),
     radioButtons("genesettype", "Gene set database:", genesettype),
     fileInput("upload", multiple = FALSE,label="Upload limma data:"),
+    downloadLink("downloadData", "Download full table of results"),
     actionButton("analyse", "Analyse!",icon = icon("gears"))
   ),
   mainPanel(
+    "This area will populate with results once analysis is complete.",
     textOutput("jobdata"),
     "file information",
     tableOutput("fileinfo"),
     "t values",
     tableOutput("tvals"),
     "Top differentially methylated pathways",
-    dataTableOutput("mtable"),
-    "Download PDF report",
-    downloadButton("reportpdf","Generate PDF report"),
-    "Download HTML report",
-    downloadButton("reporthtml","Generate HTML report")
+    dataTableOutput("mtable")
   )
 )
 
@@ -100,20 +98,6 @@ server <- function(input, output, session) {
         myres$enrichment_result
   })
   
-  reportpdf <- reactive({
-    req(mres())
-    mitch_plots(mres(),outfile = "plots.pdf")
-    pl <- "plots.pdf"
-    readBin(pl, raw(), file.info(pl)$size)
-  })
-  
-  reporthtml <- reactive({
-    req(mres())
-    mitch_report(mres(),outfile = "report.html",overwrite = TRUE)
-    htm <- "report.html"
-    readBin(htm, raw(), file.info(htm)$size)
-  })
-  
   output$jobdata <- renderText(paste(mydataname(),myarraytype(),mygenesettype()))
   
   output$fileinfo <- renderTable(fileinfo())
@@ -127,18 +111,19 @@ server <- function(input, output, session) {
     head(m)
   })
   
-  output$mtable <- renderDataTable(mtable(),options = list(pageLength = 10, info = FALSE))
-
-  # report download not working
-  output$reportpdf <- downloadHandler(
-    # For PDF output, change this to "report.pdf"
-    filename = "report.pdf",
-    content = reportpdf()
+  output$mtable <- renderDataTable(
+    mtable(),options = list(pageLength = 10, info = FALSE)
   )
-  output$reporthtml <- downloadHandler(
-    # For PDF output, change this to "report.pdf"
-    filename = "report.html",
-    content = reporthtml()
+
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste(mydataname(), '.tsv', sep='')
+    },
+    content = function(file) {
+      req(mtable())
+      write.table(mtable(),file,sep="\t")
+      #write.csv(mtcars, file)
+    }
   )
 }
 
