@@ -14,12 +14,13 @@ ui <- fluidPage(
     "GMEA"
   ),
   sidebarPanel(
-    "Welcome to the GMEA analysis server. Optionally give your analysis a name, select your array platform, your preferred gene set annotation set, upload your limma data set and hit the analyse button. Please be patient as analysis might take a few minutes. Keep in mind that only TSV is supported at this time. Please ensure that the first column is the probe ID, and that there is one column with the heading 't'. This app doesn't default R row names, so please check that the sample t values shown match your data.",
+    "Welcome to the GMEA analysis server. Optionally give your analysis a name, select your array platform, your preferred gene set annotation set, upload your limma data set and hit the analyse button. Please be patient as analysis might take a few minutes. Keep in mind that only TSV is supported at this time. Please ensure that the first column is the probe ID, and that there is one column with the heading 't'. This app doesn't recognise default R row names, so please check that the sample t values shown match your data. After selecting the file to analyze, hit the 'Analyse!' button and once the top results are shown go ahead and download the full table and the HTML report.",
     textInput("dataname", "Dataset name:"),
     radioButtons("arraytype", "Array platform:", arraytype),
     radioButtons("genesettype", "Gene set database:", genesettype),
     fileInput("upload", multiple = FALSE,label="Upload limma data:"),
-    downloadLink("downloadData", "Download full table of results"),
+    downloadButton("downloadData", label = "Download full results table"),
+    downloadButton("downloadData2", label = "Download HTML report"),
     actionButton("analyse", "Analyse!",icon = icon("gears"))
   ),
   mainPanel(
@@ -30,7 +31,8 @@ ui <- fluidPage(
     "t values",
     tableOutput("tvals"),
     "Top differentially methylated pathways",
-    dataTableOutput("mtable")
+    dataTableOutput("mtable"),
+    
   )
 )
 
@@ -80,8 +82,17 @@ server <- function(input, output, session) {
   
   genesets <- reactive({
     if((mygenesettype())  == "Reactome") {
-      gmt_import("c2.cp.reactome.v2023.1.Hs.symbols.gmt")
+      gmt_import("~/gmea/app/trial/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
+    
+    if((mygenesettype())  == "KEGG") {
+      gmt_import("~/gmea/app/trial/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
+    }
+    
+    if((mygenesettype())  == "GO") {
+      gmt_import("~/gmea/app/trial/c5.all.v2023.2.Hs.symbols.gmt")
+    }
+    
   })
   
   mres <- reactive({
@@ -125,6 +136,21 @@ server <- function(input, output, session) {
       #write.csv(mtcars, file)
     }
   )
+
+  output$downloadData2 <- downloadHandler(
+    filename = function() {
+      paste(mydataname(), '.html.zip', sep='')
+    },
+    content = function(file) {
+      req(mtable())
+      tmpdir <- tempdir()
+      setwd(tempdir())
+      mitch_report(res=mres(),outfile = "mitchreport.html",overwrite = TRUE)
+      zip(zipfile=file, files="mitchreport.html")
+    },
+    contentType = "application/zip"
+  )    
+
 }
 
 shinyApp(ui, server)
