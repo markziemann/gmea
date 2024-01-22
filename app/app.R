@@ -92,24 +92,24 @@ server <- function(input, output, session) {
   
  genetable <- reactive({
    if (myarraytype()=="EPIC") {
-     gt <- readRDS("~/gmea/app/epic.rds")
+     gt <- readRDS("epic.rds")
    } else {
-     gt <- readRDS("~/gmea/app/hm450k.rds")
+     gt <- readRDS("hm450k.rds")
    }
    gt
  })
     
   genesets <- reactive({
     if((mygenesettype())  == "Reactome") {
-      gs <- gmt_import("~/gmea/app/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "KEGG") {
-      gs <- gmt_import("~/gmea/app/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "GO") {
-      gs <- gmt_import("~/gmea/app/c5.all.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("c5.all.v2023.2.Hs.symbols.gmt")
     }
     gs
   })
