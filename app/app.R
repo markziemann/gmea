@@ -92,24 +92,24 @@ server <- function(input, output, session) {
   
  genetable <- reactive({
    if (myarraytype()=="EPIC") {
-     gt <- readRDS("epic.rds")
+     gt <- readRDS("/home/app/epic.rds")
    } else {
-     gt <- readRDS("hm450k.rds")
+     gt <- readRDS("/home/app/hm450k.rds")
    }
    gt
  })
     
   genesets <- reactive({
     if((mygenesettype())  == "Reactome") {
-      gs <- gmt_import("c2.cp.reactome.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("/home/app/c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "KEGG MEDICUS") {
-      gs <- gmt_import("c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("/home/app/c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
     }
     
     if((mygenesettype())  == "GO") {
-      gs <- gmt_import("c5.all.v2023.2.Hs.symbols.gmt")
+      gs <- gmt_import("/home/app/c5.all.v2023.2.Hs.symbols.gmt")
     }
     gs
   })
@@ -161,7 +161,6 @@ server <- function(input, output, session) {
     content = function(file) {
       req(mtable())
       write.table(mtable(),file,sep="\t",row.names = FALSE)
-      #write.csv(mtcars, file)
     }
   )
 
