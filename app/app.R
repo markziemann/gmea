@@ -104,7 +104,7 @@ server <- function(input, output, session) {
       gs <- gmt_import("c2.cp.reactome.v2023.2.Hs.symbols.gmt")
     }
     
-    if((mygenesettype())  == "KEGG") {
+    if((mygenesettype())  == "KEGG MEDICUS") {
       gs <- gmt_import("c2.cp.kegg_medicus.v2023.2.Hs.symbols.gmt")
     }
     
