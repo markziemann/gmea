@@ -16,13 +16,13 @@ dim(gt1)
 str(gt1)
 length(unique(gt1$gene))
 #new.hgnc.table <- getCurrentHumanMap()
-new.hgnc.table <- readRDS("~/gmea/figs/new.hgnc.table.rds")
+new.hgnc.table <- readRDS("../figs/new.hgnc.table.rds")
 fix <- checkGeneSymbols(gt1$gene,map=new.hgnc.table)
 fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))
 gt1$gene <- fix$Suggested.Symbol
 head(gt1)
-saveRDS(gt1,file="~/gmea/app/hm450k.rds")
+saveRDS(gt1,file="hm450k.rds")
 
 ## EPIC
 anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
@@ -42,4 +42,4 @@ fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))
 gt2$gene <- fix$Suggested.Symbol
 head(gt2)
-saveRDS(gt2,file="~/gmea/app/epic.rds")
+saveRDS(gt2,file="epic.rds")
