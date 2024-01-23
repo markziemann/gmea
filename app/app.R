@@ -76,20 +76,6 @@ server <- function(input, output, session) {
     )
   })
   
-  gt2 <- reactive({
-    req(input$upload)
-    anno <- getAnnotation(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
-    myann <- data.frame(anno[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","Islands_Name","Relation_to_Island")])
-    gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
-    gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
-    names(gp2) <- rownames(gp)
-    gp2 <- lapply(gp2,unique)
-    gt2 <- stack(gp2)
-    colnames(gt2) <- c("gene","probe")
-    gt2$probe <- as.character(gt2$probe)
-    gt2
-  })
-  
  genetable <- reactive({
    if (myarraytype()=="EPIC") {
      gt <- readRDS("/home/app/epic.rds")
