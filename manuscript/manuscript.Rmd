@@ -48,7 +48,7 @@ Source: https://github.com/markziemann/gmea
 
 <br>
 
-## Abstract
+# Abstract
 
 Infinium methylation bead arrays remain one of the most popular platforms for studying genomic DNA methylation,
 but tools for downstream pathways analysis have their limitations.
@@ -76,7 +76,7 @@ epigenetics.
 
 <br>
 
-## Introduction
+# Introduction
 
 DNA methylation is the most widely studied epigenetic mark, for its role in
 development and disease [@Robertson2005-tu].
@@ -140,9 +140,9 @@ We then examine the sensitivity of selected methods on real cancer data, investi
 and end with additional examples related to human ageing, assisted reproductive technologies and a large-scale EWAS of
 19 diseases.
 
-## Methods
+# Methods
 
-### Implementation overview
+## Implementation overview
 
 Functional enrichment analysis is a process of data summarisation from genes to gene sets (pathways).
 This is made more complicated for Infinium methylation array data due to the presence of multiple probes per gene,
@@ -190,7 +190,7 @@ were selected.
 We conducted separate tests for increased and decreased probes, and we specified the background as all probes that
 passed quality control filtering.
 
-### Method validation using simulations
+## Method validation using simulations
 
 To assess these methods, we adopted a simulated data approach based on the selected modification of real methylation data.
 We downloaded raw intensity EPIC IDAT files from NCBI Gene Expression Omnibus (GEO) for study GSE158422, which consists of
@@ -220,7 +220,7 @@ to ensure reproducibility.
 Simulations were conducted on a SLURM cluster [@Yoo2003-mc].
 Mean TP, FP and FN values were determined, and then precision, recall and F1 scores were calculated.
 
-### Sensitivity analysis
+## Sensitivity analysis
 
 The full GSE158422 dataset including normal and cancer samples of all 37 patients underwent differential analysis with limma
 correcting for patient-of-origin effects.
@@ -238,7 +238,7 @@ The subset significant results were compared to the full group (n=37) results to
 methods, and whether findings at a smaller sample size were consistent with the full group.
 This process was repeated 50 times for each sample size.
 
-### Association of methylation with gene expression
+## Association of methylation with gene expression
 
 RNA-seq based gene counts for the same set of lung cancer patients were downloaded from GEO (accession: GSE158420).
 HGNChelper was used to repair transmogrified gene names, followed by DESeq2 based differential analysis.
@@ -252,7 +252,7 @@ For this analysis, Reactome gene sets were used.
 Subsequently, to generate the pathway heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
 promoter and gene body methylation together, prioritising the results by s-distance, a surrogate measure of effect size.
 
-### Pathway-level differential methylation in aging
+## Pathway-level differential methylation in aging
 
 In order to deminstrate the utility of the LAM method for large EWAS studies, we examined
 methylation profile associations with age of two independent cohorts involving a total of 7036
@@ -262,7 +262,7 @@ Briefly, gene-probe associations were first obtained from the "IlluminaHumanMeth
 dataset, followed by update of gene symbols with HGNChelper.
 Discovery and replication data were imported separately with mitch and multivariate enrichment analysis was conducted with gene sets from Reactome.
 
-### Pathway-level differential methylation in assisted reproductive technology
+## Pathway-level differential methylation in assisted reproductive technology
 
 In order to demonstrate that methylation patterns across different array platforms can be compared using the LAM method,
 we examined methylation differences in infants associated with assisted reproduction as described by two
@@ -286,7 +286,7 @@ As the Novakovic study involved EPIC array data, gene-probe associations were ob
 "IlluminaHumanMethylationEPICanno.ilm10b4.hg19" annotation set, and gene symbols were updated with
 HGNChelper.
 
-### Differential pathway methylation in 19 common disease states
+## Differential pathway methylation in 19 common disease states
 
 To examine whether LAM can identify differentially methylated pathways associated with disease prevalence and incidence,
 we downloaded blood based EWAS summary statistics from a recent publication [@Hillary2023-mu], made available via
@@ -305,9 +305,9 @@ base R `sample` command with a set seed, followed by LAM enrichment and counting
 of significant pathways.
 This process was repeated 100 times with unique seeds.
 
-## Results
+# Results
 
-### Evaluation of FCS methods for Infinium methylation array data
+## Evaluation of FCS methods for Infinium methylation array data
 
 Simulations were conducted using the eight FCS methods (LAT, LTT, LAW, LAM, LRM, ALT, ALW, ALM) and GSAmeth,
 with group sizes of 3-12 and delta values between 0.1 and 0.5, and random gene sets with sizes 20, 50
@@ -340,7 +340,7 @@ F1 performance scores at 100 genes per set were better for LAM as compared to GS
 values.**
 One hundred genes per set.](img/fig2.svg)
 
-### Sensitivity of GSA and LAM methods with real cancer data
+## Sensitivity of GSA and LAM methods with real cancer data
 
 Next, GSA and LAM methods were applied to compare paired normal and cancer methylation data from 37 lung squamous cell carcinoma patients.
 From the 839,473 probes passing quality control, 473,572 were considered significant at 5% FDR.
@@ -564,7 +564,7 @@ Across the 100 repeats, the mean number of false positives was 1.95 and median w
 These results indicate that LAM can identify differentially methylated pathways in disease groups and
 detect altered methylation before a diagnosis has been made, with few false positives.
 
-## Discussion
+# Discussion
 
 Overall, we found that the FCS methods performed better across all simulation conditions.
 Of the different FCS methods tested, LAM was superior in terms of precision and recall.
@@ -635,4 +635,4 @@ This research was supported by use of the Nectar Research Cloud, a collaborative
 Authors gratefully acknowledge the contribution to this work of the Victorian Operational Infrastructure Support Program received by the Burnet Institute.
 We thank the researchers who publicly shared data to enable this research.
 
-## Bibliography
+# Bibliography
