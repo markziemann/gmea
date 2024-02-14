@@ -457,7 +457,7 @@ belonging to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
 ![**Figure 6. Pathway-level DNA methylation alterations with chronological age.**
 (A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
 (B) Mitch pathway enrichment scores (S distances) in discovery and replication studies.
-Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+Pathways with MANOVA FDR<0.05 are shown in red while others are shaded grey.
 (C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
 Red indicates increasing methylation and blue shows lower methylation.
 (D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes
@@ -503,7 +503,7 @@ conducted with HM450K and EPIC arrays.
 ![**Figure 7. Pathway-level DNA methylation differences in natural and IVF conceived infants.**
 (A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (HM450K) and Novakovic (EPIC) studies.
 (B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies.
-Pathways with MANOVA FDR<0.05 are shown in red while others are shaded gray.
+Pathways with MANOVA FDR<0.05 are shown in red while others are shaded grey.
 (C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
 Red indicates higher methylation and blue shows lower methylation.
 (D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of
@@ -596,7 +596,7 @@ The MSigDB resource contains these and several other types of gene sets for expl
 The differences in pathway results obtained with LAM and GSA from lung cancer data were striking, not only in the number of
 pathways identified but also in their relevance to the disease.
 Interestingly, the relationship between promoter methylation and gene expression was not always inverse as we had anticipated.
-Joint enrichment analysis showed some genes with increasing promoter methylation together with increasing RNA expression
+Joint enrichment analysis showed some pathways with increasing promoter methylation together with increasing RNA expression
 (e.g., “Negative regulation of AP2 transcription factors”).
 Likewise, a few pathways showed decreases in methylation with decreases in RNA expression such as “Dectin family”, “TLR regulation”
 and “glycan biosynthesis termination”.
@@ -604,7 +604,7 @@ These results are in line with previous reports of the widespread existence of b
 gene expression[@Wagner2014-gy; @Xu2019-nu; @Spainhour2019-ur; @Wang2022-mr],
 and support the idea that there is a complicated relationship between DNA methylation and gene expression in lung cancer.
 
-We have demonstrated that this method works with both HM450K and EPIC array data and can even facilitate the comparison of EWAS using different platforms.
+We have demonstrated that this method works with both HM450K and EPIC array data and can even facilitate the comparison of EWAS across different platforms.
 We have provided an example workflow that researchers can use as a template.
 It shows how to generate a probe-gene table from Bioconductor annotation datasets, how to update the defunct gene names and how to run the enrichment analysis.
 Using this example, generating similar gene tables for the new Infinium Mouse and EPIC 2.0 arrays and any future arrays will be straightforward, once their annotation sets are available through Bioconductor.
@@ -637,6 +637,7 @@ A reproducible example workflow report is hosted on our website (https://ziemann
 ## Funding
 
 This work was supported by a grant from the Australian National Health and Medical Research Council (grant number 1146333 to JMC).
+Severine Lamon is supported by an Australian Research Council (ARC) Future Fellowship (FT210100278).
 This research was supported by use of the Nectar Research Cloud, a collaborative Australian research platform supported by the NCRIS-funded Australian Research Data Commons (ARDC).
 Authors gratefully acknowledge the contribution to this work of the Victorian Operational Infrastructure Support Program received by the Burnet Institute.
 
