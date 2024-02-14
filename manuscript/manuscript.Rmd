@@ -19,7 +19,7 @@ Mandhri Abeysooriya<sup>2,3</sup>,
 Anusuiya Bora<sup>1,2</sup>,
 Séverine Lamon<sup>3</sup>,
 Mary Sravya Kasu<sup>1</sup>,
-Mitch W. Norris<sup>1</sup>,
+Mitchell W. Norris<sup>1</sup>,
 Yen Ting Wong<sup>4,5</sup>,
 Jeffrey M. Craig<sup>4,5</sup>
 </strong>
@@ -41,10 +41,11 @@ Jeffrey M. Craig<sup>4,5</sup>
 | Mark Ziemann | 0000-0002-7688-6974 |
 | Mandhri Abeysooriya | 0000-0003-2163-6203 |
 | Anusuiya Bora | 0009-0006-2908-1352 |
-| Severine Lamon | 0000-0002-3271-6551 |
+| Séverine Lamon | 0000-0002-3271-6551 |
 | Mary Sravya Kasu | 0000-0002-7891-836X |
-| Yen Ting Wong | 0000-0003-3120-096 |
-| Jeffrey M Craig | 0000-0003-3979-7849 |
+| Mitchell W. Norris | 0009-0001-4338-6252 |
+| Yen Ting Wong | 0000-0003-3120-0964 |
+| Jeffrey M. Craig | 0000-0003-3979-7849 |
 
 Source: https://github.com/markziemann/gmea
 
@@ -147,11 +148,11 @@ and end with additional examples related to human aging, assisted reproductive t
 Functional enrichment analysis is a process of data summarisation from genes to gene sets (pathways).
 This is made more complicated for Infinium methylation array data due to the presence of multiple probes per gene,
 meaning the data needs to be summarised from probes to genes and then to gene sets.
-Here, we outline eight potential approaches for FCS of Infinium methylation data, where methods 1-5 are type I
+Here, we outline eight potential approaches for FCS of Infinium methylation data implemented in R (v4.3.2), where methods 1-5 are type I
 and 6-8 are type II:
 
 1. Limma Average t-test (LAT).
-Differential methylation analysis is conducted at the probe level with limma, and the limma
+Differential methylation analysis is conducted at the probe level with limma (v3.58.1), and the limma
 t-statistics for each gene are summarised (arithmetic mean).
 The mean t-statistics are used in a downstream two-sample two-way t-test of gene set enrichment.
 
@@ -164,7 +165,7 @@ Similar to LAT, except instead of the two-sided t-test of gene set enrichment, a
 the Wilcoxon signed-rank test is used.
 
 4. Limma Average Mitch (LAM).
-Similar to LAW, however, instead of the Wilcoxon test, the mitch package[@Kaspi2020-yx] is used to execute a two-way,
+Similar to LAW, however, instead of the Wilcoxon test, the mitch package[@Kaspi2020-yx] (v1.15.0) is used to execute a two-way,
 two-sample ANOVA-on-ranks test as described previously[@Cox2012-zu].
 
 5. Limma Rank Mitch (LRM).
@@ -183,7 +184,7 @@ Similar to ALT, however, it uses the Wilcoxon non-parametric test for gene set e
 Similar to ALW, however, uses the Mitch package to execute a two-way, two-sample ANOVA-on-ranks test.
 
 The above were compared to a standard ORA-based approach (GSA), which involves limma on probes, selection of
-statistically significant probes (FDR<0.05) for ORA with the `gsameth()` function of missMethyl which conducts a
+statistically significant probes (FDR<0.05) for ORA with the `gsameth()` function of missMethyl (v1.36.0) which conducts a
 modified hypergeometric test that accounts for multiple probe biases.
 In the case that fewer than 250 significant probes were identified, the 250 probes with the smallest p-values
 were selected.
@@ -228,9 +229,9 @@ Downstream pathway enrichment analysis was conducted using the GSA and LAM metho
 with Reactome pathways downloaded from MSigDB website (version 2023.1)[@Milacic2024-js].
 LAM relies on probe-gene associations from the "UCSC_RefGene_Name" column of the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19"
 annotation.
-As gene annotations are several years old, we used HGNChelper to update them (database current as of 21-Dec-2023) [@Oh2022-ts]
+As gene annotations are several years old, we used HGNChelper (v0.8.1) to update them (database current as of 21-Dec-2023) [@Oh2022-ts]
 (3,253 gene symbols were updated).
-Euler diagrams were created with the `eulerr` R package.
+Euler diagrams were created with the `eulerr` R package (v7.0.0).
 To test sensitivity, a random subset of n patients was selected followed by pathway enrichment analysis with the
 respective method, with n varying between 2 and 30.
 Significantly enriched pathways were defined as those with FDR values < 0.05.
@@ -273,7 +274,7 @@ The Novakovic study in was published 2019, and used the EPIC methylation array a
 GSE131433[@Novakovic2019-jt].
 Various assisted reproductive technology conception groups are described in these studies, but we only examined
 fresh in vitro fertilisation (IVF) conceived infants compared to naturally conceived infants.
-Raw intensity files (IDAT format) were read into R with minfi [@Aryee2014-su], normalisation was conducted with the SWAN method
+Raw intensity files (IDAT format) were read into R with minfi [@Aryee2014-su] (v1.48.0), normalisation was conducted with the SWAN method
 [@Maksimovic2012-hy], and probe filtering was conducted to remove proves with a detection p-value > 0.01 in addition to probes
 located on X or Y chromosomes.
 M values were computed and underwent differential methylation analysis using limma [@Ritchie2015-zn].
@@ -633,10 +634,14 @@ To enable reproduction of the findings, a docker image is made available at Dock
 (https://hub.docker.com/repository/docker/mziemann/gmea/general).
 A reproducible example workflow report is hosted on our website (https://ziemann-lab.net/public/gmea/example_workflow.html).
 
-## Acknowledgements
+## Funding
 
+This work was supported by a grant from the Australian National Health and Medical Research Council (grant number 1146333 to JMC).
 This research was supported by use of the Nectar Research Cloud, a collaborative Australian research platform supported by the NCRIS-funded Australian Research Data Commons (ARDC).
 Authors gratefully acknowledge the contribution to this work of the Victorian Operational Infrastructure Support Program received by the Burnet Institute.
+
+## Acknowledgements
+
 We thank the researchers who publicly shared data to enable this work.
 
 # Bibliography
