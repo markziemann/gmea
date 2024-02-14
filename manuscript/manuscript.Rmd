@@ -633,6 +633,6 @@ A reproducible example workflow report is hosted on our website (https://ziemann
 
 This research was supported by use of the Nectar Research Cloud, a collaborative Australian research platform supported by the NCRIS-funded Australian Research Data Commons (ARDC).
 Authors gratefully acknowledge the contribution to this work of the Victorian Operational Infrastructure Support Program received by the Burnet Institute.
-We thank the researchers who publicly shared data to enable this research.
+We thank the researchers who publicly shared data to enable this work.
 
 # Bibliography
