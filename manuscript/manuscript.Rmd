@@ -529,7 +529,7 @@ Patients with colorectal cancer had lower methylation of the interleukin 10 sign
 Reduced methylation of the salty taste perception pathway was observed in patients with CKD.
 
 ![**Figure 8. Differential pathway methylation associated with prevalence of 14 common disease states.**
-(A) A barplot showing the number of statistically significant pathways with higher and lower methylation identified in each prevalent condition (FDR<0.05).
+(A) A bar plot showing the number of statistically significant pathways with higher and lower methylation identified in each prevalent condition (FDR<0.05).
 (B) A heatmap of S scores for selected pathways across 14 common prevalent disease states.
 Stars indicate that the pathway was identified as being among the top five differentially methylated pathways in each direction for each condition.
 ](img/fig8.svg)
@@ -549,7 +549,7 @@ of the GDP mannose synthesis pathway.
 Incident stroke was associated with higher methylation of the lipoxin synthesis pathway.
 
 ![**Figure 9. Differential pathway methylation associated with incidence of 19 common disease states.**
-(A) A barplot showing the number of statistically significant pathways with higher and lower methylation identified in each incident condition (FDR<0.05).
+(A) A bar plot showing the number of statistically significant pathways with higher and lower methylation identified in each incident condition (FDR<0.05).
 (B) A heatmap of S scores for selected pathways across 19 common incident disease states.
 Stars indicate that the pathway was identified as being among the top three differentially methylated pathways in each direction for each condition.
 ](img/fig9.svg)
@@ -621,6 +621,10 @@ This work could be extended to include not just proximal CpG sites, but also enh
 
 There is also potential to generate new libraries of differentially methylated probes and gene sets, to contribute to the pool of molecular signatures in public resources like MSigDB,
 which will assist in understanding similarities between methylation profiles.
+
+## Data availability
+
+Data sets reanalysed here are publicly available from NCBI GEO, Zenodo or from the supplementary tables of journal articles as described in the Methods section.
 
 ## Code availability
 
