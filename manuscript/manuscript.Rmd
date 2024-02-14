@@ -20,7 +20,7 @@ Anusuiya Bora<sup>1,2</sup>,
 Séverine Lamon<sup>3</sup>,
 Mary Sravya Kasu<sup>1</sup>,
 Mitch W. Norris<sup>1</sup>,
-Yen Ting Wong<sup>4</sup>,
+Yen Ting Wong<sup>4,5</sup>,
 Jeffrey M. Craig<sup>4,5</sup>
 </strong>
 
@@ -43,6 +43,8 @@ Jeffrey M. Craig<sup>4,5</sup>
 | Anusuiya Bora | 0009-0006-2908-1352 |
 | Severine Lamon | 0000-0002-3271-6551 |
 | Mary Sravya Kasu | 0000-0002-7891-836X |
+| Yen Ting Wong | 0000-0003-3120-096 |
+| Jeffrey M Craig | 0000-0003-3979-7849 |
 
 Source: https://github.com/markziemann/gmea
 
@@ -91,10 +93,10 @@ A third type of enrichment analysis called pathway topology improves upon other 
 modelling of gene network activations, but these are yet to be adopted widely [@Xie2021-py].
 In ORA, genes with probes that meet an arbitrary significance threshold are selected and compared
 to a background list of all genes measured in the assay.
-The test seeks to identify sets of genes (e.g.: ontologies, pathways) that are over-represented in the
+The test seeks to identify sets of genes (e.g., ontologies, pathways) that are over-represented in the
 gene list of interest relative to the background [@Tavazoie1999-ng].
 FCS takes a different approach by ranking all detected genes by a differential
-regulation score (e.g.: fold change, confident effect size, t-statistic) followed by a test to assess whether each
+regulation score (e.g., fold change, confident effect size, t-statistic) followed by a test to assess whether each
 set of genes has a distribution of scores that is different to the null [@Subramanian2005-ar].
 The `gsameth()` function of the `missMethyl` package is the state-of-the-art method for ORA of infinium methylation array
 data as it addresses issues related to probes belonging to more than one gene and the fact that one gene can have multiple
@@ -115,7 +117,7 @@ direction of methylation change, it limits the utility for downstream interpreta
 changes on genomic regulation.
 Moreover, as pathways tend to be either upregulated or downregulated in omics assays, combining the two tends to dilute
 their signal and reduce sensitivity [@Hong2014-ab].
-Neither GSAmeth nor methylGSA report computed enrichment scores, which hinders downstream interpretation, as the
+Neither gsameth nor methylGSA report computed enrichment scores, which hinders downstream interpretation, as the
 enrichment score is a useful surrogate for effect size.
 Without an enrichment score, users are limited to using statistical significance values to prioritise results, which
 biases towards large gene sets that have non-specific biological functions.
@@ -181,7 +183,7 @@ Similar to ALT, however it uses the Wilcoxon non-parametric test for gene set en
 Similar to ALW, however uses the Mitch package to execute a two-way, two-sample ANOVA-on-ranks test.
 
 The above were compared to a standard ORA-based approach (GSA), which involves limma on probes, selection of
-statistically significant probes (FDR<0.05) for ORA with the `GSAmeth()` function of missMethyl which conducts a
+statistically significant probes (FDR<0.05) for ORA with the `gsameth()` function of missMethyl which conducts a
 modified hypergeometric test that accounts for multiple probe biases.
 In the case that fewer than 250 significant probes were identified, the 250 probes with the smallest p-values
 were selected.
@@ -208,7 +210,7 @@ For those selected genes, half of the annotated probes were selected.
 We adjusted the M-values in the case group by a specified amount, which we call the "delta", which we varied
 between 0.1 and 0.5.
 Following the incorporation of methylation changes to selected probes in the case group, the data underwent
-limma differential methylation analysis, followed by enrichment analysis using `GSAmeth`, or one of
+limma differential methylation analysis, followed by enrichment analysis using `gsameth`, or one of
 the eight FCS methods outlined above.
 Enrichment results were then filtered for FDR<0.05 and correct direction of methylation change.
 Differentially methylated gene sets observed were compared to gene sets selected to be the ground truth, so that
@@ -222,7 +224,7 @@ Mean TP, FP and FN values were determined, and then precision, recall and F1 sco
 
 The full GSE158422 dataset including normal and cancer samples of all 37 patients underwent differential analysis with limma
 correcting for patient-of-origin effects.
-Downstream pathway enrichment analysis was conducted using the GSAmeth and LAM methods
+Downstream pathway enrichment analysis was conducted using the GSA and LAM methods
 with Reactome pathways downloaded from MSigDB website (version 2023.1)[@Milacic2024-js].
 LAM relies on probe-gene associations from the "UCSC_RefGene_Name" column of the "IlluminaHumanMethylationEPICanno.ilm10b4.hg19"
 annotation.
@@ -245,7 +247,7 @@ Then DESeq2[@Love2014-wt] was used to compare normal and cancerous tissue gene e
 The differential expression results underwent enrichment analysis using the mitch package [@Kaspi2020-yx] with default settings for
 DESeq2 data tables.
 CpG sites annotated as promoters were considered separately from those located at gene bodies in mitch analysis.
-For comparison, GSAmeth was used to separately examine pathways using separate analyses of promoter and gene body CpGs.
+For comparison, GSA was used to separately examine pathways using separate analyses of promoter and gene body CpGs.
 For this analysis, Reactome gene sets were used.
 Subsequently, to generate the pathway heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
 promoter and gene body methylation together, prioritising the results by s-distance, a surrogate measure of effect size.
@@ -307,7 +309,7 @@ This process was repeated 100 times with unique seeds.
 
 ## Evaluation of FCS methods for Infinium methylation array data
 
-Simulations were conducted using the eight FCS methods (LAT, LTT, LAW, LAM, LRM, ALT, ALW, ALM) and GSAmeth,
+Simulations were conducted using the eight FCS methods (LAT, LTT, LAW, LAM, LRM, ALT, ALW, ALM) and GSA,
 with group sizes of 3-12 and delta values between 0.1 and 0.5, and random gene sets with sizes 20, 50
 and 100.
 At each parameter setting, the simulations were repeated 100 times with a different seed value.
@@ -321,7 +323,7 @@ We noticed that the size of gene sets used in the simulations strongly influence
 gene set size (**Figure 1B-D**).
 The GSA method performed better than FCS methods with gene sets of 20 (**Figure 1B**), while at 50 genes per set GSA performance
 was on par with LAM (**Figure 1C**).
-At 100 genes per set however, LAM showed superior precision and recall compared to GSA (**Figure 1D**).
+At 100 genes per set, however, LAM showed superior precision and recall compared to GSA (**Figure 1D**).
 
 ![**Figure 1. Precision, recall and F1 for enrichment tests with simulated data.**
 (A) Overall results including 20, 50 and 100 genes per set.
@@ -366,7 +368,7 @@ as compared to GSA (**Figure 3D**).
 ![**Figure 3. Pathway enrichment analysis comparing normal and cancer samples using LAM and GSA methods.**
 (A) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from LAM and GSA results.
 (B) Sizes of significant gene sets found with LAM and GSA methods.
-(C) Significant LAM pathways with largest S distance, a proxy for effect size.
+(C) Significant LAM pathways with the largest S distance, an enrichment score generated by mitch and effect size proxy.
 (D) Top ranked significant GSA pathways ranked by fold enrichment.](img/fig3.svg)
 
 To compare the sensitivity of these methods with real data, sample sizes were randomly downsampled, analysed
@@ -400,7 +402,7 @@ Matching tumour-normal RNA-seq datasets were analysed and we conducted enrichmen
 DNA methylation.
 From 18,704 detected genes, there were 12,380 differentially expressed genes (FDR<0.05), with 7,415 and 4,965 up- and down-regulated
 in the tumour group respectively.
-At the pathway level there were 304 and 135 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
+At the pathway level, there were 304 and 135 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
 As the context of gene methylation is important in influencing gene expression, promoter and gene body methylation
 were considered separately.
 In promoters, GSA identified 15 and 7 pathways with higher and lower methylation respectively, while at gene bodies, there were were
@@ -416,7 +418,7 @@ Using LAM, 136/304 upregulated RNA expression pathways were associated with incr
 Likewise, 21 pathways with downregulated RNA expression were associated with increasing promoter methylation.
 Some of these pathways with large enrichment scores across the three contrasts are depicted in heatmap form (**Figure 5C**).
 There were a small number of pathways that exhibited an inverse relationship between promoter methylation and RNA expression such as
-"unwinding of DNA", "mucopolysaccharidoses","interaction with cumulus cells and the zona pellucida", "glucocorticoid biosynthesis" and
+"unwinding of DNA", "mucopolysaccharidoses", "interaction with cumulus cells and the zona pellucida", "glucocorticoid biosynthesis" and
 "olfactory signaling".
 These were, however, less common than pathways that showed a positive relationship between RNA expression and promoter methylation.
 These results demonstrate that LAM can illuminate the complicated relationship between DNA methylation and gene expression at the
@@ -426,7 +428,7 @@ pathway level in cancer.
 (A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A)
 and LAM (B) results.
 (C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch.
-Top 20 gene sets shown with largest s distance after FDR filtering at 0.05.](img/fig5.svg)
+Top 20 gene sets shown with the largest S distance after FDR filtering at 0.05.](img/fig5.svg)
 
 ## Exploration of methylation pathways in aging
 
@@ -444,8 +446,8 @@ Using the rank-MANOVA test of the mitch package, we identified 390 pathways with
 Visualised as a scatterplot, the overall pattern is concordant, although a cluster of points in the lower right of the chart
 indicates 268 pathways with higher methylation in the discovery sample and lower in methylation in the replication
 sample (**Figure 6B**).
-When prioritising the results by S distance, a surrogate measure of effect size, 29 of the top 30 pathways were concordant in their
-direction of regulation (**Figure 6C**).
+When prioritising results by S distance, the enrichment score reported by mitch and a surrogate measure of effect size,
+29 of the top 30 pathways were concordant in their direction of regulation (**Figure 6C**).
 Some of the observed methylation changes make sense with reports in the literature.
 For example, the complement pathway is associated with aging and in this analysis we observe a reduction in methylation of genes
 beloning to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
@@ -593,7 +595,7 @@ The differences in pathway results obtained with LAM and GSA from lung cancer da
 pathways identified, but also their relevance to the disease.
 Interestingly, the relationship between promoter methylation and gene expression was not always inverse as we had anticipated.
 Joint enrichment analysis showed some genes with increasing promoter methylation together with increasing RNA expression
-(eg: “Negative regulation of AP2 transcription factors”).
+(e.g., “Negative regulation of AP2 transcription factors”).
 Likewise, a few pathways showed decreases in methylation with decreases in RNA expression such as “Dectin family”, “TLR regulation”
 and “glycan biosynthesis termination”.
 These results are in line with previous reports of the widespread existence of both negative and positive relationships between DNA methylation and
