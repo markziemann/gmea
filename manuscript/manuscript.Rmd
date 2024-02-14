@@ -98,7 +98,7 @@ gene list of interest relative to the background [@Tavazoie1999-ng].
 FCS takes a different approach by ranking all detected genes by a differential
 regulation score (e.g., fold change, confident effect size, t-statistic) followed by a test to assess whether each
 set of genes has a distribution of scores that is different to the null [@Subramanian2005-ar].
-The `gsameth()` function of the `missMethyl` package is the state-of-the-art method for ORA of infinium methylation array
+The `gsameth()` function of the `missMethyl` package is the state-of-the-art method for ORA of Infinium methylation array
 data as it addresses issues related to probes belonging to more than one gene and the fact that one gene can have multiple
 probes [@Maksimovic2021-ur].
 As gsameth is an ORA method, results strongly depend on the significance threshold used [@Ren2019-mr], and also
@@ -124,10 +124,10 @@ biases towards large gene sets that have non-specific biological functions.
 
 Here we aim to develop and evaluate methods for two-tailed FCS of Infinium methylation array data that addresses these
 limitations.
-Since genes have a variable number of probes, there are many concevable ways that FCS could be applied
+Since genes have a variable number of probes, there are many conceivable ways that FCS could be applied
 to Infinium methylation array data.
 The first set of methods (type I) use differential probe methylation data from `limma` [@Ritchie2015-zn] as an input.
-The differential methylation of probes beloning to each gene are scored and these gene scores
+The differential methylation of probes belonging to each gene are scored and these gene scores
 undergo an enrichment test.
 The second set of methods (type II) first aggregate probe methylation values for each gene before differential
 methylation analysis with limma.
@@ -164,23 +164,23 @@ Similar to LAT, except instead of the two-sided t-test of gene set enrichment, a
 the Wilcoxon signed-rank test is used.
 
 4. Limma Average Mitch (LAM).
-Similar to LAW, however instead of the Wilcoxon test, the mitch package[@Kaspi2020-yx] is used to execute a two-way,
+Similar to LAW, however, instead of the Wilcoxon test, the mitch package[@Kaspi2020-yx] is used to execute a two-way,
 two-sample ANOVA-on-ranks test as described previously[@Cox2012-zu].
 
 5. Limma Rank Mitch (LRM).
-Probes are ranked by t-statistic. The mean rank values for probes beloning to each gene are computed and used
+Probes are ranked by t-statistic. The mean rank values for probes belonging to each gene are computed and used
 as input for a two-way, two-sample ANOVA-on-ranks test.
 
 6. Aggregate Limma t-test (ALT).
-In this method, all probe measurements beloning to each gene are averaged before conducting differential
-methylation andlysis with limma.
+In this method, all probe measurements belonging to each gene are averaged before conducting differential
+methylation analysis with limma.
 The limma t-statistics are then used downstream for enrichment analysis with the two-sample two-way t-test.
 
 7. Aggregate Limma Wilcox (ALW).
-Similar to ALT, however it uses the Wilcoxon non-parametric test for gene set enrichment.
+Similar to ALT, however, it uses the Wilcoxon non-parametric test for gene set enrichment.
 
 8. Aggregate Limma Mitch (ALM).
-Similar to ALW, however uses the Mitch package to execute a two-way, two-sample ANOVA-on-ranks test.
+Similar to ALW, however, uses the Mitch package to execute a two-way, two-sample ANOVA-on-ranks test.
 
 The above were compared to a standard ORA-based approach (GSA), which involves limma on probes, selection of
 statistically significant probes (FDR<0.05) for ORA with the `gsameth()` function of missMethyl which conducts a
@@ -217,7 +217,7 @@ Differentially methylated gene sets observed were compared to gene sets selected
 the number of true positives (TP), false positives (FP) and false negatives (FN) could be determined.
 At each setting for group size, delta and gene set size, 100 replications were conducted, each with a set seed
 to ensure reproducibility.
-Simulations were conducted on a SLURM cluster [@Yoo2003-mc].
+Simulations were conducted on a SLURM high performance computing cluster [@Yoo2003-mc].
 Mean TP, FP and FN values were determined, and then precision, recall and F1 scores were calculated.
 
 ## Sensitivity analysis
@@ -250,11 +250,11 @@ CpG sites annotated as promoters were considered separately from those located a
 For comparison, GSA was used to separately examine pathways using separate analyses of promoter and gene body CpGs.
 For this analysis, Reactome gene sets were used.
 Subsequently, to generate the pathway heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
-promoter and gene body methylation together, prioritising the results by s-distance, a surrogate measure of effect size.
+promoter and gene body methylation together, prioritising the results by S distance, a surrogate measure of effect size.
 
 ## Pathway-level differential methylation in aging
 
-In order to deminstrate the utility of the LAM method for large EWAS studies, we examined
+In order to demonstrate the utility of the LAM method for large EWAS studies, we examined
 EPIC methylation profile associations with age of two independent cohorts involving a total of 7036
 participants [@McCartney2020-ob].
 Limma summary statistics for chronological age including discovery and replication groups were read into R and enrichment analysis was conducted with the LAM method.
@@ -273,7 +273,7 @@ The Novakovic study in was published 2019, and used the EPIC methylation array a
 GSE131433[@Novakovic2019-jt].
 Various assisted reproductive technology conception groups are described in these studies, but we only examined
 fresh in vitro fertilisation (IVF) conceived infants compared to naturally conceived infants.
-Raw intensity files (IDAT format) were read into R with minfi [@Aryee2014-su], normalistion was conducted with the SWAN method
+Raw intensity files (IDAT format) were read into R with minfi [@Aryee2014-su], normalisation was conducted with the SWAN method
 [@Maksimovic2012-hy], and probe filtering was conducted to remove proves with a detection p-value > 0.01 in addition to probes
 located on X or Y chromosomes.
 M values were computed and underwent differential methylation analysis using limma [@Ritchie2015-zn].
@@ -291,7 +291,7 @@ HGNChelper.
 To examine whether LAM can identify differentially methylated pathways associated with disease prevalence and incidence,
 we downloaded blood based EWAS summary statistics from a recent publication [@Hillary2023-mu], made available via
 Zenodo (https://zenodo.org/records/8021411).
-The study used a logitudinal design, with sample collection baseline and diagnosis status established via electronic health
+The study used a longitudinal design, with sample collection baseline and diagnosis status established via electronic health
 record linkage up to 14 years after baseline.
 The study included 18,413 volunteers of European ancestry.
 We used summary statistics from the "full model", which corrected for relevant potential confounders.
@@ -405,7 +405,7 @@ in the tumour group respectively.
 At the pathway level, there were 304 and 135 up- and down-regulated Reactome pathways with altered gene expression (FDR<0.05).
 As the context of gene methylation is important in influencing gene expression, promoter and gene body methylation
 were considered separately.
-In promoters, GSA identified 15 and 7 pathways with higher and lower methylation respectively, while at gene bodies, there were were
+In promoters, GSA identified 15 and 7 pathways with higher and lower methylation respectively, while at gene bodies, there were
 18 and 75 pathways with higher and lower methylation respectively (FDR<0.05).
 Using LAM at promoters, there were 190 and 20 pathways identified with higher and lower methylation respectively.
 LAM at gene bodies identified 251 and 31 pathways with higher and lower methylation respectively (FDR<0.05).
@@ -449,8 +449,9 @@ sample (**Figure 6B**).
 When prioritising results by S distance, the enrichment score reported by mitch and a surrogate measure of effect size,
 29 of the top 30 pathways were concordant in their direction of regulation (**Figure 6C**).
 Some of the observed methylation changes make sense with reports in the literature.
-For example, the complement pathway is associated with aging and in this analysis we observe a reduction in methylation of genes
-beloning to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
+For example, the complement pathway is associated with aging [@Gaya_da_Costa2018-sy]
+and in this analysis we observe a reduction in methylation of genes
+belonging to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
 
 ![**Figure 6. Pathway level DNA methylation alterations with chronological age.**
 (A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
@@ -582,7 +583,7 @@ An interesting observation is that ORA performed better when gene sets are small
 Given that popular pathway databases like KEGG and Reactome pathways consist of both large (>100) and small (<20) gene sets,
 a hybrid FCS and ORA approach might increase sensitivity and recall.
 
-At 100 genes per set, LAM had superior sensitivity compared to GSA, which agrees with a prevous report of mitch's performance with
+At 100 genes per set, LAM had superior sensitivity compared to GSA, which agrees with a previous report of mitch's performance with
 simulated RNA-seq gene expression data[@Kaspi2020-yx].
 The improved sensitivity of the LAM method provides a new opportunity for researchers to reanalyse previously conducted EWASs with contemporary pathway databases to better understand
 subtle signatures, as we have demonstrated with the chronological age, assisted reproduction examples and 19 disease EWAS analyses.
@@ -613,12 +614,12 @@ We note that other packages for enrichment of Infinium array data do not by defa
 The analysis of the large-scale disease EWAS shows that LAM can be readily applied to identify differential pathway methylation associated with prevalent and incident disease.
 The authors of the study used GOmeth for their pathway analysis and from the 33 models examined, significant findings were obtained for only two, prevalent diabetes and heart disease.
 In contrast, LAM identified 2,469 pathway associations (74.8 per model).
-To demonstrate these are not the results of false positives, permutated profiles yielded on average 0.10 significant findings per model,
+To demonstrate these are not the results of false positives, permuted profiles yielded on average 0.10 significant findings per model,
 supporting the idea that LAM is identifying real pathway signatures.
 
 This work could be extended to include not just proximal CpG sites, but also enhancer-based probes and their target genes based on resources such as GeneHancer [@Fishilevich2017-xx].
 
-There is also potential to generate new libraries of differentially methylated probe and gene sets, to contribute to the pool of molecular signatures in public resources like MSigDB,
+There is also potential to generate new libraries of differentially methylated probes and gene sets, to contribute to the pool of molecular signatures in public resources like MSigDB,
 which will assist in understanding similarities between methylation profiles.
 
 ## Code availability
