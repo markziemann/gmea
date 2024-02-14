@@ -394,7 +394,7 @@ Middle panels show the number of significant pathways identified in the smaller 
 with the full group.
 Lower panels show the proportion of significant pathways identified that were inconsistent with the full
 group.
-Left panels correspond to LAM, and right panels to GSA methods.](img/fig4.svg)
+Left panels correspond to LAM, and right panels to GSA methods.](img/fig4.png)
 
 ## Integrating methylation and RNA expression pathways
 
@@ -429,7 +429,7 @@ pathway level in cancer.
 (A,B) Euler diagrams showing the overlap in statistically significant pathways (FDR<0.05) from gene expression and GSA results (A)
 and LAM (B) results.
 (C) Multi-dimensional enrichment analysis of promoter and gene body methylation with gene expression using mitch.
-Top 20 gene sets shown with the largest S distance after FDR filtering at 0.05.](img/fig5.svg)
+Top 20 gene sets shown with the largest S distance after FDR filtering at 0.05.](img/fig5.png)
 
 ## Exploration of methylation pathways in aging
 
@@ -461,7 +461,7 @@ Pathways with MANOVA FDR<0.05 are shown in red while others are shaded grey.
 (C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
 Red indicates increasing methylation and blue shows lower methylation.
 (D) An example of a pathway identified with this method, "creation of C4 and C2 activators" shows lower methylation of member genes
-in both discovery and replication studies.](img/fig6.svg)
+in both discovery and replication studies.](img/fig6.png)
 
 ## Exploration of methylation pathway differences in infants conceived with in vitro fertilisation
 
@@ -507,7 +507,7 @@ Pathways with MANOVA FDR<0.05 are shown in red while others are shaded grey.
 (C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
 Red indicates higher methylation and blue shows lower methylation.
 (D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of
-member genes in both Estill and Novakovic studies.](img/fig7.svg)
+member genes in both Estill and Novakovic studies.](img/fig7.png)
 
 ## Differential pathway methylation in 19 common disease states
 
@@ -533,7 +533,7 @@ Reduced methylation of the salty taste perception pathway was observed in patien
 (A) A bar plot showing the number of statistically significant pathways with higher and lower methylation identified in each prevalent condition (FDR<0.05).
 (B) A heatmap of S scores for selected pathways across 14 common prevalent disease states.
 Stars indicate that the pathway was identified as being among the top five differentially methylated pathways in each direction for each condition.
-](img/fig8.svg)
+](img/fig8.png)
 
 We also wanted to know whether the LAM method could identify signatures that appear before patients are diagnosed
 with a condition.
