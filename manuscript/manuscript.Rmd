@@ -18,8 +18,8 @@ Mark Ziemann<sup>1,2*</sup>,
 Mandhri Abeysooriya<sup>2,3</sup>,
 Anusuiya Bora<sup>1,2</sup>,
 Séverine Lamon<sup>3</sup>,
-Mary Sravya Kasu<sup>1</sup>,
-Mitchell W. Norris<sup>1</sup>,
+Mary Sravya Kasu<sup>2</sup>,
+Mitchell W. Norris<sup>2</sup>,
 Yen Ting Wong<sup>4,5</sup>,
 Jeffrey M. Craig<sup>4,5</sup>
 </strong>
