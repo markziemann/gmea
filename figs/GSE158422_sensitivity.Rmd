@@ -359,7 +359,7 @@ dev.off()
 This will run the LAM analysis at group sizes of 2, 3, 6, 10, 16, 22 and 30,
 50 times each, with pseudorandom seeds from 100 to 5000 jumping up by 100.
 
-```{r,al_down1,fig.height=10,eval=FALSE}
+```{r,al_down1,fig.height=10}
 
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 ssres <- lapply(SAMPLESIZES,function(n) {
@@ -631,7 +631,7 @@ dev.off()
 
 ## GSAmeth Downsample
 
-```{r,gsamethdownsample,fig.height=10,eval=FALSE}
+```{r,gsamethdownsample,fig.height=10}
 
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 
