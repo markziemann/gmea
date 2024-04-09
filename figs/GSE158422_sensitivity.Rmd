@@ -298,7 +298,6 @@ barplot(abs(top$s.dist),horiz=TRUE,las=1,names.arg=barnames, cex.names=0.8,
 grid()
 dev.off()
 
-
 par( mar = c(5.1, 4.1, 4.1, 2.1) )
 
 hist(lamsig$s.dist)
@@ -310,12 +309,57 @@ lamsigsets2 <- gsub(" FALSE"," DN",lamsigsets2)
 
 ```
 
+Do significant gene sets bias toward genes with more probes?
+
+```{r,lam_genelength}
+
+genes <- unique(gt$gene)
+probecount <- unlist(lapply(genes,function(gene) { length(which(gt$gene==gene)) } ) )
+names(probecount) <- genes
+head(probecount)
+
+sigsets <- rownames(lamsig)
+nonsigsets <- rownames(subset(lamres,p.adjustANOVA>0.05))
+
+sigmeancounts <- lapply(sigsets, function(set) {
+  genes <- gs_symbols[[which(names(gs_symbols) ==set)]]
+  counts <- probecount[which(names(probecount) %in% genes)]
+  return(mean(counts))
+} )
+
+names(sigmeancounts) <- sigsets
+sigmeancounts <- unlist(sigmeancounts)
+summary(sigmeancounts)
+
+nonsigmeancounts <- lapply(nonsigsets, function(set) {
+  genes <- gs_symbols[[which(names(gs_symbols) ==set)]]
+  counts <- probecount[which(names(probecount) %in% genes)]
+  return(mean(counts))
+} )
+
+names(nonsigmeancounts) <- nonsigsets
+nonsigmeancounts <- unlist(nonsigmeancounts)
+summary(nonsigmeancounts)
+
+mylist <- list("FDR>0.05"=nonsigmeancounts,"FDR<0.05"=sigmeancounts)
+
+boxplot(mylist,col="white",ylab="probes per gene",cex=0,main="LAM",ylim=c(0,100)) ; grid()
+beeswarm(mylist,add=TRUE,pch=1,cex=0.5)
+
+par(mar = c(5.1, 4.1, 4.1, 2.1) )
+pdf("fig3e.pdf",height=6,width=7)
+boxplot(mylist,col="white",ylab="probes per gene",cex=0,main="LAM",ylim=c(0,100)) ; grid()
+beeswarm(mylist,add=TRUE,pch=1,cex=0.5)
+dev.off()
+
+```
+
 ## Downsample LAM test
 
 This will run the LAM analysis at group sizes of 2, 3, 6, 10, 16, 22 and 30,
 50 times each, with pseudorandom seeds from 100 to 5000 jumping up by 100.
 
-```{r,al_down1,fig.height=10}
+```{r,al_down1,fig.height=10,eval=FALSE}
 
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 ssres <- lapply(SAMPLESIZES,function(n) {
@@ -536,9 +580,58 @@ dev.off()
 
 ```
 
+Are gsameth significant pathways influenced by number of probes per gene?
+
+```{r,gsa_genelength}
+
+head(probecount)
+
+allsets <- sub(" UP$","",rownames(gsaup))
+
+gsaup_sets <- gsub(" UP$","",rownames(subset(gsaup,FDR<0.05)))
+gsadn_sets <- gsub(" DN$","",rownames(subset(gsadn,FDR<0.05)))
+sigsets <- unique(c(gsaup_sets,gsadn_sets))
+length(sigsets)
+
+nonsigsets <- setdiff(allsets,sigsets)
+
+sigmeancounts <- lapply(sigsets, function(set) {
+  genes <- gs_symbols[[which(names(gs_symbols) ==set)]]
+  counts <- probecount[which(names(probecount) %in% genes)]
+  return(mean(counts))
+} )
+
+names(sigmeancounts) <- sigsets
+sigmeancounts <- unlist(sigmeancounts)
+summary(sigmeancounts)
+
+nonsigmeancounts <- lapply(nonsigsets, function(set) {
+  genes <- gs_symbols[[which(names(gs_symbols) ==set)]]
+  counts <- probecount[which(names(probecount) %in% genes)]
+  return(mean(counts))
+} )
+
+names(nonsigmeancounts) <- nonsigsets
+nonsigmeancounts <- unlist(nonsigmeancounts)
+summary(nonsigmeancounts)
+
+mylist <- list("FDR>0.05"=nonsigmeancounts,"FDR<0.05"=sigmeancounts)
+
+boxplot(mylist,col="white",ylab="probes per gene",cex=0,main="GSA",ylim=c(0,100)) ; grid()
+beeswarm(mylist,add=TRUE,pch=1,cex=0.5)
+
+par(mar = c(5.1, 4.1, 4.1, 2.1) )
+pdf("fig3f.pdf",height=6,width=7)
+boxplot(mylist,col="white",ylab="probes per gene",cex=0,main="GSA",ylim=c(0,100)) ; grid()
+beeswarm(mylist,add=TRUE,pch=1,cex=0.5)
+dev.off()
+
+```
+
+
 ## GSAmeth Downsample
 
-```{r,gsamethdownsample,fig.height=10}
+```{r,gsamethdownsample,fig.height=10,eval=FALSE}
 
 SAMPLESIZES=c(2,3,6,10,16,22,30)
 
