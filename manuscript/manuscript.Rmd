@@ -258,7 +258,7 @@ CpG sites annotated as promoters (±1.5 kb around transcription start sites) wer
 For comparison, GSA was used to separately examine pathways using separate analyses of promoter and gene body CpGs.
 For this analysis, Reactome gene sets were used.
 Subsequently, to generate the pathway heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
-promoter and gene body methylation together, prioritising the results by S distance, a surrogate measure of effect size.
+promoter and gene body methylation together, prioritising the results by S distance, the enrichment score provided by mitch.
 
 ## Pathway-level differential methylation in aging
 
@@ -457,7 +457,7 @@ Using the rank-MANOVA test of the mitch package, we identified 390 pathways with
 Visualised as a scatterplot, the overall pattern is concordant, although a cluster of points in the lower right of the chart
 indicates 268 pathways with higher methylation in the discovery sample and lower methylation in the replication
 sample (**Figure 6B**).
-When prioritising results by S distance, the enrichment score reported by mitch and a surrogate measure of effect size,
+When prioritising results by enrichment score,
 29 of the top 30 pathways were concordant in their direction of regulation (**Figure 6C**).
 Some of the observed methylation changes make sense with reports in the literature.
 For example, the complement pathway is associated with aging [@Gaya_da_Costa2018-sy]
@@ -466,7 +466,7 @@ belonging to this set including *C1R*, *MBL2*, *C1S* and *C1QC* (**Figure 6D**).
 
 ![**Figure 6. Pathway-level DNA methylation alterations with chronological age.**
 (A) Contour heatmap showing the similarity in gene methylation score ranks in the discovery and replication studies.
-(B) Mitch pathway enrichment scores (S distances) in discovery and replication studies.
+(B) Mitch pathway enrichment scores in discovery and replication studies.
 Pathways with MANOVA FDR<0.05 are shown in red while others are shaded grey.
 (C) Heatmap of 30 pathways with largest absolute enrichment scores.
 Red indicates increasing methylation and blue shows lower methylation.
@@ -512,9 +512,9 @@ conducted with HM450K and EPIC arrays.
 
 ![**Figure 7. Pathway-level DNA methylation differences in natural and IVF conceived infants.**
 (A) Contour heatmap showing the similarity in gene methylation score ranks in the Estill (HM450K) and Novakovic (EPIC) studies.
-(B) Mitch pathway enrichment scores (S distances) in Estil and Novakovic studies.
+(B) Mitch pathway enrichment scores in Estil and Novakovic studies.
 Pathways with MANOVA FDR<0.05 are shown in red while others are shaded grey.
-(C) Heatmap of 30 pathways with most extreme S distances (a surrogate of effect size).
+(C) Heatmap of 30 pathways with largest absolute enrichment score.
 Red indicates higher methylation and blue shows lower methylation.
 (D) An example of a pathway identified with this joint enrichment analysis method, "Adrenoreceptors" shows lower methylation of
 member genes in both Estill and Novakovic studies.](img/fig7.png)
