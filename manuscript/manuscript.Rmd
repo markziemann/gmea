@@ -259,6 +259,7 @@ For comparison, GSA was used to separately examine pathways using separate analy
 For this analysis, Reactome gene sets were used.
 Subsequently, to generate the pathway heatmap, we used mitch in multivariate mode by analysing differential RNA expression,
 promoter and gene body methylation together, prioritising the results by S distance, the enrichment score provided by mitch.
+This score can be used as a surrogate measure of effect size, similar to how a fold change might be used as an effect size for individual genes.
 
 ## Pathway-level differential methylation in aging
 
