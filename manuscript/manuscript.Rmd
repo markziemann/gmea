@@ -541,7 +541,7 @@ Reduced methylation of the salty taste perception pathway was observed in patien
 
 ![**Figure 8. Differential pathway methylation associated with prevalence of 14 common disease states.**
 (A) A bar plot showing the number of statistically significant pathways with higher and lower methylation identified in each prevalent condition (FDR<0.05).
-(B) A heatmap of S scores for selected pathways across 14 common prevalent disease states.
+(B) A heatmap of enrichment scores for selected pathways across 14 common prevalent disease states.
 Stars indicate that the pathway was identified as being among the top five differentially methylated pathways in each direction for each condition.
 ](img/fig8.png)
 
@@ -561,7 +561,7 @@ Incident stroke was associated with higher methylation of the lipoxin synthesis 
 
 ![**Figure 9. Differential pathway methylation associated with incidence of 19 common disease states.**
 (A) A bar plot showing the number of statistically significant pathways with higher and lower methylation identified in each incident condition (FDR<0.05).
-(B) A heatmap of S scores for selected pathways across 19 common incident disease states.
+(B) A heatmap of enrichment scores for selected pathways across 19 common incident disease states.
 Stars indicate that the pathway was identified as being among the top three differentially methylated pathways in each direction for each condition.
 ](img/fig9.svg)
 
