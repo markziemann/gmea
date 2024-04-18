@@ -277,7 +277,7 @@ we examined methylation differences in infants associated with assisted reproduc
 independent studies.
 The Estill study was published in 2016 and is based on the HM450K array and the data is available from GEO accession number GSE79257
 [@Estill2016-jh].
-The Novakovic study in was published 2019, and used the EPIC methylation array and the data is available from GEO under accession
+The Novakovic study was published in 2019, and used the EPIC methylation array and the data is available from GEO under accession
 number GSE131433[@Novakovic2019-jt].
 Various assisted reproductive technology conception groups are described in these studies, but we only examined
 fresh in vitro fertilisation (IVF) conceived infants compared to naturally conceived infants.
