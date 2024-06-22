@@ -347,6 +347,55 @@ dev.off()
 
 ```
 
+Make a special heatmap for the cancer bioinformamtics symposium.
+
+
+```{r,cancerheat}
+
+names(r1) <- names(l2)
+
+r3 <- r1[grep("cancer",names(r1))]
+
+r4 <- lapply(r3,function(r) {
+  r <- subset(r,p.adjustANOVA<0.05)
+  ups <- head(r[order(-r$s.dist),],3)$set
+  dns <- head(r[order(r$s.dist),],3)$set
+  list("ups"=ups,"dns"=dns)
+} )
+
+r4
+
+gsets <- unique(unname(unlist(r4)))
+gsets
+
+top <- mtable2[which(mtable2$set %in% gsets),]
+top <- top[,c(1,4:22)]
+top <- top[,colnames(top) %in% c("set","s.breast_cancer","s.colorectal_can","s.lung_cancer","s.ovarian_cancer","s.prostate_cance")]
+
+rownames(top) <- top$set
+top$set=NULL
+head(top,3)
+
+rownames(top) <- gsub("REACTOME_","",rownames(top))
+rownames(top) <- gsub("_"," ",rownames(top))
+
+colnames(top) <- c("breast","colorectal","lung","ovarian","prostate")
+head(top)
+
+saveRDS(top,file="cancerheat.Rds")
+
+colfunc <- colorRampPalette(c("blue", "white", "red"))
+
+heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(10,25),
+  col=colfunc(25),cexRow=0.75,cexCol=1.2)
+
+pdf("cancerheat.pdf",height=7,width=7)
+heatmap.2(as.matrix(top),scale="none",trace="none",margins=c(10,25),
+  col=colfunc(25),cexRow=0.7,cexCol=1.2)
+dev.off()
+
+```
+
 ## Randomise data
 
 To demonstrate that mitch is robust to false positives, we can perform
