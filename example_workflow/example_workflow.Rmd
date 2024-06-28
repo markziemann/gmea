@@ -30,6 +30,7 @@ Important: ensure that the mitch version used is 1.15.1 or higher.
 suppressPackageStartupMessages({
   library("limma")
   library("eulerr")
+  library("AnnotationHub")
   library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
   library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
   library("HGNChelper")
@@ -103,10 +104,11 @@ gp2 <- lapply(gp2,unique)
 gt1 <- stack(gp2)
 colnames(gt1) <- c("gene","probe")
 gt1$probe <- as.character(gt1$probe)
+toc() #6.0s
+
 dim(gt1)
 str(gt1)
 length(unique(gt1$gene))
-toc() #6.0s
 
 tic()
 #new.hgnc.table <- getCurrentHumanMap()
@@ -211,21 +213,59 @@ gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
 gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
 names(gp2) <- rownames(gp)
 gp2 <- lapply(gp2,unique)
-gt <- stack(gp2)
-colnames(gt) <- c("gene","probe")
-gt$probe <- as.character(gt$probe)
-dim(gt)
-str(gt)
+gt2 <- stack(gp2)
+colnames(gt2) <- c("gene","probe")
+gt2$probe <- as.character(gt2$probe)
 toc() #9.0s
 
+dim(gt2)
+str(gt2)
+length(unique(gt2$gene))
+head(gt2)
+
 tic()
-#new.hgnc.table <- getCurrentHumanMap()
 new.hgnc.table <- readRDS("../figs/new.hgnc.table.rds")
-fix <- checkGeneSymbols(gt$gene,map=new.hgnc.table)
+fix <- checkGeneSymbols(gt2$gene,map=new.hgnc.table)
 fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
 length(unique(fix2$x))
-gt$gene <- fix$Suggested.Symbol
+gt2$gene <- fix$Suggested.Symbol
 toc()
+
+head(gt2)
+
+```
+
+## Make gene table for the new EPIC version 2 array
+
+For details, see the [Bioconductor package page](https://bioconductor.org/packages/EPICv2manifest/).
+
+```{r,gt3}
+
+tic()
+ah <- AnnotationHub()
+EPICv2manifest <- ah[["AH116484"]]
+myann <- data.frame(EPICv2manifest[,c("UCSC_RefGene_Name","UCSC_RefGene_Group","UCSC_CpG_Islands_Name","Relation_to_UCSC_CpG_Island","posrep_RepNum")])
+myann <- subset(myann,posrep_RepNum==1)
+gp <- myann[,"UCSC_RefGene_Name",drop=FALSE]
+gp2 <- strsplit(gp$UCSC_RefGene_Name,";")
+names(gp2) <- rownames(gp)
+gp2 <- lapply(gp2,unique)
+gt3 <- stack(gp2)
+colnames(gt3) <- c("gene","probe")
+gt3$probe <- as.character(gt3$probe)
+dim(gt3)
+str(gt3)
+toc()
+
+tic()
+new.hgnc.table <- readRDS("../figs/new.hgnc.table.rds")
+fix <- checkGeneSymbols(gt3$gene,map=new.hgnc.table)
+fix2 <- fix[which(fix$x != fix$Suggested.Symbol),]
+length(unique(fix2$x))
+gt3$gene <- fix$Suggested.Symbol
+toc()
+
+head(gt3)
 
 ```
 
