@@ -59,6 +59,7 @@ if(!dir.exists("hillary")){
 
 if(!file.exists("hillary/compressed-disease-states-ewas.tar.gz")){
   setwd("hillary")
+  options(timeout=180)
   download.file("https://zenodo.org/records/8021411/files/compressed-disease-states-ewas.tar.gz?download=1",destfile="compressed-disease-states-ewas.tar.gz")
   untar("compressed-disease-states-ewas.tar.gz")
   setwd("..")
